@@ -12,6 +12,8 @@ function createAppStore() {
       status: "idle",
       error: "",
       isCreatingItem: false,
+      isSavingItem: false,
+      editingItemId: null,
     },
   };
 
@@ -64,6 +66,8 @@ function createAppStore() {
           status: "idle",
           error: "",
           isCreatingItem: false,
+          isSavingItem: false,
+          editingItemId: null,
         },
       };
       emit();

@@ -6,6 +6,7 @@ import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
+import { APP_VERSION } from "../config/constants.js";
 
 const appRoot = document.querySelector("#app");
 
@@ -67,6 +68,9 @@ export function renderAppShell(content, options = {}) {
         }
       </header>
       ${content}
+      <footer class="app-footer">
+        <p class="app-version">${APP_VERSION}</p>
+      </footer>
     </main>
   `;
 

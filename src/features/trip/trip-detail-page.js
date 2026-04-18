@@ -1,9 +1,9 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
-import { createTripItem, fetchTripDetailBundle } from "../../services/trips-service.js";
+import { createTripItem, fetchTripDetailBundle, updateTripItem } from "../../services/trips-service.js";
 import { formatItemTypeLabel, formatLongDate, formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
 import { navigate } from "../../app/router.js";
-import { ITEM_TYPES } from "../../config/constants.js";
+import { ITEM_STATUSES, ITEM_TYPES } from "../../config/constants.js";
 import { sessionStore } from "../../state/session-store.js";
 import { showToast } from "../shared/toast.js";
 
@@ -19,6 +19,7 @@ export function renderTripDetailPage() {
   const bases = tripStore.getCurrentBases();
   const days = tripStore.getCurrentDays();
   const items = tripStore.getCurrentItems();
+  const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
 
   if (tripDetail.status === "loading") {
     return `
@@ -147,6 +148,13 @@ export function renderTripDetailPage() {
             `
         }
       </section>
+
+      ${renderItemEditorModal({
+        item: editingItem,
+        bases,
+        days,
+        isSaving: tripDetail.isSavingItem,
+      })}
     </section>
   `;
 }
@@ -213,6 +221,85 @@ export function wireTripDetailPage(tripId) {
       showToast(getTripItemErrorMessage(error), "error");
     }
   });
+
+  document.querySelectorAll("[data-edit-item]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const itemId = button.getAttribute("data-edit-item");
+
+      if (!itemId) {
+        return;
+      }
+
+      appStore.updateTripDetail({
+        editingItemId: itemId,
+      });
+      rerenderTripDetail();
+    });
+  });
+
+  document.querySelector("#close-item-editor")?.addEventListener("click", closeItemEditor);
+  document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
+  document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
+
+  document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const currentItemId = appStore.getState().tripDetail.editingItemId;
+    if (!currentItemId) {
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    let nextBaseId = String(formData.get("baseId") || "").trim();
+    let nextDayId = String(formData.get("dayId") || "").trim();
+    const currentDays = tripStore.getCurrentDays();
+    const selectedDay = currentDays.find((day) => day.id === nextDayId);
+
+    if (selectedDay) {
+      nextBaseId = selectedDay.base_id;
+    }
+
+    if (nextBaseId && nextDayId) {
+      const selectedDayMatchesBase = currentDays.some((day) => day.id === nextDayId && day.base_id === nextBaseId);
+
+      if (!selectedDayMatchesBase) {
+        nextDayId = "";
+      }
+    }
+
+    appStore.updateTripDetail({
+      isSavingItem: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      const updatedItem = await updateTripItem({
+        itemId: currentItemId,
+        title: String(formData.get("title") || "").trim(),
+        itemType: String(formData.get("itemType") || "").trim(),
+        status: String(formData.get("status") || "").trim(),
+        isAnchor: formData.get("isAnchor") === "on",
+        baseId: nextBaseId,
+        dayId: nextDayId,
+      });
+
+      tripStore.updateCurrentItem(updatedItem);
+      appStore.updateTripDetail({
+        isSavingItem: false,
+        editingItemId: null,
+      });
+      rerenderTripDetail();
+      showToast("Item updated.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isSavingItem: false,
+      });
+      rerenderTripDetail();
+      showToast(getTripItemErrorMessage(error), "error");
+    }
+  });
 }
 
 export async function loadTripDetail(tripId) {
@@ -228,6 +315,8 @@ export async function loadTripDetail(tripId) {
       status: "ready",
       error: "",
       isCreatingItem: false,
+      isSavingItem: false,
+      editingItemId: null,
     });
     rerenderTripDetail();
   } catch (error) {
@@ -258,7 +347,82 @@ function renderMasterListRow(item, days, bases) {
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
         </p>
       </div>
+      <button class="button button--secondary master-list-row__action" data-edit-item="${item.id}" type="button">Edit</button>
     </article>
+  `;
+}
+
+function renderItemEditorModal({ item, bases, days, isSaving }) {
+  if (!item) {
+    return `
+      <div class="modal-shell is-hidden" id="item-editor-modal" aria-hidden="true">
+        <div class="modal-backdrop" data-close-item-editor></div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="modal-shell" id="item-editor-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-item-editor></div>
+      <section class="panel modal-card">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Edit Item</p>
+            <h3>${item.title}</h3>
+          </div>
+          <button class="icon-button" id="close-item-editor" type="button" aria-label="Close item editor">×</button>
+        </div>
+
+        <form class="item-editor-form" id="item-editor-form">
+          <label class="field">
+            <span>Title</span>
+            <input name="title" type="text" maxlength="120" value="${escapeAttribute(item.title)}" required />
+          </label>
+
+          <div class="item-editor-form__grid">
+            <label class="field">
+              <span>Type</span>
+              <select name="itemType" required>
+                ${ITEM_TYPES.map((type) => `<option value="${type}" ${item.item_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <select name="status" required>
+                ${ITEM_STATUSES.map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${formatStatusLabel(status)}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+
+          <div class="item-editor-form__grid">
+            <label class="field">
+              <span>Base</span>
+              <select name="baseId">
+                <option value="">Unassigned</option>
+                ${bases.map((base) => `<option value="${base.id}" ${item.base_id === base.id ? "selected" : ""}>${base.name}</option>`).join("")}
+              </select>
+            </label>
+            <label class="field">
+              <span>Day</span>
+              <select name="dayId">
+                <option value="">Unassigned</option>
+                ${days.map((day) => `<option value="${day.id}" ${item.day_id === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+
+          <label class="checkbox-field">
+            <input name="isAnchor" type="checkbox" ${item.is_anchor ? "checked" : ""} />
+            <span>Anchor item</span>
+          </label>
+
+          <div class="modal-card__actions">
+            <button class="button button--secondary" id="cancel-item-editor" type="button">Cancel</button>
+            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
   `;
 }
 
@@ -270,4 +434,20 @@ function getTripItemErrorMessage(error) {
   }
 
   return parts.join(" ");
+}
+
+function closeItemEditor() {
+  appStore.updateTripDetail({
+    editingItemId: null,
+    isSavingItem: false,
+  });
+  rerenderTripDetail();
+}
+
+function escapeAttribute(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }

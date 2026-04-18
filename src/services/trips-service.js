@@ -287,3 +287,64 @@ export async function createTripItem({ tripId, createdBy, title, itemType, sortO
 
   return data;
 }
+
+export async function updateTripItem({
+  itemId,
+  title,
+  itemType,
+  status,
+  isAnchor,
+  baseId,
+  dayId,
+}) {
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("trip_items")
+    .update({
+      title,
+      item_type: itemType,
+      status,
+      is_anchor: isAnchor,
+      base_id: baseId || null,
+      day_id: dayId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", itemId)
+    .select(
+      `
+        id,
+        trip_id,
+        base_id,
+        day_id,
+        created_by,
+        title,
+        item_type,
+        status,
+        is_anchor,
+        meal_slot,
+        activity_type,
+        transport_mode,
+        transport_origin,
+        transport_destination,
+        time_start,
+        time_end,
+        time_is_estimated,
+        cost_low,
+        cost_high,
+        confirmation_ref,
+        url,
+        notes,
+        sort_order,
+        created_at,
+        updated_at
+      `
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}

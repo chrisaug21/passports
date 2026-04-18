@@ -4,6 +4,16 @@
   padding: 1.5rem 0 3rem;
 }
 
+.app-footer {
+  padding-top: 1.5rem;
+}
+
+.app-version {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
 .topbar {
   display: flex;
   align-items: center;
