@@ -8,9 +8,16 @@ import {
   wireDashboardPage,
 } from "../features/dashboard/dashboard-page.js";
 import { appStore } from "../state/app-store.js";
+import {
+  loadTripDetail,
+  renderTripDetailPage,
+  setTripDetailRenderer,
+  wireTripDetailPage,
+} from "../features/trip/trip-detail-page.js";
+import { tripStore } from "../state/trip-store.js";
 
 function normalizePath(pathname) {
-  if (pathname === "/login" || pathname === "/app") {
+  if (pathname === "/login" || pathname === "/app" || /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname)) {
     return pathname;
   }
 
@@ -55,21 +62,47 @@ export function renderRoute() {
     window.history.replaceState({}, "", "/app");
   }
 
-  renderAppShell(
-    renderDashboardPage(),
-    {
+  if (pathname === "/app") {
+    renderAppShell(renderDashboardPage(), {
       afterRender: () => {
         document.title = "Passports";
         wireDashboardPage();
       },
+    });
+
+    setDashboardRenderer(() => {
+      renderRoute();
+    });
+
+    if (appStore.getState().dashboard.status === "idle") {
+      loadDashboard();
     }
-  );
 
-  setDashboardRenderer(() => {
-    renderRoute();
-  });
-
-  if (window.location.pathname === "/app" && appStore.getState().dashboard.status === "idle") {
-    loadDashboard();
+    return;
   }
+
+  if (pathname.startsWith("/app/trip/")) {
+    const tripId = pathname.split("/").pop();
+
+    renderAppShell(renderTripDetailPage(), {
+      afterRender: () => {
+        document.title = "Passports | Trip";
+        wireTripDetailPage(tripId);
+      },
+    });
+
+    setTripDetailRenderer(() => {
+      renderRoute();
+    });
+
+    const currentTrip = tripStore.getCurrentTrip();
+    if (appStore.getState().tripDetail.status === "idle" || currentTrip?.id !== tripId) {
+      loadTripDetail(tripId);
+    }
+
+    return;
+  }
+
+  window.history.replaceState({}, "", "/app");
+  renderRoute();
 }

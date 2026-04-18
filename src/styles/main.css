@@ -4,3 +4,4 @@
 @import "./components.css";
 @import "./features/auth.css";
 @import "./features/dashboard.css";
+@import "./features/trip-detail.css";

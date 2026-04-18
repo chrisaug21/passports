@@ -6,7 +6,7 @@ export function renderTripCard(trip) {
     : "";
 
   return `
-    <article class="trip-card">
+    <article class="trip-card" data-trip-card data-trip-id="${trip.id}" role="button" tabindex="0" aria-label="Open ${trip.title}">
       <div class="trip-card__media" ${coverStyle}>
         <span class="trip-card__status trip-card__status--${trip.status}">${formatStatusLabel(trip.status)}</span>
       </div>

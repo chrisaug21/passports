@@ -8,6 +8,10 @@ function createAppStore() {
       error: "",
       isCreatingTrip: false,
     },
+    tripDetail: {
+      status: "idle",
+      error: "",
+    },
   };
 
   const listeners = new Set();
@@ -38,6 +42,26 @@ function createAppStore() {
           trips: [],
           error: "",
           isCreatingTrip: false,
+        },
+      };
+      emit();
+    },
+    updateTripDetail(patch) {
+      state = {
+        ...state,
+        tripDetail: {
+          ...state.tripDetail,
+          ...patch,
+        },
+      };
+      emit();
+    },
+    resetTripDetail() {
+      state = {
+        ...state,
+        tripDetail: {
+          status: "idle",
+          error: "",
         },
       };
       emit();

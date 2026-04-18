@@ -54,36 +54,6 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
     is_public: false,
   };
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  console.log("session at insert time:", session);
-  console.log("access token:", session?.access_token);
-  console.log("createTripWithDefaults ownerId", ownerId);
-  console.log("createTripWithDefaults tripInsertPayload", JSON.stringify(tripInsertPayload, null, 2));
-  console.log(
-    "createTripWithDefaults sessionSummary",
-    JSON.stringify(
-      {
-        sessionError: sessionError
-          ? {
-              message: sessionError.message,
-              status: sessionError.status,
-              code: sessionError.code,
-            }
-          : null,
-        hasSession: Boolean(session),
-        sessionUserId: session?.user?.id ?? null,
-        tokenSubject: session?.access_token ? parseJwtSub(session.access_token) : null,
-        hasAccessToken: Boolean(session?.access_token),
-      },
-      null,
-      2
-    )
-  );
-
   const { data: tripData, error: tripError } = await supabase
     .from("trips")
     .insert(tripInsertPayload)
@@ -106,8 +76,6 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
     .single();
 
   if (tripError) {
-    console.log("createTripWithDefaults tripInsertError", tripError);
-    console.log("createTripWithDefaults tripInsertErrorJson", JSON.stringify(tripError, null, 2));
     throw tripError;
   }
 
@@ -165,20 +133,99 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
   }
 }
 
-function parseJwtSub(token) {
-  try {
-    const [, payload] = token.split(".");
+export async function fetchTripDetailBundle(tripId) {
+  const supabase = getSupabase();
 
-    if (!payload) {
-      return null;
-    }
+  const [tripResult, basesResult, daysResult, itemsResult] = await Promise.all([
+    supabase
+      .from("trips")
+      .select(
+        `
+          id,
+          owner_id,
+          title,
+          description,
+          trip_length,
+          start_date,
+          status,
+          is_public,
+          cover_photo_url,
+          created_at,
+          updated_at,
+          deleted_at
+        `
+      )
+      .eq("id", tripId)
+      .is("deleted_at", null)
+      .single(),
+    supabase
+      .from("trip_bases")
+      .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("trip_days")
+      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .order("day_number", { ascending: true }),
+    supabase
+      .from("trip_items")
+      .select(
+        `
+          id,
+          trip_id,
+          base_id,
+          day_id,
+          created_by,
+          title,
+          item_type,
+          status,
+          is_anchor,
+          meal_slot,
+          activity_type,
+          transport_mode,
+          transport_origin,
+          transport_destination,
+          time_start,
+          time_end,
+          time_is_estimated,
+          cost_low,
+          cost_high,
+          confirmation_ref,
+          url,
+          notes,
+          sort_order,
+          created_at,
+          updated_at
+        `
+      )
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true }),
+  ]);
 
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const decoded = JSON.parse(atob(padded));
-
-    return decoded.sub ?? null;
-  } catch (_error) {
-    return null;
+  if (tripResult.error) {
+    throw tripResult.error;
   }
+
+  if (basesResult.error) {
+    throw basesResult.error;
+  }
+
+  if (daysResult.error) {
+    throw daysResult.error;
+  }
+
+  if (itemsResult.error) {
+    throw itemsResult.error;
+  }
+
+  return {
+    trip: tripResult.data,
+    bases: basesResult.data || [],
+    days: daysResult.data || [],
+    items: itemsResult.data || [],
+  };
 }

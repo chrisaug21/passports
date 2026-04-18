@@ -37,6 +37,7 @@
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.84);
   box-shadow: var(--shadow-soft);
+  cursor: pointer;
 }
 
 .trip-card__media {
@@ -71,6 +72,11 @@
   padding: 1.1rem 1.1rem 1.25rem;
   display: grid;
   gap: 0.65rem;
+}
+
+.trip-card:focus-visible {
+  outline: 2px solid rgba(43, 91, 224, 0.22);
+  outline-offset: 4px;
 }
 
 .trip-card__body h3 {

@@ -22,7 +22,9 @@ export async function bootstrapApp() {
     onAuthStateChange((nextSession) => {
       sessionStore.setSession(nextSession);
       tripStore.setTrips([]);
+      tripStore.resetCurrentTrip();
       appStore.resetDashboard();
+      appStore.resetTripDetail();
       renderRoute();
     });
 

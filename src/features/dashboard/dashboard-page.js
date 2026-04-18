@@ -5,6 +5,7 @@ import { sessionStore } from "../../state/session-store.js";
 import { renderTripCard } from "./trip-card.js";
 import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.js";
 import { showToast } from "../shared/toast.js";
+import { navigate } from "../../app/router.js";
 
 let rerenderDashboard = () => {};
 
@@ -83,6 +84,23 @@ export function wireDashboardPage() {
   document.querySelector("#empty-create-trip-button")?.addEventListener("click", openCreateTripModal);
   document.querySelector("#retry-dashboard-load")?.addEventListener("click", () => {
     loadDashboard();
+  });
+  document.querySelectorAll("[data-trip-card]").forEach((card) => {
+    const tripId = card.getAttribute("data-trip-id");
+
+    const openTrip = () => {
+      if (tripId) {
+        navigate(`/app/trip/${tripId}`);
+      }
+    };
+
+    card.addEventListener("click", openTrip);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openTrip();
+      }
+    });
   });
 
   wireCreateTripModal({

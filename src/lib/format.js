@@ -18,3 +18,19 @@ export function formatTripDateSummary(trip) {
 export function formatStatusLabel(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
+
+export function formatItemTypeLabel(value) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function formatLongDate(value) {
+  if (!value) {
+    return "Dates TBD";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T12:00:00`));
+}
