@@ -11,6 +11,7 @@ function createAppStore() {
     tripDetail: {
       status: "idle",
       error: "",
+      isCreatingItem: false,
     },
   };
 
@@ -62,6 +63,7 @@ function createAppStore() {
         tripDetail: {
           status: "idle",
           error: "",
+          isCreatingItem: false,
         },
       };
       emit();

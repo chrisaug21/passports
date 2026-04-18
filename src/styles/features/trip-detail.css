@@ -115,6 +115,21 @@
   gap: 1rem;
 }
 
+.master-list-quick-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(180px, 0.8fr) auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.master-list-quick-add__field {
+  min-width: 0;
+}
+
+.master-list-quick-add__submit {
+  white-space: nowrap;
+}
+
 .master-list-panel__header {
   display: flex;
   justify-content: space-between;
@@ -167,5 +182,9 @@
   .master-list-panel__header {
     flex-direction: column;
     align-items: start;
+  }
+
+  .master-list-quick-add {
+    grid-template-columns: 1fr;
   }
 }

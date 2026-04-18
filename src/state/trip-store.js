@@ -35,6 +35,9 @@ function createTripStore() {
       currentDays = bundle.days;
       currentItems = bundle.items;
     },
+    appendCurrentItem(item) {
+      currentItems = [...currentItems, item];
+    },
     resetCurrentTrip() {
       currentTrip = null;
       currentBases = [];

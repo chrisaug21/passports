@@ -229,3 +229,61 @@ export async function fetchTripDetailBundle(tripId) {
     items: itemsResult.data || [],
   };
 }
+
+export async function createTripItem({ tripId, createdBy, title, itemType, sortOrder }) {
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("trip_items")
+    .insert({
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      base_id: null,
+      day_id: null,
+      created_by: createdBy,
+      title,
+      item_type: itemType,
+      status: "idea",
+      is_anchor: false,
+      sort_order: sortOrder,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(
+      `
+        id,
+        trip_id,
+        base_id,
+        day_id,
+        created_by,
+        title,
+        item_type,
+        status,
+        is_anchor,
+        meal_slot,
+        activity_type,
+        transport_mode,
+        transport_origin,
+        transport_destination,
+        time_start,
+        time_end,
+        time_is_estimated,
+        cost_low,
+        cost_high,
+        confirmation_ref,
+        url,
+        notes,
+        sort_order,
+        created_at,
+        updated_at
+      `
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}

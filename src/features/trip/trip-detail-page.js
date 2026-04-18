@@ -1,8 +1,11 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
-import { fetchTripDetailBundle } from "../../services/trips-service.js";
+import { createTripItem, fetchTripDetailBundle } from "../../services/trips-service.js";
 import { formatItemTypeLabel, formatLongDate, formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
 import { navigate } from "../../app/router.js";
+import { ITEM_TYPES } from "../../config/constants.js";
+import { sessionStore } from "../../state/session-store.js";
+import { showToast } from "../shared/toast.js";
 
 let rerenderTripDetail = () => {};
 
@@ -104,8 +107,30 @@ export function renderTripDetailPage() {
             <p class="eyebrow">All Items</p>
             <h3>Master List</h3>
           </div>
-          <p class="muted">Read-only for this checkpoint. Add and edit flows come next.</p>
+          <p class="muted">Quick-add is live in this checkpoint. Edit and assignment flows come next.</p>
         </div>
+
+        <form class="master-list-quick-add" id="master-list-quick-add-form">
+          <label class="field master-list-quick-add__field master-list-quick-add__field--title">
+            <span>Title</span>
+            <input
+              name="title"
+              type="text"
+              maxlength="120"
+              placeholder="Add a restaurant, museum, hotel, or transport idea"
+              required
+            />
+          </label>
+          <label class="field master-list-quick-add__field">
+            <span>Type</span>
+            <select name="itemType" required>
+              ${ITEM_TYPES.map((type) => `<option value="${type}">${formatItemTypeLabel(type)}</option>`).join("")}
+            </select>
+          </label>
+          <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
+            ${tripDetail.isCreatingItem ? "Saving…" : "Add Item"}
+          </button>
+        </form>
 
         ${
           items.length === 0
@@ -134,6 +159,60 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#retry-trip-load")?.addEventListener("click", () => {
     loadTripDetail(tripId);
   });
+
+  document.querySelector("#master-list-quick-add-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const trip = tripStore.getCurrentTrip();
+    const items = tripStore.getCurrentItems();
+    const { session } = sessionStore.getState();
+
+    if (!trip?.id || !session?.user?.id) {
+      showToast("Your session expired. Sign in again.", "error");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const title = String(formData.get("title") || "").trim();
+    const itemType = String(formData.get("itemType") || "").trim();
+
+    if (!title || !itemType) {
+      showToast("Add a title and item type first.", "error");
+      return;
+    }
+
+    const nextSortOrder = items.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1;
+
+    appStore.updateTripDetail({
+      isCreatingItem: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      const newItem = await createTripItem({
+        tripId: trip.id,
+        createdBy: session.user.id,
+        title,
+        itemType,
+        sortOrder: nextSortOrder,
+      });
+
+      tripStore.appendCurrentItem(newItem);
+      appStore.updateTripDetail({
+        isCreatingItem: false,
+      });
+      rerenderTripDetail();
+      showToast("Item added.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isCreatingItem: false,
+      });
+      rerenderTripDetail();
+      showToast(getTripItemErrorMessage(error), "error");
+    }
+  });
 }
 
 export async function loadTripDetail(tripId) {
@@ -148,6 +227,7 @@ export async function loadTripDetail(tripId) {
     appStore.updateTripDetail({
       status: "ready",
       error: "",
+      isCreatingItem: false,
     });
     rerenderTripDetail();
   } catch (error) {
@@ -180,4 +260,14 @@ function renderMasterListRow(item, days, bases) {
       </div>
     </article>
   `;
+}
+
+function getTripItemErrorMessage(error) {
+  const parts = [error?.message, error?.details, error?.hint].filter(Boolean);
+
+  if (parts.length === 0) {
+    return "Could not add that item right now.";
+  }
+
+  return parts.join(" ");
 }
