@@ -4,6 +4,8 @@ import { initializeSupabase } from "../lib/supabase.js";
 import { renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
+import { appStore } from "../state/app-store.js";
+import { tripStore } from "../state/trip-store.js";
 
 const appRoot = document.querySelector("#app");
 
@@ -19,6 +21,8 @@ export async function bootstrapApp() {
 
     onAuthStateChange((nextSession) => {
       sessionStore.setSession(nextSession);
+      tripStore.setTrips([]);
+      appStore.resetDashboard();
       renderRoute();
     });
 

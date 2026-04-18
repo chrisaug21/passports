@@ -1,6 +1,13 @@
 import { renderAppShell } from "./bootstrap.js";
 import { renderLoginPage, wireLoginPage } from "../features/auth/login-page.js";
 import { sessionStore } from "../state/session-store.js";
+import {
+  loadDashboard,
+  renderDashboardPage,
+  setDashboardRenderer,
+  wireDashboardPage,
+} from "../features/dashboard/dashboard-page.js";
+import { appStore } from "../state/app-store.js";
 
 function normalizePath(pathname) {
   if (pathname === "/login" || pathname === "/app") {
@@ -49,17 +56,20 @@ export function renderRoute() {
   }
 
   renderAppShell(
-    `
-      <section class="panel hero-panel">
-        <p class="eyebrow">Checkpoint 1</p>
-        <h2>Your account is ready.</h2>
-        <p class="muted">Supabase auth is connected. The next checkpoint will replace this screen with the first dashboard view.</p>
-      </section>
-    `,
+    renderDashboardPage(),
     {
       afterRender: () => {
         document.title = "Passports";
+        wireDashboardPage();
       },
     }
   );
+
+  setDashboardRenderer(() => {
+    renderRoute();
+  });
+
+  if (window.location.pathname === "/app" && appStore.getState().dashboard.status === "idle") {
+    loadDashboard();
+  }
 }
