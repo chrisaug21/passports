@@ -1,0 +1,41 @@
+.auth-panel {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+}
+
+.auth-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0.35rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+}
+
+.auth-toggle__button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.7rem 0.85rem;
+  font-weight: 700;
+}
+
+.auth-toggle__button.is-active {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-form.is-hidden {
+  display: none;
+}
+
+.auth-form__submit {
+  margin-top: 0.5rem;
+}

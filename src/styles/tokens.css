@@ -1,0 +1,28 @@
+:root {
+  --color-bg: #f4f7fa;
+  --color-surface: rgba(255, 255, 255, 0.8);
+  --color-surface-strong: #ffffff;
+  --color-surface-muted: #eef2f7;
+  --color-text: #1a2332;
+  --color-text-muted: #5f6b7c;
+  --color-border: rgba(26, 35, 50, 0.1);
+  --color-action: #0ea87a;
+  --color-action-strong: #0a8e67;
+  --color-structure: #2b5be0;
+  --color-danger: #c05353;
+  --color-toast-bg: rgba(26, 35, 50, 0.92);
+  --shadow-panel: 0 20px 50px rgba(27, 43, 66, 0.1);
+  --shadow-soft: 0 10px 30px rgba(27, 43, 66, 0.08);
+  --radius-panel: 28px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Nunito", "Segoe UI", sans-serif;
+}
