@@ -59,6 +59,8 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
     error: sessionError,
   } = await supabase.auth.getSession();
 
+  console.log("session at insert time:", session);
+  console.log("access token:", session?.access_token);
   console.log("createTripWithDefaults ownerId", ownerId);
   console.log("createTripWithDefaults tripInsertPayload", JSON.stringify(tripInsertPayload, null, 2));
   console.log(
