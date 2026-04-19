@@ -284,6 +284,7 @@ export function renderTripDetailPage() {
 }
 
 export function wireTripDetailPage(tripId) {
+  wireItemActionsMenus();
   document.querySelector("#trip-back-to-dashboard")?.addEventListener("click", () => {
     navigate("/app");
   });
@@ -1993,6 +1994,44 @@ function renderItemActionsMenu(item) {
       </div>
     </details>
   `;
+}
+
+function wireItemActionsMenus() {
+  const menus = [...document.querySelectorAll(".item-actions-menu")];
+
+  if (menus.length === 0) {
+    return;
+  }
+
+  const closeMenus = (exceptionMenu = null) => {
+    menus.forEach((menu) => {
+      if (menu !== exceptionMenu) {
+        menu.open = false;
+      }
+    });
+  };
+
+  menus.forEach((menu) => {
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        closeMenus(menu);
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    const menu = event.target instanceof Element ? event.target.closest(".item-actions-menu") : null;
+
+    if (!menu) {
+      closeMenus();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenus();
+    }
+  });
 }
 
 function renderTripLifecycleSection(trip) {
