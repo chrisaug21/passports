@@ -21,6 +21,7 @@ import { sessionStore } from "../../state/session-store.js";
 import { showToast } from "../shared/toast.js";
 
 let rerenderTripDetail = () => {};
+let itemEditorInitialSnapshot = "";
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -249,7 +250,6 @@ export function wireTripDetailPage(tripId) {
 
       appStore.updateTripDetail({
         editingItemId: itemId,
-        itemEditorDirty: false,
       });
       rerenderTripDetail();
     });
@@ -260,9 +260,7 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
   syncItemEditorTypeFields();
-
-  document.querySelector("#item-editor-form")?.addEventListener("input", markItemEditorDirty);
-  document.querySelector("#item-editor-form")?.addEventListener("change", markItemEditorDirty);
+  captureItemEditorInitialSnapshot();
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -323,8 +321,8 @@ export function wireTripDetailPage(tripId) {
       appStore.updateTripDetail({
         isSavingItem: false,
         editingItemId: null,
-        itemEditorDirty: false,
       });
+      itemEditorInitialSnapshot = "";
       rerenderTripDetail();
       showToast("Item updated.", "success");
     } catch (error) {
@@ -353,8 +351,8 @@ export async function loadTripDetail(tripId) {
       isCreatingItem: false,
       isSavingItem: false,
       editingItemId: null,
-      itemEditorDirty: false,
     });
+    itemEditorInitialSnapshot = "";
     rerenderTripDetail();
   } catch (error) {
     console.error(error);
@@ -539,8 +537,8 @@ function closeItemEditor() {
   appStore.updateTripDetail({
     editingItemId: null,
     isSavingItem: false,
-    itemEditorDirty: false,
   });
+  itemEditorInitialSnapshot = "";
   rerenderTripDetail();
 }
 
@@ -626,17 +624,57 @@ function confirmCloseItemEditor() {
     return true;
   }
 
-  if (!appStore.getState().tripDetail.itemEditorDirty) {
+  if (!hasUnsavedItemEditorChanges()) {
     return true;
   }
 
   return window.confirm("Discard your unsaved item changes?");
 }
 
-function markItemEditorDirty() {
-  if (!appStore.getState().tripDetail.itemEditorDirty) {
-    appStore.updateTripDetail({
-      itemEditorDirty: true,
-    });
+function captureItemEditorInitialSnapshot() {
+  const form = document.querySelector("#item-editor-form");
+
+  if (!form) {
+    itemEditorInitialSnapshot = "";
+    return;
   }
+
+  itemEditorInitialSnapshot = serializeItemEditorForm(form);
+}
+
+function hasUnsavedItemEditorChanges() {
+  const form = document.querySelector("#item-editor-form");
+
+  if (!form) {
+    return false;
+  }
+
+  return serializeItemEditorForm(form) !== itemEditorInitialSnapshot;
+}
+
+function serializeItemEditorForm(form) {
+  const formData = new FormData(form);
+
+  const snapshot = {
+    title: String(formData.get("title") || "").trim(),
+    itemType: String(formData.get("itemType") || "").trim(),
+    status: String(formData.get("status") || "").trim(),
+    baseId: String(formData.get("baseId") || "").trim(),
+    dayId: String(formData.get("dayId") || "").trim(),
+    isAnchor: formData.get("isAnchor") === "on",
+    timeStart: String(formData.get("timeStart") || "").trim(),
+    timeEnd: String(formData.get("timeEnd") || "").trim(),
+    timeIsEstimated: formData.get("timeIsEstimated") === "on",
+    mealSlot: String(formData.get("mealSlot") || "").trim(),
+    activityType: String(formData.get("activityType") || "").trim(),
+    transportMode: String(formData.get("transportMode") || "").trim(),
+    transportOrigin: String(formData.get("transportOrigin") || "").trim(),
+    transportDestination: String(formData.get("transportDestination") || "").trim(),
+    costLow: String(formData.get("costLow") || "").trim(),
+    costHigh: String(formData.get("costHigh") || "").trim(),
+    url: String(formData.get("url") || "").trim(),
+    notes: String(formData.get("notes") || "").trim(),
+  };
+
+  return JSON.stringify(snapshot);
 }
