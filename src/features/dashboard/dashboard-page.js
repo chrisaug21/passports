@@ -16,6 +16,8 @@ export function setDashboardRenderer(renderer) {
 export function renderDashboardPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
+  const activeTrips = trips.filter((trip) => trip.status !== "done");
+  const pastTrips = trips.filter((trip) => trip.status === "done");
 
   return `
     <section class="dashboard">
@@ -67,9 +69,41 @@ export function renderDashboardPage() {
       ${
         dashboard.status === "ready" && trips.length > 0
           ? `
-            <section class="dashboard-grid">
-              ${trips.map((trip) => renderTripCard(trip)).join("")}
-            </section>
+            ${
+              activeTrips.length > 0
+                ? `
+                  <section class="dashboard-grid">
+                    ${activeTrips.map((trip) => renderTripCard(trip)).join("")}
+                  </section>
+                `
+                : `
+                  <section class="panel dashboard-state">
+                    <h3>No active trips right now</h3>
+                    <p class="muted">Your completed trips are waiting below in Past Trips.</p>
+                  </section>
+                `
+            }
+
+            ${
+              pastTrips.length > 0
+                ? `
+                  <details class="panel dashboard-past-trips">
+                    <summary class="dashboard-past-trips__summary">
+                      <div>
+                        <p class="eyebrow">Past Trips</p>
+                        <h3>Completed trips</h3>
+                      </div>
+                      <p class="muted">${pastTrips.length} trip${pastTrips.length === 1 ? "" : "s"}</p>
+                    </summary>
+                    <div class="dashboard-past-trips__content">
+                      <section class="dashboard-grid">
+                        ${pastTrips.map((trip) => renderTripCard(trip)).join("")}
+                      </section>
+                    </div>
+                  </details>
+                `
+                : ""
+            }
           `
           : ""
       }

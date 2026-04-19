@@ -87,6 +87,17 @@
   background: rgba(170, 64, 64, 0.98);
 }
 
+.button--danger-secondary {
+  background: rgba(192, 83, 83, 0.1);
+  color: rgba(170, 64, 64, 0.98);
+  border: 1px solid rgba(192, 83, 83, 0.22);
+}
+
+.button--danger-secondary:hover,
+.button--danger-secondary:focus-visible {
+  background: rgba(192, 83, 83, 0.16);
+}
+
 .field {
   display: grid;
   gap: 0.5rem;

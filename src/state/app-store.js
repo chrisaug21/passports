@@ -24,6 +24,14 @@ function createAppStore() {
       isShowingAddBaseForm: false,
       editingBaseId: null,
       isSavingBase: false,
+      showDeleteBaseConfirm: false,
+      isDeletingBase: false,
+      deletingBaseId: null,
+      showTripStatusConfirm: false,
+      pendingTripStatus: null,
+      isUpdatingTripStatus: false,
+      showDeleteTripConfirm: false,
+      isDeletingTrip: false,
     },
   };
 
@@ -88,6 +96,14 @@ function createAppStore() {
           isShowingAddBaseForm: false,
           editingBaseId: null,
           isSavingBase: false,
+          showDeleteBaseConfirm: false,
+          isDeletingBase: false,
+          deletingBaseId: null,
+          showTripStatusConfirm: false,
+          pendingTripStatus: null,
+          isUpdatingTripStatus: false,
+          showDeleteTripConfirm: false,
+          isDeletingTrip: false,
         },
       };
       emit();

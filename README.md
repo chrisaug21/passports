@@ -9,8 +9,9 @@ The current foundation includes:
 - master list quick add and editing
 - base management
 - days view
-- trip settings
-- item soft delete
+- trip settings and trip lifecycle controls
+- item and base soft delete
+- dashboard Past Trips section for completed trips
 
 ## Stack
 - Vanilla HTML, CSS, and JavaScript with ES modules
@@ -48,11 +49,15 @@ src/
 
 - Auth: sign up, sign in, sign out
 - Dashboard: list trips and create new trips
+- Dashboard: separates active trips from Past Trips and hides soft-deleted trips
 - Trip detail:
   - trip settings
   - base management
   - master list
   - item editing
+  - item soft delete
+  - base soft delete
+  - trip mark-as-done and delete
   - days view
 
 ## Key Data Rules
