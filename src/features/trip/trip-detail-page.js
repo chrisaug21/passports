@@ -98,8 +98,8 @@ export function renderTripDetailPage() {
       <section class="panel trip-header">
         <div class="trip-header__meta">
           <p class="eyebrow">Master List</p>
-          <h2 class="trip-header__title">${trip.title}</h2>
-          <p class="muted">${trip.description || "Trip details are starting here. Master List will be the main planning workspace."}</p>
+          <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
+          <p class="muted">${escapeHtml(trip.description || "Trip details are starting here. Master List will be the main planning workspace.")}</p>
         </div>
         <div class="trip-header__status-block">
           <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
@@ -112,7 +112,7 @@ export function renderTripDetailPage() {
         <article class="panel trip-stat">
           <p class="eyebrow">Bases</p>
           <h3>${bases.length}</h3>
-          <p class="muted">${bases.length === 1 ? bases[0]?.name || "Main Base" : "Cities or stays in this trip"}</p>
+          <p class="muted">${bases.length === 1 ? escapeHtml(bases[0]?.name || "Main Base") : "Cities or stays in this trip"}</p>
         </article>
         <article class="panel trip-stat">
           <p class="eyebrow">Days</p>
@@ -311,7 +311,7 @@ export function wireTripDetailPage(tripId) {
         isSavingTrip: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage(error), "error");
+      showToast(getTripItemErrorMessage("update"), "error");
     }
   });
   document.querySelector("#show-add-base-form")?.addEventListener("click", () => {
@@ -427,7 +427,7 @@ export function wireTripDetailPage(tripId) {
         isSavingBase: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage(error), "error");
+      showToast(getTripItemErrorMessage("create"), "error");
     }
   });
 
@@ -475,7 +475,7 @@ export function wireTripDetailPage(tripId) {
           isSavingBase: false,
         });
         rerenderTripDetail();
-        showToast(getTripItemErrorMessage(error), "error");
+        showToast(getTripItemErrorMessage("update"), "error");
       }
     });
   });
@@ -524,7 +524,7 @@ export function wireTripDetailPage(tripId) {
           isSavingBase: false,
         });
         rerenderTripDetail();
-        showToast(getTripItemErrorMessage(error), "error");
+        showToast(getTripItemErrorMessage("update"), "error");
       }
     });
   });
@@ -579,7 +579,7 @@ export function wireTripDetailPage(tripId) {
         isCreatingItem: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage(error), "error");
+      showToast(getTripItemErrorMessage("create"), "error");
     }
   });
 
@@ -677,7 +677,7 @@ export function wireTripDetailPage(tripId) {
         isSavingItem: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage(error), "error");
+      showToast(getTripItemErrorMessage("update"), "error");
     }
   });
   document.querySelector("#delete-item-button")?.addEventListener("click", () => {
@@ -728,7 +728,7 @@ export function wireTripDetailPage(tripId) {
         isDeletingItem: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage(error), "error");
+      showToast(getTripItemErrorMessage("delete"), "error");
     }
   });
 }
@@ -778,32 +778,32 @@ function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
   const base = bases.find((entry) => entry.id === item.base_id);
   const detailParts = [
-    item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
-    item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
-    item.item_type === "transport" && item.transport_mode ? formatItemTypeLabel(item.transport_mode) : "",
+    item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
+    item.item_type === "activity" && item.activity_type ? escapeHtml(formatItemTypeLabel(item.activity_type)) : "",
+    item.item_type === "transport" && item.transport_mode ? escapeHtml(formatItemTypeLabel(item.transport_mode)) : "",
     item.item_type === "transport" && (item.transport_origin || item.transport_destination)
-      ? [item.transport_origin, item.transport_destination].filter(Boolean).join(" → ")
+      ? [item.transport_origin, item.transport_destination].filter(Boolean).map((value) => escapeHtml(value)).join(" → ")
       : "",
-    item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
-    item.time_end ? `to ${formatTimeLabel(item.time_end, false)}` : "",
-    formatCostLabel(item.cost_low, item.cost_high),
+    item.time_start ? escapeHtml(formatTimeLabel(item.time_start, item.time_is_estimated)) : "",
+    item.time_end ? escapeHtml(`to ${formatTimeLabel(item.time_end, false)}`) : "",
+    escapeHtml(formatCostLabel(item.cost_low, item.cost_high)),
   ].filter(Boolean);
 
   return `
     <article class="master-list-row">
       <div class="master-list-row__main">
         <div class="master-list-row__title-line">
-          <h4>${item.title}</h4>
+          <h4>${escapeHtml(item.title || "Untitled item")}</h4>
           ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
         </div>
         <p class="muted">
           ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
-          ${base ? ` · ${base.name}` : ""}
+          ${base ? ` · ${escapeHtml(base.name || "")}` : ""}
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
         </p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
-      <button class="button button--secondary master-list-row__action" data-edit-item="${item.id}" type="button">Edit</button>
+      <button class="button button--secondary master-list-row__action" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
     </article>
   `;
 }
@@ -814,7 +814,7 @@ function renderTripSettingsForm(trip, isSaving) {
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Title</span>
-          <input name="title" type="text" maxlength="120" value="${escapeAttribute(trip.title || "")}" required />
+          <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
         </label>
         <label class="field">
           <span>Trip Length</span>
@@ -829,7 +829,7 @@ function renderTripSettingsForm(trip, isSaving) {
       </div>
       <label class="field">
         <span>Description</span>
-        <textarea name="description" rows="3" placeholder="What kind of trip is this?">${escapeTextarea(trip.description || "")}</textarea>
+        <textarea name="description" rows="3" placeholder="What kind of trip is this?">${escapeHtml(trip.description || "")}</textarea>
       </label>
       <p class="muted">If you shorten the trip, items on removed days move back to the unassigned pool.</p>
       <div class="base-form__actions">
@@ -849,16 +849,16 @@ function renderBaseCard(base, days, tripDetail) {
     <article class="base-card">
       <div class="base-card__header">
         <div>
-          <h4>${base.name}</h4>
+          <h4>${escapeHtml(base.name || "Untitled base")}</h4>
           <p class="muted">
-            ${base.location_name || "No location name"}
-            · ${base.local_timezone}
+            ${escapeHtml(base.location_name || "No location name")}
+            · ${escapeHtml(base.local_timezone || DEFAULT_BASE_TIMEZONE)}
             ${dayRange ? ` · Days ${dayRange.start}-${dayRange.end}` : " · No assigned days"}
           </p>
         </div>
         <div class="base-card__actions">
-          <button class="button button--secondary" data-edit-base="${base.id}" type="button">Edit Base</button>
-          <button class="button button--secondary" data-assign-base="${base.id}" type="button">Assign Days</button>
+          <button class="button button--secondary" data-edit-base="${escapeHtml(base.id)}" type="button">Edit Base</button>
+          <button class="button button--secondary" data-assign-base="${escapeHtml(base.id)}" type="button">Assign Days</button>
         </div>
       </div>
       ${isEditing ? renderEditBaseForm(base, tripDetail.isSavingBase) : ""}
@@ -923,15 +923,15 @@ function renderAddBaseForm(trip, currentBaseCount, days) {
 
 function renderEditBaseForm(base, isSaving) {
   return `
-    <form class="base-form" data-edit-base-form="${base.id}">
+    <form class="base-form" data-edit-base-form="${escapeHtml(base.id)}">
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Name</span>
-          <input name="name" type="text" value="${escapeAttribute(base.name)}" required />
+          <input name="name" type="text" value="${escapeHtml(base.name)}" required />
         </label>
         <label class="field">
           <span>Location Name</span>
-          <input name="locationName" type="text" value="${escapeAttribute(base.location_name || "")}" />
+          <input name="locationName" type="text" value="${escapeHtml(base.location_name || "")}" />
         </label>
       </div>
       <div class="item-editor-form__grid">
@@ -960,7 +960,7 @@ function renderEditBaseForm(base, isSaving) {
 
 function renderAssignBaseForm(base, dayRange, isSaving) {
   return `
-    <form class="base-form" data-assign-base-form="${base.id}">
+    <form class="base-form" data-assign-base-form="${escapeHtml(base.id)}">
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Start Day</span>
@@ -1013,17 +1013,17 @@ function renderBaseDaysSection(base, days, items, baseCount) {
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
-            <h3>${base.name}</h3>
+            <h3>${escapeHtml(base.name || "Untitled base")}</h3>
           </div>
-          <p class="muted">${base.location_name || base.local_timezone}</p>
+          <p class="muted">${escapeHtml(base.location_name || base.local_timezone || DEFAULT_BASE_TIMEZONE)}</p>
         </div>
       ` : `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Days View</p>
-            <h3>${base.name}</h3>
+            <h3>${escapeHtml(base.name || "Untitled base")}</h3>
           </div>
-          <p class="muted">${base.location_name || base.local_timezone}</p>
+          <p class="muted">${escapeHtml(base.location_name || base.local_timezone || DEFAULT_BASE_TIMEZONE)}</p>
         </div>
       `}
       <div class="day-card-grid">
@@ -1043,9 +1043,9 @@ function renderDayCard(day, items) {
       <div class="day-card__header">
         <div>
           <p class="eyebrow">Day ${day.day_number}</p>
-          <h4>${day.title || `Day ${day.day_number}`}</h4>
+          <h4>${escapeHtml(day.title || `Day ${day.day_number}`)}</h4>
         </div>
-        ${day.location_name ? `<p class="muted">${day.location_name}</p>` : ""}
+        ${day.location_name ? `<p class="muted">${escapeHtml(day.location_name)}</p>` : ""}
       </div>
       ${
         dayItems.length === 0
@@ -1058,16 +1058,16 @@ function renderDayCard(day, items) {
 
 function renderDayItem(item) {
   const detailParts = [
-    item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
-    item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
-    item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
-    item.item_type === "transport" && item.transport_mode ? formatItemTypeLabel(item.transport_mode) : "",
+    item.time_start ? escapeHtml(formatTimeLabel(item.time_start, item.time_is_estimated)) : "",
+    item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
+    item.item_type === "activity" && item.activity_type ? escapeHtml(formatItemTypeLabel(item.activity_type)) : "",
+    item.item_type === "transport" && item.transport_mode ? escapeHtml(formatItemTypeLabel(item.transport_mode)) : "",
   ].filter(Boolean);
 
   return `
     <article class="day-item">
       <div class="day-item__title-line">
-        <h5>${item.title}</h5>
+        <h5>${escapeHtml(item.title || "Untitled item")}</h5>
         ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
       </div>
       <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
@@ -1094,7 +1094,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
         <div class="modal-card__header">
           <div>
             <p class="eyebrow">Edit Item</p>
-            <h3>${draft.title}</h3>
+            <h3>${escapeHtml(draft.title || "Untitled item")}</h3>
           </div>
           <button class="icon-button" id="close-item-editor" type="button" aria-label="Close item editor">×</button>
         </div>
@@ -1102,7 +1102,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
         <form class="item-editor-form" id="item-editor-form">
           <label class="field">
             <span>Title</span>
-            <input name="title" type="text" maxlength="120" value="${escapeAttribute(draft.title)}" required />
+            <input name="title" type="text" maxlength="120" value="${escapeHtml(draft.title)}" required />
           </label>
 
           <div class="item-editor-form__grid">
@@ -1125,7 +1125,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
               <span>Base</span>
               <select name="baseId">
                 <option value="">Unassigned</option>
-                ${bases.map((base) => `<option value="${base.id}" ${draft.baseId === base.id ? "selected" : ""}>${base.name}</option>`).join("")}
+                ${bases.map((base) => `<option value="${escapeHtml(base.id)}" ${draft.baseId === base.id ? "selected" : ""}>${escapeHtml(base.name || "Untitled base")}</option>`).join("")}
               </select>
             </label>
             <label class="field">
@@ -1134,12 +1134,12 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
                 <option value="">Unassigned</option>
                 ${days.map((day) => {
                   const dayBase = bases.find((base) => base.id === day.base_id);
-                  return `<option value="${day.id}" ${draft.dayId === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}${dayBase ? ` · ${dayBase.name}` : ""}</option>`;
+                  return `<option value="${escapeHtml(day.id)}" ${draft.dayId === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${escapeHtml(day.title)}` : ""}${dayBase ? ` · ${escapeHtml(dayBase.name || "Untitled base")}` : ""}</option>`;
                 }).join("")}
               </select>
             </label>
           </div>
-          <p class="field-hint ${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) ? "" : "is-hidden"}" id="item-editor-assignment-hint">${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) || ""}</p>
+          <p class="field-hint ${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) ? "" : "is-hidden"}" id="item-editor-assignment-hint">${escapeHtml(getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) || "")}</p>
 
           <label class="checkbox-field">
             <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
@@ -1184,11 +1184,11 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
             <p class="item-editor-section__title">Details</p>
             <label class="field">
               <span>URL</span>
-              <input name="url" type="url" value="${escapeAttribute(draft.url || "")}" placeholder="https://..." />
+              <input name="url" type="url" value="${escapeHtml(draft.url || "")}" placeholder="https://..." />
             </label>
             <label class="field">
               <span>Notes</span>
-              <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeTextarea(draft.notes || "")}</textarea>
+              <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeHtml(draft.notes || "")}</textarea>
             </label>
           </div>
 
@@ -1203,14 +1203,14 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
   `;
 }
 
-function getTripItemErrorMessage(error) {
-  const parts = [error?.message, error?.details, error?.hint].filter(Boolean);
+function getTripItemErrorMessage(action = "update") {
+  const messages = {
+    create: "Could not create that item right now. Please try again.",
+    update: "Could not save those changes right now. Please try again.",
+    delete: "Could not delete that item right now. Please try again.",
+  };
 
-  if (parts.length === 0) {
-    return "Could not add that item right now.";
-  }
-
-  return parts.join(" ");
+  return messages[action] || "Something went wrong. Please try again.";
 }
 
 function closeItemEditor() {
@@ -1227,17 +1227,10 @@ function closeItemEditor() {
   });
 }
 
-function escapeAttribute(value) {
+function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function escapeTextarea(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 }
@@ -1250,7 +1243,7 @@ function renderTypeSpecificFields(draft) {
         <span>Meal Slot</span>
         <select name="mealSlot">
           <option value="">None</option>
-          ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${draft.mealSlot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
+          ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${draft.mealSlot === slot ? "selected" : ""}>${escapeHtml(formatItemTypeLabel(slot))}</option>`).join("")}
         </select>
       </label>
     </div>
@@ -1260,7 +1253,7 @@ function renderTypeSpecificFields(draft) {
         <span>Activity Type</span>
         <select name="activityType">
           <option value="">None</option>
-          ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${draft.activityType === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+          ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${draft.activityType === type ? "selected" : ""}>${escapeHtml(formatItemTypeLabel(type))}</option>`).join("")}
         </select>
       </label>
     </div>
@@ -1270,17 +1263,17 @@ function renderTypeSpecificFields(draft) {
         <span>Transport Mode</span>
         <select name="transportMode">
           <option value="">None</option>
-          ${TRANSPORT_MODES.map((mode) => `<option value="${mode}" ${draft.transportMode === mode ? "selected" : ""}>${formatItemTypeLabel(mode)}</option>`).join("")}
+          ${TRANSPORT_MODES.map((mode) => `<option value="${mode}" ${draft.transportMode === mode ? "selected" : ""}>${escapeHtml(formatItemTypeLabel(mode))}</option>`).join("")}
         </select>
       </label>
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Transport Origin</span>
-          <input name="transportOrigin" type="text" value="${escapeAttribute(draft.transportOrigin || "")}" />
+          <input name="transportOrigin" type="text" value="${escapeHtml(draft.transportOrigin || "")}" />
         </label>
         <label class="field">
           <span>Transport Destination</span>
-          <input name="transportDestination" type="text" value="${escapeAttribute(draft.transportDestination || "")}" />
+          <input name="transportDestination" type="text" value="${escapeHtml(draft.transportDestination || "")}" />
         </label>
       </div>
     </div>
@@ -1451,7 +1444,7 @@ function getItemEditorAssignmentHint(baseId, dayId, bases, days) {
     return "";
   }
 
-  return `Day ${selectedDay.day_number} is in ${dayBase.name} — update base to match?`;
+  return `Day ${selectedDay.day_number} is in ${dayBase.name || "that base"} — update base to match?`;
 }
 
 function renderDiscardConfirmModal(isOpen) {
@@ -1491,7 +1484,7 @@ function renderDeleteItemConfirmModal({ item, isOpen, isDeleting }) {
         <div class="modal-card__header">
           <div>
             <p class="eyebrow">Delete Item</p>
-            <h3>Delete ${escapeTextarea(item.title)}?</h3>
+            <h3>Delete ${escapeHtml(item.title || "this item")}?</h3>
           </div>
         </div>
         <p class="muted">This removes the item from the trip, but keeps it archived in the database.</p>
@@ -1568,11 +1561,11 @@ function getSupportedTimezones() {
 function renderTimezonePicker(inputId, selectedTimezone) {
   return `
     <input
-      id="${inputId}"
+      id="${escapeHtml(inputId)}"
       name="localTimezone"
       type="text"
       list="timezone-options"
-      value="${escapeAttribute(selectedTimezone || DEFAULT_BASE_TIMEZONE)}"
+      value="${escapeHtml(selectedTimezone || DEFAULT_BASE_TIMEZONE)}"
       placeholder="Start typing a timezone"
       autocomplete="off"
       required
@@ -1583,7 +1576,7 @@ function renderTimezonePicker(inputId, selectedTimezone) {
 function renderTimezoneOptionsDatalist() {
   return `
     <datalist id="timezone-options">
-      ${getSupportedTimezones().map((timezone) => `<option value="${escapeAttribute(timezone)}"></option>`).join("")}
+      ${getSupportedTimezones().map((timezone) => `<option value="${escapeHtml(timezone)}"></option>`).join("")}
     </datalist>
   `;
 }

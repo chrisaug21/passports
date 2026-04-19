@@ -1,9 +1,32 @@
-import { DEFAULT_BASE_NAME, DEFAULT_BASE_TIMEZONE } from "../config/constants.js";
+import { DEFAULT_BASE_NAME, DEFAULT_BASE_TIMEZONE, ITEM_STATUSES } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 
 function normalizeNullableId(value) {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue === "" ? null : normalizedValue;
+}
+
+function getValidatedTimezone(value) {
+  const normalizedValue = String(value ?? "").trim();
+  if (!normalizedValue) {
+    return DEFAULT_BASE_TIMEZONE;
+  }
+
+  if (typeof Intl?.supportedValuesOf === "function") {
+    try {
+      const supportedTimezones = Intl.supportedValuesOf("timeZone");
+      return supportedTimezones.includes(normalizedValue) ? normalizedValue : DEFAULT_BASE_TIMEZONE;
+    } catch (_error) {
+      // Fall through to the formatter-based validation below.
+    }
+  }
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: normalizedValue });
+    return formatter.resolvedOptions().timeZone ? normalizedValue : DEFAULT_BASE_TIMEZONE;
+  } catch (_error) {
+    return DEFAULT_BASE_TIMEZONE;
+  }
 }
 
 export async function listTripsForCurrentUser(userId) {
@@ -315,13 +338,18 @@ export async function updateTripItem({
   notes,
 }) {
   const supabase = getSupabase();
+  const normalizedStatus = String(status || "").trim();
+
+  if (!ITEM_STATUSES.includes(normalizedStatus)) {
+    throw new Error("Please choose a valid item status.");
+  }
 
   const { data, error } = await supabase
     .from("trip_items")
     .update({
       title,
       item_type: itemType,
-      status,
+      status: normalizedStatus,
       is_anchor: isAnchor,
       base_id: normalizeNullableId(baseId),
       day_id: normalizeNullableId(dayId),
@@ -522,6 +550,7 @@ export async function createTripBase({
 }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
+  const validatedTimezone = getValidatedTimezone(localTimezone);
 
   const { data, error } = await supabase
     .from("trip_bases")
@@ -530,7 +559,7 @@ export async function createTripBase({
       trip_id: tripId,
       name,
       location_name: locationName || null,
-      local_timezone: localTimezone || DEFAULT_BASE_TIMEZONE,
+      local_timezone: validatedTimezone,
       date_start: dateStart || null,
       date_end: dateEnd || null,
       sort_order: sortOrder,
@@ -556,13 +585,14 @@ export async function updateTripBase({
   dateEnd,
 }) {
   const supabase = getSupabase();
+  const validatedTimezone = getValidatedTimezone(localTimezone);
 
   const { data, error } = await supabase
     .from("trip_bases")
     .update({
       name,
       location_name: locationName || null,
-      local_timezone: localTimezone || DEFAULT_BASE_TIMEZONE,
+      local_timezone: validatedTimezone,
       date_start: dateStart || null,
       date_end: dateEnd || null,
       updated_at: new Date().toISOString(),
@@ -585,6 +615,20 @@ export async function assignTripDaysToBase({ baseId, dayIds }) {
 
   const supabase = getSupabase();
   const now = new Date().toISOString();
+  const { data: base, error: baseError } = await supabase
+    .from("trip_bases")
+    .select("id, trip_id")
+    .eq("id", baseId)
+    .is("deleted_at", null)
+    .single();
+
+  if (baseError) {
+    throw baseError;
+  }
+
+  if (!base?.trip_id) {
+    throw new Error("Could not find that base.");
+  }
 
   const { error: daysError } = await supabase
     .from("trip_days")
@@ -592,6 +636,7 @@ export async function assignTripDaysToBase({ baseId, dayIds }) {
       base_id: baseId,
       updated_at: now,
     })
+    .eq("trip_id", base.trip_id)
     .in("id", dayIds);
 
   if (daysError) {
