@@ -49,7 +49,6 @@ let editingDayTitleId = null;
 let editingDayTitleValue = "";
 let closeOpenItemActionsMenus = () => {};
 let itemActionsGlobalListenersBound = false;
-let draggedFlexItemId = null;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -909,38 +908,24 @@ export function wireTripDetailPage(tripId) {
       showToast(getTripItemErrorMessage("delete"), "error");
     }
   });
-  document.querySelectorAll("[data-flex-list]").forEach((list) => {
-    list.addEventListener("dragover", (event) => {
-      event.preventDefault();
-    });
-  });
-  document.querySelectorAll(".day-item--draggable").forEach((itemElement) => {
-    itemElement.addEventListener("dragstart", (event) => {
-      draggedFlexItemId = itemElement.getAttribute("data-day-item-id");
-      event.dataTransfer.effectAllowed = "move";
-      itemElement.classList.add("day-item--dragging");
-    });
-    itemElement.addEventListener("dragend", () => {
-      draggedFlexItemId = null;
-      itemElement.classList.remove("day-item--dragging");
-    });
-    itemElement.addEventListener("dragover", (event) => {
-      event.preventDefault();
-    });
-    itemElement.addEventListener("drop", async (event) => {
-      event.preventDefault();
-      const targetItemId = itemElement.getAttribute("data-day-item-id");
-      const dayId = itemElement.getAttribute("data-day-id");
+  document.querySelectorAll("[data-reorder-item-up], [data-reorder-item-down]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const itemId = button.getAttribute("data-reorder-item-up") || button.getAttribute("data-reorder-item-down");
+      const dayId = button.getAttribute("data-reorder-day-id");
+      const direction = button.hasAttribute("data-reorder-item-up") ? -1 : 1;
 
-      if (!draggedFlexItemId || !targetItemId || !dayId || draggedFlexItemId === targetItemId) {
+      if (!itemId || !dayId || button.disabled) {
         return;
       }
 
+      button.disabled = true;
+
       try {
-        await reorderFlexItemsWithinDay(dayId, draggedFlexItemId, targetItemId);
+        await reorderFlexItemsWithinDay(dayId, itemId, direction);
         rerenderTripDetail();
       } catch (error) {
         console.error(error);
+        button.disabled = false;
         showToast("Something went wrong saving. Please try again.", "error");
       }
     });
@@ -1270,26 +1255,67 @@ async function persistItemBatchUpdates(updatedItems) {
   return savedItems;
 }
 
-async function reorderFlexItemsWithinDay(dayId, movedItemId, targetItemId) {
-  const items = tripStore.getCurrentItems();
-  const flexItems = getFlexItemsForDay(items, dayId);
-  const fromIndex = flexItems.findIndex((item) => item.id === movedItemId);
-  const toIndex = flexItems.findIndex((item) => item.id === targetItemId);
+function assignFlexSortOrdersFromCombinedItems(combinedItems) {
+  const updatedFlexItems = [];
+  let nextSortOrder = 0;
+  let previousAnchorBoundary = -1;
 
-  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+  combinedItems.forEach((item) => {
+    if (item.is_anchor) {
+      const rawBoundary = Number(item.sort_order);
+      const anchorBoundary = Number.isFinite(rawBoundary)
+        ? Math.max(previousAnchorBoundary, rawBoundary)
+        : previousAnchorBoundary;
+
+      previousAnchorBoundary = anchorBoundary;
+      nextSortOrder = Math.max(nextSortOrder, anchorBoundary + 1);
+      return;
+    }
+
+    updatedFlexItems.push({
+      ...item,
+      sort_order: nextSortOrder,
+    });
+    nextSortOrder += 1;
+  });
+
+  return updatedFlexItems;
+}
+
+function moveCombinedItemByStep(items, itemId, direction) {
+  const currentIndex = items.findIndex((item) => item.id === itemId);
+  const targetIndex = currentIndex + direction;
+
+  if (currentIndex === -1 || targetIndex < 0 || targetIndex >= items.length) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(currentIndex, 1);
+  nextItems.splice(targetIndex, 0, movedItem);
+  return nextItems;
+}
+
+async function reorderFlexItemsWithinDay(dayId, movedItemId, direction) {
+  const items = tripStore.getCurrentItems();
+  const combinedItems = getInterleavedDayItems(items, dayId);
+  const currentIndex = combinedItems.findIndex((item) => item.id === movedItemId);
+  const targetIndex = currentIndex + direction;
+
+  if (currentIndex === -1 || targetIndex < 0 || targetIndex >= combinedItems.length) {
     return;
   }
 
-  const reorderedItems = normalizeFlexItems(
-    moveArrayItem(flexItems, fromIndex, toIndex).map((item) => (
-      item.id === movedItemId
-        ? {
-            ...item,
-            time_start: null,
-          }
-        : item
-    ))
-  );
+  const reorderedCombinedItems = moveCombinedItemByStep(combinedItems, movedItemId, direction);
+  const reorderedItems = assignFlexSortOrdersFromCombinedItems(reorderedCombinedItems)
+    .filter((item) => {
+      const currentItem = items.find((entry) => entry.id === item.id);
+      return currentItem && Number(currentItem.sort_order) !== Number(item.sort_order);
+    });
+
+  if (reorderedItems.length === 0) {
+    return;
+  }
 
   await persistItemBatchUpdates(reorderedItems);
 }
@@ -1564,7 +1590,7 @@ function renderBaseDaysSection(row, days, items, rowCount, isFirst) {
 }
 
 function renderDayCard(day, items) {
-  const { anchorItems, flexItems } = getSortedDayItems(items, day.id);
+  const combinedItems = getInterleavedDayItems(items, day.id);
   const trip = tripStore.getCurrentTrip();
   const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
   const isEditingTitle = editingDayTitleId === day.id;
@@ -1598,22 +1624,13 @@ function renderDayCard(day, items) {
         ${day.location_name ? `<p class="muted">${escapeHtml(day.location_name)}</p>` : ""}
       </div>
       ${
-        anchorItems.length + flexItems.length === 0
+        combinedItems.length === 0
           ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
-          : `
-            <div class="days-view__list">
-              ${anchorItems.map((item) => renderDayItem(item)).join("")}
-              ${
-                flexItems.length > 0
-                  ? `
-                    <div class="days-view__list days-view__list--flex" data-flex-list="${escapeHtml(day.id)}">
-                      ${flexItems.map((item) => renderDayItem(item, { showDragHandle: true })).join("")}
-                    </div>
-                  `
-                  : ""
-              }
-            </div>
-          `
+          : `<div class="days-view__list">${combinedItems.map((item, index) => renderDayItem(item, {
+              dayId: day.id,
+              canMoveUp: index > 0,
+              canMoveDown: index < combinedItems.length - 1,
+            })).join("")}</div>`
       }
     </article>
   `;
@@ -1651,7 +1668,11 @@ function cancelInlineDayTitleEdit() {
 }
 
 function renderDayItem(item, options = {}) {
-  const { showDragHandle = false } = options;
+  const {
+    dayId = "",
+    canMoveUp = false,
+    canMoveDown = false,
+  } = options;
   const detailParts = [
     item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
     item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
@@ -1660,24 +1681,44 @@ function renderDayItem(item, options = {}) {
   ].filter(Boolean);
 
   return `
-    <article
-      class="day-item ${showDragHandle ? "day-item--draggable" : ""}"
-      data-day-item-id="${escapeHtml(item.id)}"
-      data-day-id="${escapeHtml(item.day_id || "")}"
-      draggable="${showDragHandle ? "true" : "false"}"
-    >
-      ${showDragHandle ? `
-        <div class="day-item__drag-handle" aria-hidden="true" title="Drag to reorder">
-          <i data-lucide="grip-vertical"></i>
-        </div>
-      ` : ""}
+    <article class="day-item" data-day-item-id="${escapeHtml(item.id)}" data-day-id="${escapeHtml(item.day_id || "")}">
       <div class="day-item__body">
         <div class="day-item__header">
           <div class="day-item__title-line">
             <h5>${escapeHtml(item.title || "Untitled item")}</h5>
             ${item.is_anchor ? renderAnchorBadge() : ""}
           </div>
-          ${renderItemActionsMenu(item)}
+          <div class="day-item__header-actions">
+            ${
+              !item.is_anchor && dayId
+                ? `
+                  <div class="day-item__reorder-controls" aria-label="Reorder item">
+                    <button
+                      class="day-item__reorder-button"
+                      data-reorder-item-up="${escapeHtml(item.id)}"
+                      data-reorder-day-id="${escapeHtml(dayId)}"
+                      type="button"
+                      aria-label="Move item up"
+                      ${canMoveUp ? "" : "disabled"}
+                    >
+                      <i data-lucide="chevron-up"></i>
+                    </button>
+                    <button
+                      class="day-item__reorder-button"
+                      data-reorder-item-down="${escapeHtml(item.id)}"
+                      data-reorder-day-id="${escapeHtml(dayId)}"
+                      type="button"
+                      aria-label="Move item down"
+                      ${canMoveDown ? "" : "disabled"}
+                    >
+                      <i data-lucide="chevron-down"></i>
+                    </button>
+                  </div>
+                `
+                : ""
+            }
+            ${renderItemActionsMenu(item)}
+          </div>
         </div>
         <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
         ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
@@ -1862,29 +1903,43 @@ function compareAnchorItems(left, right) {
 
 function compareFlexItems(left, right) {
   return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0)
+    || String(left.created_at || "").localeCompare(String(right.created_at || ""))
     || String(left.title || "").localeCompare(String(right.title || ""));
 }
 
-function getSortedDayItems(items, dayId) {
+function getInterleavedDayItems(items, dayId) {
   const dayItems = items.filter((item) => item.day_id === dayId);
   const anchorItems = dayItems.filter((item) => item.is_anchor).sort(compareAnchorItems);
   const flexItems = dayItems.filter((item) => !item.is_anchor).sort(compareFlexItems);
+  const combinedItems = [];
+  let flexIndex = 0;
+  let previousAnchorBoundary = -1;
 
-  return {
-    anchorItems,
-    flexItems,
-  };
+  anchorItems.forEach((anchor) => {
+    const rawBoundary = Number(anchor.sort_order);
+    const anchorBoundary = Number.isFinite(rawBoundary)
+      ? Math.max(previousAnchorBoundary, rawBoundary)
+      : previousAnchorBoundary;
+
+    while (flexIndex < flexItems.length && Number(flexItems[flexIndex].sort_order) <= anchorBoundary) {
+      combinedItems.push(flexItems[flexIndex]);
+      flexIndex += 1;
+    }
+
+    combinedItems.push(anchor);
+    previousAnchorBoundary = anchorBoundary;
+  });
+
+  while (flexIndex < flexItems.length) {
+    combinedItems.push(flexItems[flexIndex]);
+    flexIndex += 1;
+  }
+
+  return combinedItems;
 }
 
 function getSortedUnassignedItems(items) {
   return [...items].sort(compareFlexItems);
-}
-
-function moveArrayItem(items, fromIndex, toIndex) {
-  const nextItems = [...items];
-  const [movedItem] = nextItems.splice(fromIndex, 1);
-  nextItems.splice(toIndex, 0, movedItem);
-  return nextItems;
 }
 
 function normalizeFlexItems(items) {

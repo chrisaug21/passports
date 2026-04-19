@@ -435,24 +435,8 @@
   padding: 0.85rem;
 }
 
-.days-view__list--flex {
-  margin-top: 0.2rem;
-}
-
 .day-item__body {
   min-width: 0;
-}
-
-.day-item--draggable {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-  cursor: grab;
-}
-
-.day-item--dragging {
-  opacity: 0.6;
 }
 
 .day-item__header {
@@ -475,20 +459,38 @@
   font-size: 0.92rem;
 }
 
-.day-item__drag-handle {
-  width: 44px;
-  min-height: 44px;
+.day-item__header-actions {
+  display: flex;
+  align-items: start;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.day-item__reorder-controls {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.35rem;
+}
+
+.day-item__reorder-button {
+  width: 36px;
+  min-height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.75);
-  color: var(--color-text-muted);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--color-text);
 }
 
-.day-item__drag-handle svg {
-  width: 1rem;
-  height: 1rem;
+.day-item__reorder-button svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.day-item__reorder-button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .item-actions-menu {
