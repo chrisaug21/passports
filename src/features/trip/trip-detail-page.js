@@ -22,6 +22,7 @@ import { showToast } from "../shared/toast.js";
 
 let rerenderTripDetail = () => {};
 let itemEditorInitialSnapshot = "";
+let pendingDiscardAction = null;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -169,6 +170,7 @@ export function renderTripDetailPage() {
         days,
         isSaving: tripDetail.isSavingItem,
       })}
+      ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
     </section>
   `;
 }
@@ -244,14 +246,14 @@ export function wireTripDetailPage(tripId) {
         return;
       }
 
-      if (!confirmCloseItemEditor()) {
-        return;
-      }
-
-      appStore.updateTripDetail({
-        editingItemId: itemId,
+      requestCloseItemEditor(() => {
+        appStore.updateTripDetail({
+          editingItemId: itemId,
+          showDiscardConfirm: false,
+        });
+        pendingDiscardAction = null;
+        rerenderTripDetail();
       });
-      rerenderTripDetail();
     });
   });
 
@@ -261,6 +263,7 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
   syncItemEditorTypeFields();
   captureItemEditorInitialSnapshot();
+  wireDiscardConfirmModal();
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -321,8 +324,10 @@ export function wireTripDetailPage(tripId) {
       appStore.updateTripDetail({
         isSavingItem: false,
         editingItemId: null,
+        showDiscardConfirm: false,
       });
       itemEditorInitialSnapshot = "";
+      pendingDiscardAction = null;
       rerenderTripDetail();
       showToast("Item updated.", "success");
     } catch (error) {
@@ -351,8 +356,10 @@ export async function loadTripDetail(tripId) {
       isCreatingItem: false,
       isSavingItem: false,
       editingItemId: null,
+      showDiscardConfirm: false,
     });
     itemEditorInitialSnapshot = "";
+    pendingDiscardAction = null;
     rerenderTripDetail();
   } catch (error) {
     console.error(error);
@@ -530,16 +537,16 @@ function getTripItemErrorMessage(error) {
 }
 
 function closeItemEditor() {
-  if (!confirmCloseItemEditor()) {
-    return;
-  }
-
-  appStore.updateTripDetail({
-    editingItemId: null,
-    isSavingItem: false,
+  requestCloseItemEditor(() => {
+    appStore.updateTripDetail({
+      editingItemId: null,
+      isSavingItem: false,
+      showDiscardConfirm: false,
+    });
+    itemEditorInitialSnapshot = "";
+    pendingDiscardAction = null;
+    rerenderTripDetail();
   });
-  itemEditorInitialSnapshot = "";
-  rerenderTripDetail();
 }
 
 function escapeAttribute(value) {
@@ -617,18 +624,24 @@ function syncItemEditorTypeFields() {
   });
 }
 
-function confirmCloseItemEditor() {
+function requestCloseItemEditor(onDiscard) {
   const editingItemId = appStore.getState().tripDetail.editingItemId;
 
   if (!editingItemId) {
-    return true;
+    onDiscard();
+    return;
   }
 
   if (!hasUnsavedItemEditorChanges()) {
-    return true;
+    onDiscard();
+    return;
   }
 
-  return window.confirm("Discard your unsaved item changes?");
+  pendingDiscardAction = onDiscard;
+  appStore.updateTripDetail({
+    showDiscardConfirm: true,
+  });
+  rerenderTripDetail();
 }
 
 function captureItemEditorInitialSnapshot() {
@@ -677,4 +690,56 @@ function serializeItemEditorForm(form) {
   };
 
   return JSON.stringify(snapshot);
+}
+
+function renderDiscardConfirmModal(isOpen) {
+  if (!isOpen) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" id="discard-confirm-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-keep-editing></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Unsaved Changes</p>
+            <h3>Discard your edits?</h3>
+          </div>
+        </div>
+        <p class="muted">You have unsaved changes in this item. If you close now, they will be lost.</p>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="keep-editing-button" type="button">Keep Editing</button>
+          <button class="button" id="discard-changes-button" type="button">Discard Changes</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function wireDiscardConfirmModal() {
+  document.querySelector("#keep-editing-button")?.addEventListener("click", keepEditing);
+  document.querySelector("[data-keep-editing]")?.addEventListener("click", keepEditing);
+  document.querySelector("#discard-changes-button")?.addEventListener("click", () => {
+    const action = pendingDiscardAction;
+    pendingDiscardAction = null;
+
+    if (action) {
+      action();
+      return;
+    }
+
+    appStore.updateTripDetail({
+      showDiscardConfirm: false,
+    });
+    rerenderTripDetail();
+  });
+}
+
+function keepEditing() {
+  pendingDiscardAction = null;
+  appStore.updateTripDetail({
+    showDiscardConfirm: false,
+  });
+  rerenderTripDetail();
 }

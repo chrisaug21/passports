@@ -14,6 +14,7 @@ function createAppStore() {
       isCreatingItem: false,
       isSavingItem: false,
       editingItemId: null,
+      showDiscardConfirm: false,
     },
   };
 
@@ -68,6 +69,7 @@ function createAppStore() {
           isCreatingItem: false,
           isSavingItem: false,
           editingItemId: null,
+          showDiscardConfirm: false,
         },
       };
       emit();
