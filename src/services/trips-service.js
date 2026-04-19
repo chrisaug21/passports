@@ -600,6 +600,7 @@ export async function saveTripDayAllocations({ tripId, allocations }) {
   const now = new Date().toISOString();
   const activeDays = await fetchActiveTripDaysForAllocation(tripId);
   const activeDayMap = new Map(activeDays.map((day) => [day.day_number, day]));
+  const groupedDayIds = new Map();
   const savedDays = [];
 
   for (const { dayNumber, toBaseId } of allocations) {
@@ -609,22 +610,39 @@ export async function saveTripDayAllocations({ tripId, allocations }) {
       throw new Error(`Could not find Day ${dayNumber}.`);
     }
 
+    const normalizedBaseId = normalizeNullableId(toBaseId);
+    const groupKey = normalizedBaseId ?? "__unassigned__";
+    const existingGroup = groupedDayIds.get(groupKey);
+
+    if (existingGroup) {
+      existingGroup.ids.push(existingDay.id);
+      continue;
+    }
+
+    groupedDayIds.set(groupKey, {
+      baseId: normalizedBaseId,
+      ids: [existingDay.id],
+    });
+  }
+
+  for (const { baseId, ids } of groupedDayIds.values()) {
     const { data, error } = await supabase
       .from("trip_days")
       .update({
-        base_id: normalizeNullableId(toBaseId),
+        base_id: baseId,
         updated_at: now,
       })
-      .eq("id", existingDay.id)
-      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
-      .single();
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .in("id", ids)
+      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order");
 
     if (error) {
       throw error;
     }
 
-    if (data) {
-      savedDays.push(data);
+    if (data?.length) {
+      savedDays.push(...data);
     }
   }
 

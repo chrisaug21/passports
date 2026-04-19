@@ -407,7 +407,12 @@ export function wireTripDetailPage(tripId) {
         isSavingBase: false,
       });
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage("update"), "error");
+      showToast(
+        error?.message === "TRIP_LENGTH_UPDATED_ALLOCATIONS_FAILED"
+          ? "Trip length updated, but day allocations didn't save — try again."
+          : getTripItemErrorMessage("update"),
+        "error"
+      );
     }
   });
   document.querySelector("#cancel-allocation-confirm")?.addEventListener("click", () => {
@@ -1817,11 +1822,11 @@ function getTripShrinkSummary(nextTripLength, days, items) {
   const removedDays = days.filter((day) => day.day_number > nextTripLength);
   const removedDayIds = new Set(removedDays.map((day) => day.id));
   const affectedItems = items.filter((item) => removedDayIds.has(item.day_id));
-  const removedLabels = removedDays.map((day) => `Day ${day.day_number}`);
+  const removedLabels = formatRemovedDayLabels(removedDays.map((day) => day.day_number));
 
   return {
     itemCount: affectedItems.length,
-    message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels.join(" and ")}. ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
+    message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels}. ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
   };
 }
 
@@ -1936,9 +1941,9 @@ function applyAllocationChange(slotKey, direction) {
 }
 
 async function saveAllocationDraft(trip) {
-  const originalDays = tripStore.getCurrentDays();
   const originalTripLength = Number(trip.trip_length);
   const nextTripLength = Number(allocationDraft.tripLength);
+  let tripLengthUpdated = false;
 
   if (nextTripLength !== originalTripLength) {
     await updateTripSettings({
@@ -1948,6 +1953,7 @@ async function saveAllocationDraft(trip) {
       startDate: trip.start_date || "",
       tripLength: nextTripLength,
     });
+    tripLengthUpdated = true;
   }
 
   const freshBundle = await fetchTripDetailBundle(trip.id);
@@ -1971,11 +1977,68 @@ async function saveAllocationDraft(trip) {
     .filter(Boolean);
 
   if (changedAllocations.length > 0) {
-    await saveTripDayAllocations({
-      tripId: trip.id,
-      allocations: changedAllocations,
-    });
+    try {
+      await saveTripDayAllocations({
+        tripId: trip.id,
+        allocations: changedAllocations,
+      });
+    } catch (error) {
+      if (tripLengthUpdated) {
+        await loadTripDetail(trip.id);
+        throw new Error("TRIP_LENGTH_UPDATED_ALLOCATIONS_FAILED");
+      }
+
+      throw error;
+    }
   }
+}
+
+function formatRemovedDayLabels(dayNumbers) {
+  const sortedDayNumbers = [...dayNumbers]
+    .filter((dayNumber) => Number.isInteger(dayNumber))
+    .sort((left, right) => left - right);
+  const labels = [];
+  let rangeStart = null;
+  let previousDayNumber = null;
+
+  sortedDayNumbers.forEach((dayNumber) => {
+    if (rangeStart == null) {
+      rangeStart = dayNumber;
+      previousDayNumber = dayNumber;
+      return;
+    }
+
+    if (dayNumber === previousDayNumber + 1) {
+      previousDayNumber = dayNumber;
+      return;
+    }
+
+    labels.push(formatRemovedDayRange(rangeStart, previousDayNumber));
+    rangeStart = dayNumber;
+    previousDayNumber = dayNumber;
+  });
+
+  if (rangeStart != null) {
+    labels.push(formatRemovedDayRange(rangeStart, previousDayNumber));
+  }
+
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  if (labels.length === 2) {
+    return `${labels[0]} and ${labels[1]}`;
+  }
+
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+function formatRemovedDayRange(startDayNumber, endDayNumber) {
+  if (startDayNumber === endDayNumber) {
+    return `Day ${startDayNumber}`;
+  }
+
+  return `Days ${startDayNumber}-${endDayNumber}`;
 }
 
 async function saveTripSettings(settings) {
