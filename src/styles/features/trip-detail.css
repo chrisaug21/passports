@@ -145,9 +145,19 @@
   gap: 1rem;
 }
 
+.allocation-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .trip-settings-form {
   display: grid;
   gap: 1rem;
+}
+
+.trip-settings-summary {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .base-card {
@@ -157,6 +167,50 @@
   padding: 1.1rem;
   display: grid;
   gap: 1rem;
+}
+
+.allocation-row {
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.allocation-row--unassigned {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.allocation-row__header,
+.allocation-row__meta,
+.allocation-row__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.allocation-row__header,
+.allocation-row__actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.allocation-row__meta {
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.allocation-row__actions {
+  justify-content: start;
+  flex-wrap: wrap;
+}
+
+.allocation-summary--complete {
+  color: var(--color-action-strong);
+}
+
+.allocation-summary--warning {
+  color: var(--color-text);
 }
 
 .base-card__header h4,
@@ -379,11 +433,16 @@
   .days-view__panel-header,
   .base-card__header,
   .base-form__header,
-  .base-form__actions {
+  .base-form__actions,
+  .allocation-row__header {
     flex-direction: column;
   }
 
   .base-card__actions {
+    justify-content: start;
+  }
+
+  .allocation-row__meta {
     justify-content: start;
   }
 }

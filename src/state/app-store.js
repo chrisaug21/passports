@@ -23,7 +23,6 @@ function createAppStore() {
       viewMode: "master-list",
       isShowingAddBaseForm: false,
       editingBaseId: null,
-      assigningBaseId: null,
       isSavingBase: false,
     },
   };
@@ -88,7 +87,6 @@ function createAppStore() {
           viewMode: "master-list",
           isShowingAddBaseForm: false,
           editingBaseId: null,
-          assigningBaseId: null,
           isSavingBase: false,
         },
       };
