@@ -1178,7 +1178,6 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
       </div>
 
       ${row.kind === "base" && row.dayCount > 0 ? renderAllocationItemWarning(row, items, bases) : ""}
-      ${row.kind === "base" && row.dayCount > 0 ? '<p class="allocation-row__hint muted">Remove all days from this base before deleting.</p>' : ""}
       ${isEditing ? renderEditBaseForm(row.base, tripDetail.isSavingBase) : ""}
     </article>
   `;
