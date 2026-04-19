@@ -69,7 +69,7 @@ Trip
 - Soft delete only — never hard delete; `deleted_at` exists on all main tables
 - Never reference Supabase in user-facing errors
 - Never hardcode colors — CSS custom properties only
-- Bump VERSION in app.js on every PR
+- VERSION bump is mandatory on every PR and every push that changes shipped code. Never forget it, never skip it, and never push without doing it first. In this repo the version lives in `src/config/constants.js` as `APP_VERSION`.
 
 ## RLS Notes
 - All policies scoped to `authenticated` role
