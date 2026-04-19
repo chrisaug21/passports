@@ -262,7 +262,7 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
   syncItemEditorTypeFields();
-  captureItemEditorInitialSnapshot();
+  ensureItemEditorInitialSnapshot();
   wireDiscardConfirmModal();
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
@@ -653,6 +653,14 @@ function captureItemEditorInitialSnapshot() {
   }
 
   itemEditorInitialSnapshot = serializeItemEditorForm(form);
+}
+
+function ensureItemEditorInitialSnapshot() {
+  if (itemEditorInitialSnapshot) {
+    return;
+  }
+
+  captureItemEditorInitialSnapshot();
 }
 
 function hasUnsavedItemEditorChanges() {
