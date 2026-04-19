@@ -527,10 +527,7 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
-  document.querySelector('[name="baseId"]')?.addEventListener("change", syncItemEditorDayReference);
-  document.querySelector('[name="dayId"]')?.addEventListener("change", syncItemEditorDayReference);
   syncItemEditorTypeFields();
-  syncItemEditorDayReference();
   ensureItemEditorInitialSnapshot();
   wireDiscardConfirmModal();
   document.querySelector("#item-editor-form")?.addEventListener("input", syncItemEditorDraftFromForm);
@@ -638,7 +635,6 @@ export async function loadTripDetail(tripId) {
 function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
   const base = bases.find((entry) => entry.id === item.base_id);
-  const referenceBase = day ? bases.find((entry) => entry.id === day.base_id) : null;
   const detailParts = [
     item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
     item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
@@ -660,15 +656,8 @@ function renderMasterListRow(item, days, bases) {
         </div>
         <p class="muted">
           ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
-          ${
-            base
-              ? ` · ${base.name}`
-              : day
-                ? " · Trip-level"
-                : " · Unassigned base"
-          }
+          ${base ? ` · ${base.name}` : " · Unassigned base"}
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
-          ${!base && day && referenceBase ? ` · Ref ${referenceBase.name}` : ""}
         </p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
@@ -831,7 +820,7 @@ function renderDaysView(bases, days, assignedItems, unassignedItems) {
             <p class="muted">Items without a day assignment still live here.</p>
           </div>
           <div class="days-view__list">
-            ${sortedUnassignedItems.map((item) => renderDayItem(item, days)).join("")}
+            ${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}
           </div>
         </section>
       ` : ""}
@@ -887,15 +876,13 @@ function renderDayCard(day, items) {
       ${
         dayItems.length === 0
           ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
-          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item, tripStore.getCurrentDays())).join("")}</div>`
+          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item)).join("")}</div>`
       }
     </article>
   `;
 }
 
-function renderDayItem(item, days) {
-  const day = days.find((entry) => entry.id === item.day_id);
-  const dayBase = day ? tripStore.getCurrentBases().find((entry) => entry.id === day.base_id) : null;
+function renderDayItem(item) {
   const detailParts = [
     item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
     item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
@@ -908,12 +895,8 @@ function renderDayItem(item, days) {
       <div class="day-item__title-line">
         <h5>${item.title}</h5>
         ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
-        ${!item.base_id ? '<span class="trip-pill trip-pill--trip">Trip</span>' : ""}
       </div>
-      <p class="muted">
-        ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
-        ${!item.base_id && dayBase ? ` · Ref ${dayBase.name}` : ""}
-      </p>
+      <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
       ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
     </article>
   `;
@@ -982,7 +965,6 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
               </select>
             </label>
           </div>
-          <p class="field-hint" id="item-editor-day-reference">${renderItemEditorDayReference(draft.dayId, draft.baseId, days, bases)}</p>
 
           <label class="checkbox-field">
             <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
@@ -1144,26 +1126,6 @@ function syncItemEditorTypeFields() {
   });
 }
 
-function syncItemEditorDayReference() {
-  const referenceElement = document.querySelector("#item-editor-day-reference");
-  if (!referenceElement) {
-    return;
-  }
-
-  const form = document.querySelector("#item-editor-form");
-  if (!form) {
-    return;
-  }
-
-  const formData = new FormData(form);
-  const dayId = normalizeNullableId(formData.get("dayId"));
-  const baseId = normalizeNullableId(formData.get("baseId"));
-  const days = tripStore.getCurrentDays();
-  const bases = tripStore.getCurrentBases();
-
-  referenceElement.textContent = renderItemEditorDayReference(dayId, baseId, days, bases);
-}
-
 function requestCloseItemEditor(onDiscard) {
   const editingItemId = appStore.getState().tripDetail.editingItemId;
 
@@ -1274,25 +1236,6 @@ function buildItemEditorDraft(item) {
     url: item.url || "",
     notes: item.notes || "",
   };
-}
-
-function renderItemEditorDayReference(dayId, baseId, days, bases) {
-  if (!dayId) {
-    return "Any item can be pinned to any day. Choosing a day does not assign a base.";
-  }
-
-  const day = days.find((entry) => entry.id === dayId);
-  const dayBase = day ? bases.find((entry) => entry.id === day.base_id) : null;
-
-  if (!day || !dayBase) {
-    return "Any item can be pinned to any day. Choosing a day does not assign a base.";
-  }
-
-  if (baseId) {
-    return `Day ${day.day_number} belongs to ${dayBase.name}. Base and day save independently.`;
-  }
-
-  return `Reference base for Day ${day.day_number}: ${dayBase.name}. This stays a trip-level item unless you set a base.`;
 }
 
 function renderDiscardConfirmModal(isOpen) {
