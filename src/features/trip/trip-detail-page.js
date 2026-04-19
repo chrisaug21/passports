@@ -19,6 +19,7 @@ import {
 import { navigate } from "../../app/router.js";
 import {
   ACTIVITY_TYPES,
+  DEFAULT_BASE_TIMEZONE,
   ITEM_STATUSES,
   ITEM_TYPES,
   MEAL_SLOTS,
@@ -31,6 +32,7 @@ let rerenderTripDetail = () => {};
 let itemEditorInitialSnapshot = "";
 let pendingDiscardAction = null;
 let itemEditorDraft = null;
+let supportedTimezonesCache = null;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -203,6 +205,7 @@ export function renderTripDetailPage() {
         isSaving: tripDetail.isSavingItem,
       })}
       ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
+      ${renderTimezoneOptionsDatalist()}
     </section>
   `;
 }
@@ -289,8 +292,13 @@ export function wireTripDetailPage(tripId) {
     const bases = tripStore.getCurrentBases();
     const formData = new FormData(event.currentTarget);
     const baseName = String(formData.get("name") || "").trim();
+    const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
     const startDay = Number(formData.get("startDay"));
     const endDay = Number(formData.get("endDay"));
+
+    if (!localTimezone) {
+      return;
+    }
 
     if (!trip?.id || !baseName || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
       showToast("Add a base name and day range first.", "error");
@@ -313,7 +321,7 @@ export function wireTripDetailPage(tripId) {
         tripId: trip.id,
         name: baseName,
         locationName: String(formData.get("locationName") || "").trim(),
-        localTimezone: String(formData.get("localTimezone") || "").trim(),
+        localTimezone,
         dateStart: String(formData.get("dateStart") || "").trim(),
         dateEnd: String(formData.get("dateEnd") || "").trim(),
         sortOrder: bases.length,
@@ -347,6 +355,11 @@ export function wireTripDetailPage(tripId) {
       const trip = tripStore.getCurrentTrip();
       const baseId = form.getAttribute("data-edit-base-form");
       const formData = new FormData(form);
+      const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
+
+      if (!localTimezone) {
+        return;
+      }
 
       if (!trip?.id || !baseId) {
         return;
@@ -362,7 +375,7 @@ export function wireTripDetailPage(tripId) {
           baseId,
           name: String(formData.get("name") || "").trim(),
           locationName: String(formData.get("locationName") || "").trim(),
-          localTimezone: String(formData.get("localTimezone") || "").trim(),
+          localTimezone,
           dateStart: String(formData.get("dateStart") || "").trim(),
           dateEnd: String(formData.get("dateEnd") || "").trim(),
         });
@@ -514,7 +527,10 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
+  document.querySelector('[name="baseId"]')?.addEventListener("change", syncItemEditorDayReference);
+  document.querySelector('[name="dayId"]')?.addEventListener("change", syncItemEditorDayReference);
   syncItemEditorTypeFields();
+  syncItemEditorDayReference();
   ensureItemEditorInitialSnapshot();
   wireDiscardConfirmModal();
   document.querySelector("#item-editor-form")?.addEventListener("input", syncItemEditorDraftFromForm);
@@ -530,22 +546,8 @@ export function wireTripDetailPage(tripId) {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    let nextBaseId = String(formData.get("baseId") || "").trim();
-    let nextDayId = String(formData.get("dayId") || "").trim();
-    const currentDays = tripStore.getCurrentDays();
-    const selectedDay = currentDays.find((day) => day.id === nextDayId);
-
-    if (selectedDay) {
-      nextBaseId = selectedDay.base_id;
-    }
-
-    if (nextBaseId && nextDayId) {
-      const selectedDayMatchesBase = currentDays.some((day) => day.id === nextDayId && day.base_id === nextBaseId);
-
-      if (!selectedDayMatchesBase) {
-        nextDayId = "";
-      }
-    }
+    const nextBaseId = normalizeNullableId(formData.get("baseId"));
+    const nextDayId = normalizeNullableId(formData.get("dayId"));
 
     appStore.updateTripDetail({
       isSavingItem: true,
@@ -636,6 +638,7 @@ export async function loadTripDetail(tripId) {
 function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
   const base = bases.find((entry) => entry.id === item.base_id);
+  const referenceBase = day ? bases.find((entry) => entry.id === day.base_id) : null;
   const detailParts = [
     item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
     item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
@@ -657,8 +660,15 @@ function renderMasterListRow(item, days, bases) {
         </div>
         <p class="muted">
           ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
-          ${base ? ` · ${base.name}` : " · Unassigned base"}
+          ${
+            base
+              ? ` · ${base.name}`
+              : day
+                ? " · Trip-level"
+                : " · Unassigned base"
+          }
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
+          ${!base && day && referenceBase ? ` · Ref ${referenceBase.name}` : ""}
         </p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
@@ -714,7 +724,7 @@ function renderAddBaseForm(trip, currentBaseCount, days) {
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Timezone</span>
-          <input name="localTimezone" type="text" value="America/New_York" required />
+          ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
         </label>
         <label class="field">
           <span>Suggested Order</span>
@@ -764,7 +774,7 @@ function renderEditBaseForm(base, isSaving) {
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Timezone</span>
-          <input name="localTimezone" type="text" value="${escapeAttribute(base.local_timezone || "")}" required />
+          ${renderTimezonePicker(`edit-base-timezone-${base.id}`, base.local_timezone || DEFAULT_BASE_TIMEZONE)}
         </label>
         <label class="field">
           <span>Date Start</span>
@@ -807,9 +817,11 @@ function renderAssignBaseForm(base, dayRange, isSaving) {
 }
 
 function renderDaysView(bases, days, assignedItems, unassignedItems) {
+  const sortedUnassignedItems = [...unassignedItems].sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+
   return `
     <section class="days-view">
-      ${unassignedItems.length > 0 ? `
+      ${sortedUnassignedItems.length > 0 ? `
         <section class="panel days-view__pool">
           <div class="days-view__panel-header">
             <div>
@@ -819,7 +831,7 @@ function renderDaysView(bases, days, assignedItems, unassignedItems) {
             <p class="muted">Items without a day assignment still live here.</p>
           </div>
           <div class="days-view__list">
-            ${unassignedItems.map((item) => renderDayItem(item)).join("")}
+            ${sortedUnassignedItems.map((item) => renderDayItem(item, days)).join("")}
           </div>
         </section>
       ` : ""}
@@ -875,13 +887,15 @@ function renderDayCard(day, items) {
       ${
         dayItems.length === 0
           ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
-          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item)).join("")}</div>`
+          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item, tripStore.getCurrentDays())).join("")}</div>`
       }
     </article>
   `;
 }
 
-function renderDayItem(item) {
+function renderDayItem(item, days) {
+  const day = days.find((entry) => entry.id === item.day_id);
+  const dayBase = day ? tripStore.getCurrentBases().find((entry) => entry.id === day.base_id) : null;
   const detailParts = [
     item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
     item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
@@ -894,8 +908,12 @@ function renderDayItem(item) {
       <div class="day-item__title-line">
         <h5>${item.title}</h5>
         ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
+        ${!item.base_id ? '<span class="trip-pill trip-pill--trip">Trip</span>' : ""}
       </div>
-      <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
+      <p class="muted">
+        ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
+        ${!item.base_id && dayBase ? ` · Ref ${dayBase.name}` : ""}
+      </p>
       ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
     </article>
   `;
@@ -957,10 +975,14 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
               <span>Day</span>
               <select name="dayId">
                 <option value="">Unassigned</option>
-                ${days.map((day) => `<option value="${day.id}" ${draft.dayId === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}</option>`).join("")}
+                ${days.map((day) => {
+                  const dayBase = bases.find((base) => base.id === day.base_id);
+                  return `<option value="${day.id}" ${draft.dayId === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}${dayBase ? ` · ${dayBase.name}` : ""}</option>`;
+                }).join("")}
               </select>
             </label>
           </div>
+          <p class="field-hint" id="item-editor-day-reference">${renderItemEditorDayReference(draft.dayId, draft.baseId, days, bases)}</p>
 
           <label class="checkbox-field">
             <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
@@ -1122,6 +1144,26 @@ function syncItemEditorTypeFields() {
   });
 }
 
+function syncItemEditorDayReference() {
+  const referenceElement = document.querySelector("#item-editor-day-reference");
+  if (!referenceElement) {
+    return;
+  }
+
+  const form = document.querySelector("#item-editor-form");
+  if (!form) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const dayId = normalizeNullableId(formData.get("dayId"));
+  const baseId = normalizeNullableId(formData.get("baseId"));
+  const days = tripStore.getCurrentDays();
+  const bases = tripStore.getCurrentBases();
+
+  referenceElement.textContent = renderItemEditorDayReference(dayId, baseId, days, bases);
+}
+
 function requestCloseItemEditor(onDiscard) {
   const editingItemId = appStore.getState().tripDetail.editingItemId;
 
@@ -1234,6 +1276,25 @@ function buildItemEditorDraft(item) {
   };
 }
 
+function renderItemEditorDayReference(dayId, baseId, days, bases) {
+  if (!dayId) {
+    return "Any item can be pinned to any day. Choosing a day does not assign a base.";
+  }
+
+  const day = days.find((entry) => entry.id === dayId);
+  const dayBase = day ? bases.find((entry) => entry.id === day.base_id) : null;
+
+  if (!day || !dayBase) {
+    return "Any item can be pinned to any day. Choosing a day does not assign a base.";
+  }
+
+  if (baseId) {
+    return `Day ${day.day_number} belongs to ${dayBase.name}. Base and day save independently.`;
+  }
+
+  return `Reference base for Day ${day.day_number}: ${dayBase.name}. This stays a trip-level item unless you set a base.`;
+}
+
 function renderDiscardConfirmModal(isOpen) {
   if (!isOpen) {
     return "";
@@ -1300,6 +1361,68 @@ function getDayIdsInRange(days, startDay, endDay) {
   return days
     .filter((day) => day.day_number >= low && day.day_number <= high)
     .map((day) => day.id);
+}
+
+function getSupportedTimezones() {
+  if (supportedTimezonesCache) {
+    return supportedTimezonesCache;
+  }
+
+  if (typeof Intl?.supportedValuesOf === "function") {
+    try {
+      supportedTimezonesCache = Intl.supportedValuesOf("timeZone").slice().sort((left, right) => left.localeCompare(right));
+      return supportedTimezonesCache;
+    } catch (_error) {
+      // Ignore and fall back to the default timezone.
+    }
+  }
+
+  supportedTimezonesCache = [DEFAULT_BASE_TIMEZONE];
+  return supportedTimezonesCache;
+}
+
+function renderTimezonePicker(inputId, selectedTimezone) {
+  return `
+    <input
+      id="${inputId}"
+      name="localTimezone"
+      type="text"
+      list="timezone-options"
+      value="${escapeAttribute(selectedTimezone || DEFAULT_BASE_TIMEZONE)}"
+      placeholder="Start typing a timezone"
+      autocomplete="off"
+      required
+    />
+  `;
+}
+
+function renderTimezoneOptionsDatalist() {
+  return `
+    <datalist id="timezone-options">
+      ${getSupportedTimezones().map((timezone) => `<option value="${escapeAttribute(timezone)}"></option>`).join("")}
+    </datalist>
+  `;
+}
+
+function getValidatedTimezone(rawValue) {
+  const timezone = String(rawValue || "").trim();
+
+  if (!timezone) {
+    showToast("Choose a timezone from the list first.", "error");
+    return null;
+  }
+
+  if (!getSupportedTimezones().includes(timezone)) {
+    showToast("Choose a valid IANA timezone from the list.", "error");
+    return null;
+  }
+
+  return timezone;
+}
+
+function normalizeNullableId(value) {
+  const normalizedValue = String(value ?? "").trim();
+  return normalizedValue === "" ? null : normalizedValue;
 }
 
 function keepEditing() {

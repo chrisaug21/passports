@@ -1,6 +1,11 @@
 import { DEFAULT_BASE_NAME, DEFAULT_BASE_TIMEZONE } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 
+function normalizeNullableId(value) {
+  const normalizedValue = String(value ?? "").trim();
+  return normalizedValue === "" ? null : normalizedValue;
+}
+
 export async function listTripsForCurrentUser(userId) {
   const { data, error } = await getSupabase()
     .from("trip_members")
@@ -318,8 +323,8 @@ export async function updateTripItem({
       item_type: itemType,
       status,
       is_anchor: isAnchor,
-      base_id: baseId || null,
-      day_id: dayId || null,
+      base_id: normalizeNullableId(baseId),
+      day_id: normalizeNullableId(dayId),
       meal_slot: mealSlot || null,
       activity_type: activityType || null,
       transport_mode: transportMode || null,
@@ -458,17 +463,5 @@ export async function assignTripDaysToBase({ baseId, dayIds }) {
 
   if (daysError) {
     throw daysError;
-  }
-
-  const { error: itemsError } = await supabase
-    .from("trip_items")
-    .update({
-      base_id: baseId,
-      updated_at: now,
-    })
-    .in("day_id", dayIds);
-
-  if (itemsError) {
-    throw itemsError;
   }
 }
