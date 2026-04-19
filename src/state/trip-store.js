@@ -48,6 +48,10 @@ function createTripStore() {
     appendCurrentItem(item) {
       currentItems = [...currentItems, item];
     },
+    mergeCurrentItems(nextItems) {
+      const nextItemsById = new Map(nextItems.map((item) => [item.id, item]));
+      currentItems = currentItems.map((item) => nextItemsById.get(item.id) || item);
+    },
     updateCurrentItem(nextItem) {
       currentItems = currentItems.map((item) => (item.id === nextItem.id ? nextItem : item));
     },

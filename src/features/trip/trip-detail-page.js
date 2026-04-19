@@ -1,6 +1,7 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import {
+  batchUpdateTripItems,
   createTripBase,
   createTripItem,
   fetchTripDetailBundle,
@@ -11,7 +12,6 @@ import {
   updateTripStatus,
   updateTripBase,
   updateTripSettings,
-  updateTripItem,
 } from "../../services/trips-service.js";
 import {
   formatCostLabel,
@@ -261,6 +261,14 @@ export function renderTripDetailPage() {
         item: items.find((entry) => entry.id === tripDetail.deletingItemId) || null,
         isOpen: tripDetail.showDeleteItemConfirm,
         isDeleting: tripDetail.isDeletingItem,
+      })}
+      ${renderMoveItemModal({
+        trip,
+        item: items.find((entry) => entry.id === tripDetail.movingItemId) || null,
+        bases,
+        days,
+        isOpen: tripDetail.showMoveItemModal,
+        isMoving: tripDetail.isMovingItem,
       })}
       ${renderAllocationConfirmModal(allocationConfirmState)}
       ${renderTripLengthConfirmModal(tripLengthConfirmState)}
@@ -716,6 +724,17 @@ export function wireTripDetailPage(tripId) {
       openDeleteItemConfirm(itemId);
     });
   });
+  document.querySelectorAll("[data-open-move-item]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const itemId = button.getAttribute("data-open-move-item");
+
+      if (!itemId) {
+        return;
+      }
+
+      openMoveItemModal(itemId);
+    });
+  });
 
   document.querySelector("#close-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
@@ -738,10 +757,45 @@ export function wireTripDetailPage(tripId) {
       return;
     }
 
+    const items = tripStore.getCurrentItems();
+    const currentItem = items.find((item) => item.id === currentItemId);
+
+    if (!currentItem) {
+      return;
+    }
+
     const form = event.currentTarget;
     const formData = new FormData(form);
     const nextBaseId = normalizeNullableId(formData.get("baseId"));
     const nextDayId = normalizeNullableId(formData.get("dayId"));
+    const isAnchor = formData.get("isAnchor") === "on";
+    const timeStart = String(formData.get("timeStart") || "").trim();
+
+    if (isAnchor && !timeStart) {
+      showToast("Anchor items need a start time.", "error");
+      return;
+    }
+
+    const nextItem = buildUpdatedItem(currentItem, {
+      title: String(formData.get("title") || "").trim(),
+      item_type: String(formData.get("itemType") || "").trim(),
+      status: String(formData.get("status") || "").trim(),
+      is_anchor: isAnchor,
+      base_id: nextBaseId,
+      day_id: nextDayId,
+      meal_slot: String(formData.get("mealSlot") || "").trim() || null,
+      activity_type: String(formData.get("activityType") || "").trim() || null,
+      transport_mode: String(formData.get("transportMode") || "").trim() || null,
+      transport_origin: String(formData.get("transportOrigin") || "").trim() || null,
+      transport_destination: String(formData.get("transportDestination") || "").trim() || null,
+      time_start: timeStart || null,
+      time_end: String(formData.get("timeEnd") || "").trim() || null,
+      cost_low: String(formData.get("costLow") || "").trim() || null,
+      cost_high: String(formData.get("costHigh") || "").trim() || null,
+      url: String(formData.get("url") || "").trim() || null,
+      notes: String(formData.get("notes") || "").trim() || null,
+    });
+    const updatedItems = buildItemSaveBatch(currentItem, nextItem, items);
 
     appStore.updateTripDetail({
       isSavingItem: true,
@@ -749,29 +803,7 @@ export function wireTripDetailPage(tripId) {
     rerenderTripDetail();
 
     try {
-      const updatedItem = await updateTripItem({
-        itemId: currentItemId,
-        title: String(formData.get("title") || "").trim(),
-        itemType: String(formData.get("itemType") || "").trim(),
-        status: String(formData.get("status") || "").trim(),
-        isAnchor: formData.get("isAnchor") === "on",
-        baseId: nextBaseId,
-        dayId: nextDayId,
-        mealSlot: String(formData.get("mealSlot") || "").trim(),
-        activityType: String(formData.get("activityType") || "").trim(),
-        transportMode: String(formData.get("transportMode") || "").trim(),
-        transportOrigin: String(formData.get("transportOrigin") || "").trim(),
-        transportDestination: String(formData.get("transportDestination") || "").trim(),
-        timeStart: String(formData.get("timeStart") || "").trim(),
-        timeEnd: String(formData.get("timeEnd") || "").trim(),
-        timeIsEstimated: formData.get("timeIsEstimated") === "on",
-        costLow: String(formData.get("costLow") || "").trim(),
-        costHigh: String(formData.get("costHigh") || "").trim(),
-        url: String(formData.get("url") || "").trim(),
-        notes: String(formData.get("notes") || "").trim(),
-      });
-
-      tripStore.updateCurrentItem(updatedItem);
+      await persistItemBatchUpdates(updatedItems);
       appStore.updateTripDetail({
         isSavingItem: false,
         editingItemId: null,
@@ -790,6 +822,67 @@ export function wireTripDetailPage(tripId) {
       rerenderTripDetail();
       showToast(getTripItemErrorMessage("update"), "error");
     }
+  });
+  document.querySelector("#close-move-item")?.addEventListener("click", closeMoveItemModal);
+  document.querySelector("[data-close-move-item]")?.addEventListener("click", closeMoveItemModal);
+  document.querySelectorAll("[data-move-item-destination]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const { movingItemId } = appStore.getState().tripDetail;
+      const item = tripStore.getCurrentItems().find((entry) => entry.id === movingItemId) || null;
+      const destinationDayId = normalizeNullableId(button.getAttribute("data-move-item-destination"));
+
+      if (!movingItemId || !item) {
+        return;
+      }
+
+      const opId = Symbol("move-item");
+      appStore.updateTripDetail({
+        isMovingItem: true,
+        movingOperationId: opId,
+      });
+      rerenderTripDetail();
+
+      try {
+        const didMove = await moveItemToDestination(movingItemId, destinationDayId);
+        const currentTripDetail = appStore.getState().tripDetail;
+
+        if (currentTripDetail.movingOperationId !== opId || currentTripDetail.movingItemId !== movingItemId) {
+          return;
+        }
+
+        if (!didMove) {
+          appStore.updateTripDetail({
+            isMovingItem: false,
+            movingOperationId: null,
+          });
+          rerenderTripDetail();
+          return;
+        }
+
+        appStore.updateTripDetail({
+          showMoveItemModal: false,
+          movingItemId: null,
+          isMovingItem: false,
+          movingOperationId: null,
+        });
+        rerenderTripDetail();
+        showToast(`${getDisplayTitleForToast(item.title, "Item")} moved to ${getMoveDestinationLabel(destinationDayId, tripStore.getCurrentDays())}`, "success");
+      } catch (error) {
+        console.error(error);
+        const currentTripDetail = appStore.getState().tripDetail;
+
+        if (currentTripDetail.movingOperationId !== opId || currentTripDetail.movingItemId !== movingItemId) {
+          return;
+        }
+
+        appStore.updateTripDetail({
+          isMovingItem: false,
+          movingOperationId: null,
+        });
+        rerenderTripDetail();
+        showToast("Something went wrong saving. Please try again.", "error");
+      }
+    });
   });
   document.querySelector("#delete-item-button")?.addEventListener("click", () => {
     const { editingItemId } = appStore.getState().tripDetail;
@@ -839,6 +932,28 @@ export function wireTripDetailPage(tripId) {
       rerenderTripDetail();
       showToast(getTripItemErrorMessage("delete"), "error");
     }
+  });
+  document.querySelectorAll("[data-reorder-item-up], [data-reorder-item-down]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const itemId = button.getAttribute("data-reorder-item-up") || button.getAttribute("data-reorder-item-down");
+      const dayId = button.getAttribute("data-reorder-day-id");
+      const direction = button.hasAttribute("data-reorder-item-up") ? -1 : 1;
+
+      if (!itemId || !dayId || button.disabled) {
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        await reorderFlexItemsWithinDay(dayId, itemId, direction);
+        rerenderTripDetail();
+      } catch (error) {
+        console.error(error);
+        button.disabled = false;
+        showToast("Something went wrong saving. Please try again.", "error");
+      }
+    });
   });
   document.querySelector("#cancel-delete-base")?.addEventListener("click", closeDeleteBaseConfirm);
   document.querySelector("[data-cancel-delete-base]")?.addEventListener("click", closeDeleteBaseConfirm);
@@ -1028,6 +1143,10 @@ export async function loadTripDetail(tripId) {
       showDeleteItemConfirm: false,
       isDeletingItem: false,
       deletingItemId: null,
+      showMoveItemModal: false,
+      movingItemId: null,
+      isMovingItem: false,
+      movingOperationId: null,
       isShowingAddBaseForm: false,
       editingBaseId: null,
       isSavingBase: false,
@@ -1071,7 +1190,7 @@ function renderMasterListRow(item, days, bases) {
     item.item_type === "transport" && (item.transport_origin || item.transport_destination)
       ? [item.transport_origin, item.transport_destination].filter(Boolean).map((value) => escapeHtml(value)).join(" → ")
       : "",
-    item.time_start ? escapeHtml(formatTimeLabel(item.time_start, item.time_is_estimated)) : "",
+    item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
     item.time_end ? escapeHtml(`to ${formatTimeLabel(item.time_end, false)}`) : "",
     escapeHtml(formatCostLabel(item.cost_low, item.cost_high)),
   ].filter(Boolean);
@@ -1081,7 +1200,7 @@ function renderMasterListRow(item, days, bases) {
       <div class="master-list-row__main">
         <div class="master-list-row__title-line">
           <h4>${escapeHtml(item.title || "Untitled item")}</h4>
-          ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
+          ${item.is_anchor ? renderAnchorBadge() : ""}
         </div>
         <p class="muted">
           ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
@@ -1093,6 +1212,205 @@ function renderMasterListRow(item, days, bases) {
       ${renderItemActionsMenu(item)}
     </article>
   `;
+}
+
+function getFlexItemsForDay(items, dayId, excludedItemId = null) {
+  return items
+    .filter((item) => !item.is_anchor && item.day_id === dayId && item.id !== excludedItemId)
+    .sort(compareFlexItems);
+}
+
+function getAnchorDestinationSortOrder(items, dayId, excludedItemId = null) {
+  return items
+    .filter((item) => item.day_id === dayId && item.id !== excludedItemId)
+    .length;
+}
+
+function buildItemSaveBatch(currentItem, nextItem, items) {
+  const updates = [];
+  const previousDayId = currentItem.day_id ?? null;
+  const nextDayId = nextItem.day_id ?? null;
+  const changedDay = previousDayId !== nextDayId;
+  const changedAnchorState = Boolean(currentItem.is_anchor) !== Boolean(nextItem.is_anchor);
+  const previousTimeStart = String(currentItem.time_start || "");
+  const nextTimeStart = String(nextItem.time_start || "");
+  const changedTimeStart = previousTimeStart !== nextTimeStart;
+  const shouldRemoveFromSourceFlex = !currentItem.is_anchor && (changedDay || nextItem.is_anchor);
+
+  if (shouldRemoveFromSourceFlex) {
+    updates.push(...normalizeFlexItems(getFlexItemsForDay(items, previousDayId, currentItem.id)));
+  }
+
+  if (nextItem.is_anchor) {
+    const nextAnchorItem = (changedDay || changedAnchorState)
+      ? buildUpdatedItem(nextItem, {
+          sort_order: getAnchorDestinationSortOrder(items, nextDayId, currentItem.id),
+        })
+      : nextItem;
+
+    updates.push(nextAnchorItem);
+    return dedupeItemsById(updates);
+  }
+
+  if (changedDay) {
+    const movedFlexItem = buildUpdatedItem(nextItem, {
+      time_start: null,
+    });
+    const destinationItems = normalizeFlexItems([
+      ...getFlexItemsForDay(items, nextDayId, currentItem.id),
+      movedFlexItem,
+    ]);
+
+    updates.push(...destinationItems);
+    return dedupeItemsById(updates);
+  }
+
+  if (changedAnchorState) {
+    if (nextItem.time_start) {
+      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
+      return dedupeItemsById(updates);
+    }
+
+    updates.push(...normalizeFlexItems([
+      ...getFlexItemsForDay(items, nextDayId, currentItem.id),
+      nextItem,
+    ]));
+    return dedupeItemsById(updates);
+  }
+
+  if (changedTimeStart && nextItem.time_start) {
+    updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
+    return dedupeItemsById(updates);
+  }
+
+  updates.push(nextItem);
+  return dedupeItemsById(updates);
+}
+
+async function persistItemBatchUpdates(updatedItems) {
+  const savedItems = await batchUpdateTripItems(updatedItems);
+  tripStore.mergeCurrentItems(savedItems);
+  return savedItems;
+}
+
+function assignFlexSortOrdersFromCombinedItems(combinedItems) {
+  const updatedFlexItems = [];
+  let nextSortOrder = 0;
+  let previousAnchorBoundary = -1;
+
+  combinedItems.forEach((item) => {
+    if (item.is_anchor) {
+      const rawBoundary = Number(item.sort_order);
+      const anchorBoundary = Number.isFinite(rawBoundary)
+        ? Math.max(previousAnchorBoundary, rawBoundary)
+        : previousAnchorBoundary;
+
+      previousAnchorBoundary = anchorBoundary;
+      nextSortOrder = Math.max(nextSortOrder, anchorBoundary + 1);
+      return;
+    }
+
+    updatedFlexItems.push({
+      ...item,
+      sort_order: nextSortOrder,
+    });
+    nextSortOrder += 1;
+  });
+
+  return updatedFlexItems;
+}
+
+function moveCombinedItemByStep(items, itemId, direction) {
+  const currentIndex = items.findIndex((item) => item.id === itemId);
+  const targetIndex = currentIndex + direction;
+
+  if (currentIndex === -1 || targetIndex < 0 || targetIndex >= items.length) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(currentIndex, 1);
+  nextItems.splice(targetIndex, 0, movedItem);
+  return nextItems;
+}
+
+async function reorderFlexItemsWithinDay(dayId, movedItemId, direction) {
+  const items = tripStore.getCurrentItems();
+  const combinedItems = getInterleavedDayItems(items, dayId);
+  const currentIndex = combinedItems.findIndex((item) => item.id === movedItemId);
+  const targetIndex = currentIndex + direction;
+
+  if (currentIndex === -1 || targetIndex < 0 || targetIndex >= combinedItems.length) {
+    return;
+  }
+
+  const reorderedCombinedItems = moveCombinedItemByStep(combinedItems, movedItemId, direction);
+  const reorderedItems = assignFlexSortOrdersFromCombinedItems(reorderedCombinedItems)
+    .filter((item) => {
+      const currentItem = items.find((entry) => entry.id === item.id);
+      return currentItem && Number(currentItem.sort_order) !== Number(item.sort_order);
+    });
+
+  if (reorderedItems.length === 0) {
+    return;
+  }
+
+  await persistItemBatchUpdates(reorderedItems);
+}
+
+function getMoveDestinationLabel(destinationDayId, days) {
+  if (!destinationDayId) {
+    return "Unassigned";
+  }
+
+  const destinationDay = days.find((day) => day.id === destinationDayId);
+  return destinationDay ? `Day ${destinationDay.day_number}` : "Unassigned";
+}
+
+async function moveItemToDestination(itemId, destinationDayId) {
+  const items = tripStore.getCurrentItems();
+  const days = tripStore.getCurrentDays();
+  const item = items.find((entry) => entry.id === itemId);
+
+  if (!item) {
+    return false;
+  }
+
+  if (item.is_anchor && !String(item.time_start || "").trim()) {
+    showToast("Anchor items require a start time.", "error");
+    return false;
+  }
+
+  const destinationDay = destinationDayId ? days.find((day) => day.id === destinationDayId) || null : null;
+  const nextBaseId = destinationDay?.base_id || null;
+  const sourceDayId = item.day_id ?? null;
+  const updates = [];
+
+  if (!item.is_anchor) {
+    if (sourceDayId !== destinationDayId) {
+      updates.push(...normalizeFlexItems(getFlexItemsForDay(items, sourceDayId, item.id)));
+    }
+
+    const destinationFlexItems = normalizeFlexItems([
+      ...getFlexItemsForDay(items, destinationDayId, item.id),
+      buildUpdatedItem(item, {
+        day_id: destinationDayId,
+        base_id: nextBaseId,
+        time_start: null,
+      }),
+    ]);
+
+    updates.push(...destinationFlexItems);
+  } else {
+    updates.push(buildUpdatedItem(item, {
+      day_id: destinationDayId,
+      base_id: nextBaseId,
+      sort_order: getAnchorDestinationSortOrder(items, destinationDayId, item.id),
+    }));
+  }
+
+  await persistItemBatchUpdates(dedupeItemsById(updates));
+  return true;
 }
 
 function renderTripSettingsForm(trip, isSaving) {
@@ -1261,7 +1579,7 @@ function renderEditBaseForm(base, isSaving) {
 }
 
 function renderDaysView(bases, days, assignedItems, unassignedItems) {
-  const sortedUnassignedItems = [...unassignedItems].sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+  const sortedUnassignedItems = getSortedUnassignedItems(unassignedItems);
   const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
 
   return `
@@ -1316,9 +1634,7 @@ function renderBaseDaysSection(row, days, items, rowCount, isFirst) {
 }
 
 function renderDayCard(day, items) {
-  const dayItems = items
-    .filter((item) => item.day_id === day.id)
-    .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+  const combinedItems = getInterleavedDayItems(items, day.id);
   const trip = tripStore.getCurrentTrip();
   const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
   const isEditingTitle = editingDayTitleId === day.id;
@@ -1352,9 +1668,13 @@ function renderDayCard(day, items) {
         ${day.location_name ? `<p class="muted">${escapeHtml(day.location_name)}</p>` : ""}
       </div>
       ${
-        dayItems.length === 0
+        combinedItems.length === 0
           ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
-          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item)).join("")}</div>`
+          : `<div class="days-view__list">${combinedItems.map((item, index) => renderDayItem(item, {
+              dayId: day.id,
+              canMoveUp: index > 0,
+              canMoveDown: index < combinedItems.length - 1,
+            })).join("")}</div>`
       }
     </article>
   `;
@@ -1391,25 +1711,62 @@ function cancelInlineDayTitleEdit() {
   rerenderTripDetail();
 }
 
-function renderDayItem(item) {
+function renderDayItem(item, options = {}) {
+  const {
+    dayId = "",
+    canMoveUp = false,
+    canMoveDown = false,
+  } = options;
   const detailParts = [
-    item.time_start ? escapeHtml(formatTimeLabel(item.time_start, item.time_is_estimated)) : "",
+    item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
     item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
     item.item_type === "activity" && item.activity_type ? escapeHtml(formatItemTypeLabel(item.activity_type)) : "",
     item.item_type === "transport" && item.transport_mode ? escapeHtml(formatItemTypeLabel(item.transport_mode)) : "",
   ].filter(Boolean);
 
   return `
-    <article class="day-item">
-      <div class="day-item__header">
-        <div class="day-item__title-line">
-          <h5>${escapeHtml(item.title || "Untitled item")}</h5>
-          ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
+    <article class="day-item" data-day-item-id="${escapeHtml(item.id)}" data-day-id="${escapeHtml(item.day_id || "")}">
+      <div class="day-item__body">
+        <div class="day-item__header">
+          <div class="day-item__title-line">
+            <h5>${escapeHtml(item.title || "Untitled item")}</h5>
+            ${item.is_anchor ? renderAnchorBadge() : ""}
+          </div>
+          <div class="day-item__header-actions">
+            ${
+              !item.is_anchor && dayId
+                ? `
+                  <div class="day-item__reorder-controls" aria-label="Reorder item">
+                    <button
+                      class="day-item__reorder-button"
+                      data-reorder-item-up="${escapeHtml(item.id)}"
+                      data-reorder-day-id="${escapeHtml(dayId)}"
+                      type="button"
+                      aria-label="Move item up"
+                      ${canMoveUp ? "" : "disabled"}
+                    >
+                      <i data-lucide="chevron-up"></i>
+                    </button>
+                    <button
+                      class="day-item__reorder-button"
+                      data-reorder-item-down="${escapeHtml(item.id)}"
+                      data-reorder-day-id="${escapeHtml(dayId)}"
+                      type="button"
+                      aria-label="Move item down"
+                      ${canMoveDown ? "" : "disabled"}
+                    >
+                      <i data-lucide="chevron-down"></i>
+                    </button>
+                  </div>
+                `
+                : ""
+            }
+            ${renderItemActionsMenu(item)}
+          </div>
         </div>
-        ${renderItemActionsMenu(item)}
+        <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
+        ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
-      <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
-      ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
     </article>
   `;
 }
@@ -1496,10 +1853,6 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
                 <input name="timeEnd" type="time" value="${draft.timeEnd || ""}" />
               </label>
             </div>
-            <label class="checkbox-field">
-              <input name="timeIsEstimated" type="checkbox" ${draft.timeIsEstimated ? "checked" : ""} />
-              <span>Time is estimated</span>
-            </label>
           </div>
 
           ${renderTypeSpecificFields(draft)}
@@ -1574,6 +1927,113 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function renderAnchorBadge() {
+  return `
+    <span class="trip-pill trip-pill--anchor">
+      <i data-lucide="pin" aria-hidden="true"></i>
+      <span>Anchor</span>
+    </span>
+  `;
+}
+
+function compareAnchorItems(left, right) {
+  const leftTime = String(left.time_start || "");
+  const rightTime = String(right.time_start || "");
+
+  return leftTime.localeCompare(rightTime) || String(left.title || "").localeCompare(String(right.title || ""));
+}
+
+function compareFlexItems(left, right) {
+  return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0)
+    || String(left.created_at || "").localeCompare(String(right.created_at || ""))
+    || String(left.title || "").localeCompare(String(right.title || ""));
+}
+
+function getInterleavedDayItems(items, dayId) {
+  const dayItems = items.filter((item) => item.day_id === dayId);
+  const anchorItems = dayItems.filter((item) => item.is_anchor).sort(compareAnchorItems);
+  const flexItems = dayItems.filter((item) => !item.is_anchor).sort(compareFlexItems);
+  const combinedItems = [];
+  let flexIndex = 0;
+  let previousAnchorBoundary = -1;
+
+  anchorItems.forEach((anchor) => {
+    const rawBoundary = Number(anchor.sort_order);
+    const anchorBoundary = Number.isFinite(rawBoundary)
+      ? Math.max(previousAnchorBoundary, rawBoundary)
+      : previousAnchorBoundary;
+
+    while (flexIndex < flexItems.length && Number(flexItems[flexIndex].sort_order) <= anchorBoundary) {
+      combinedItems.push(flexItems[flexIndex]);
+      flexIndex += 1;
+    }
+
+    combinedItems.push(anchor);
+    previousAnchorBoundary = anchorBoundary;
+  });
+
+  while (flexIndex < flexItems.length) {
+    combinedItems.push(flexItems[flexIndex]);
+    flexIndex += 1;
+  }
+
+  return combinedItems;
+}
+
+function getSortedUnassignedItems(items) {
+  return [...items].sort(compareFlexItems);
+}
+
+function normalizeFlexItems(items) {
+  return items.map((item, index) => ({
+    ...item,
+    sort_order: index,
+  }));
+}
+
+function insertFlexItemByTime(items, itemToInsert) {
+  const orderedItems = [...items].sort(compareFlexItems);
+  const timedItems = orderedItems
+    .filter((item) => item.time_start)
+    .sort((left, right) => String(left.time_start).localeCompare(String(right.time_start)) || compareFlexItems(left, right));
+
+  if (!itemToInsert.time_start || timedItems.length === 0) {
+    return normalizeFlexItems([...orderedItems, itemToInsert]);
+  }
+
+  const previousTimedItem = [...timedItems]
+    .reverse()
+    .find((item) => String(item.time_start).localeCompare(String(itemToInsert.time_start)) <= 0);
+  const nextTimedItem = timedItems.find((item) => String(item.time_start).localeCompare(String(itemToInsert.time_start)) > 0);
+
+  let insertIndex = orderedItems.length;
+
+  if (previousTimedItem) {
+    insertIndex = orderedItems.findIndex((item) => item.id === previousTimedItem.id) + 1;
+  } else if (nextTimedItem) {
+    insertIndex = orderedItems.findIndex((item) => item.id === nextTimedItem.id);
+  }
+
+  const nextItems = [...orderedItems];
+  nextItems.splice(insertIndex, 0, itemToInsert);
+  return normalizeFlexItems(nextItems);
+}
+
+function buildUpdatedItem(currentItem, overrides) {
+  return {
+    ...currentItem,
+    ...overrides,
+  };
+}
+
+function dedupeItemsById(items) {
+  const itemsById = new Map();
+  items.forEach((item) => {
+    itemsById.set(item.id, item);
+  });
+  return [...itemsById.values()];
 }
 
 function renderTypeSpecificFields(draft) {
@@ -1730,7 +2190,6 @@ function syncItemEditorDraftFromForm() {
     isAnchor: formData.get("isAnchor") === "on",
     timeStart: String(formData.get("timeStart") || "").trim(),
     timeEnd: String(formData.get("timeEnd") || "").trim(),
-    timeIsEstimated: formData.get("timeIsEstimated") === "on",
     mealSlot: String(formData.get("mealSlot") || "").trim(),
     activityType: String(formData.get("activityType") || "").trim(),
     transportMode: String(formData.get("transportMode") || "").trim(),
@@ -1757,7 +2216,6 @@ function buildItemEditorDraft(item) {
     isAnchor: Boolean(item.is_anchor),
     timeStart: item.time_start || "",
     timeEnd: item.time_end || "",
-    timeIsEstimated: Boolean(item.time_is_estimated),
     mealSlot: item.meal_slot || "",
     activityType: item.activity_type || "",
     transportMode: item.transport_mode || "",
@@ -1832,6 +2290,66 @@ function renderDeleteItemConfirmModal({ item, isOpen, isDeleting }) {
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-delete-item" type="button">Cancel</button>
           <button class="button button--danger" id="confirm-delete-item" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Item"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderMoveItemModal({ trip, item, bases, days, isOpen, isMoving }) {
+  if (!isOpen || !item) {
+    return "";
+  }
+
+  const daysByBase = bases
+    .map((base) => ({
+      base,
+      days: days.filter((day) => day.base_id === base.id),
+    }))
+    .filter((group) => group.days.length > 0);
+  const showEmptyState = daysByBase.length === 0 && !item.day_id;
+
+  return `
+    <div class="modal-shell" id="move-item-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-move-item></div>
+      <section class="panel modal-card">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Move Item</p>
+            <h3>Move ${escapeHtml(item.title || "this item")} to...</h3>
+          </div>
+          <button class="icon-button" id="close-move-item" type="button" aria-label="Close move dialog">×</button>
+        </div>
+        <div class="move-item-modal__list">
+          ${
+            showEmptyState
+              ? `<p class="muted">No days available to move to. Add days to your trip first.</p>`
+              : `
+                <button
+                  class="move-item-modal__option"
+                  data-move-item-destination=""
+                  type="button"
+                  ${!item.day_id || isMoving ? "disabled" : ""}
+                >
+                  <span>Unassigned</span>
+                </button>
+                ${daysByBase.map((group) => `
+                  <div class="move-item-modal__group">
+                    <p class="eyebrow">${escapeHtml(group.base.name || "Untitled base")}</p>
+                    ${group.days.map((day) => `
+                      <button
+                        class="move-item-modal__option"
+                        data-move-item-destination="${escapeHtml(day.id)}"
+                        type="button"
+                        ${item.day_id === day.id || isMoving ? "disabled" : ""}
+                      >
+                        <span>Day ${day.day_number}${trip?.start_date ? ` · ${escapeHtml(formatDayDateLabel(trip.start_date, day.day_number))}` : ""}</span>
+                      </button>
+                    `).join("")}
+                  </div>
+                `).join("")}
+              `
+          }
         </div>
       </section>
     </div>
@@ -1992,6 +2510,7 @@ function renderItemActionsMenu(item) {
       <summary class="item-actions-menu__trigger" aria-label="Open item actions">⋮</summary>
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
+        <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
         <button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Delete</button>
       </div>
     </details>
@@ -2522,6 +3041,26 @@ function openDeleteItemConfirm(itemId) {
   appStore.updateTripDetail({
     showDeleteItemConfirm: true,
     deletingItemId: itemId,
+  });
+  rerenderTripDetail();
+}
+
+function openMoveItemModal(itemId) {
+  appStore.updateTripDetail({
+    showMoveItemModal: true,
+    movingItemId: itemId,
+    isMovingItem: false,
+    movingOperationId: null,
+  });
+  rerenderTripDetail();
+}
+
+function closeMoveItemModal() {
+  appStore.updateTripDetail({
+    showMoveItemModal: false,
+    movingItemId: null,
+    isMovingItem: false,
+    movingOperationId: null,
   });
   rerenderTripDetail();
 }
