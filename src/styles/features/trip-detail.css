@@ -214,7 +214,6 @@
 }
 
 .base-card__header h4,
-.day-card__header h4,
 .day-item__title-line h5 {
   margin: 0;
 }
@@ -319,7 +318,50 @@
 
 .day-card__header {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+}
+
+.day-card__header-main {
+  display: grid;
   gap: 0.35rem;
+  min-width: 0;
+}
+
+.day-card__edit-title {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.day-card__header:hover .day-card__edit-title,
+.day-card__header:focus-within .day-card__edit-title {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.day-card__title-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.15;
+  padding: 0;
+  text-align: left;
+  justify-self: start;
+}
+
+.day-card__title-input {
+  min-height: 44px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.day-card__header > .muted {
+  grid-column: 1 / -1;
 }
 
 .day-card__empty {
@@ -444,5 +486,14 @@
 
   .allocation-row__meta {
     justify-content: start;
+  }
+
+  .day-card__header {
+    grid-template-columns: 1fr;
+  }
+
+  .day-card__edit-title {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

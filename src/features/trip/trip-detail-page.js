@@ -31,6 +31,7 @@ import {
 } from "../../config/constants.js";
 import { sessionStore } from "../../state/session-store.js";
 import { showToast } from "../shared/toast.js";
+import { updateTripDayTitle } from "../../services/days-service.js";
 
 let rerenderTripDetail = () => {};
 let itemEditorInitialSnapshot = "";
@@ -41,6 +42,8 @@ let allocationDraft = null;
 let allocationConfirmState = null;
 let pendingTripSettingsDraft = null;
 let tripLengthConfirmState = null;
+let editingDayTitleId = null;
+let editingDayTitleValue = "";
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -748,6 +751,57 @@ export function wireTripDetailPage(tripId) {
       showToast(getTripItemErrorMessage("delete"), "error");
     }
   });
+  document.querySelectorAll("[data-edit-day-title]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dayId = button.getAttribute("data-edit-day-title");
+      const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId);
+
+      if (!dayId || !day) {
+        return;
+      }
+
+      editingDayTitleId = dayId;
+      editingDayTitleValue = day.title || "";
+      rerenderTripDetail();
+    });
+  });
+  document.querySelectorAll("[data-day-title-trigger]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dayId = button.getAttribute("data-day-title-trigger");
+      const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId);
+
+      if (!dayId || !day?.title) {
+        return;
+      }
+
+      editingDayTitleId = dayId;
+      editingDayTitleValue = day.title || "";
+      rerenderTripDetail();
+    });
+  });
+  const dayTitleInput = document.querySelector("#day-title-inline-input");
+  if (dayTitleInput) {
+    dayTitleInput.focus();
+    dayTitleInput.select();
+    dayTitleInput.addEventListener("input", (event) => {
+      editingDayTitleValue = event.currentTarget.value;
+    });
+    dayTitleInput.addEventListener("blur", async () => {
+      await saveInlineDayTitle();
+    });
+    dayTitleInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        await saveInlineDayTitle();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelInlineDayTitleEdit();
+      }
+    });
+  }
 }
 
 export async function loadTripDetail(tripId) {
@@ -782,6 +836,8 @@ export async function loadTripDetail(tripId) {
     allocationConfirmState = null;
     pendingTripSettingsDraft = null;
     tripLengthConfirmState = null;
+    editingDayTitleId = null;
+    editingDayTitleValue = "";
     rerenderTripDetail();
   } catch (error) {
     console.error(error);
@@ -1047,14 +1103,34 @@ function renderDayCard(day, items) {
     .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
   const trip = tripStore.getCurrentTrip();
   const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
+  const isEditingTitle = editingDayTitleId === day.id;
+  const title = String(day.title || "").trim();
 
   return `
     <article class="day-card">
       <div class="day-card__header">
-        <div>
+        <div class="day-card__header-main">
           <p class="eyebrow">Day ${day.day_number}${dateLabel ? ` · ${escapeHtml(dateLabel)}` : ""}</p>
-          <h4>${escapeHtml(day.title || `Day ${day.day_number}`)}</h4>
+          ${
+            isEditingTitle
+              ? `
+                <input
+                  class="day-card__title-input"
+                  id="day-title-inline-input"
+                  type="text"
+                  maxlength="120"
+                  value="${escapeHtml(editingDayTitleValue)}"
+                  placeholder="Add day title"
+                />
+              `
+              : title
+                ? `<button class="day-card__title-button" data-day-title-trigger="${escapeHtml(day.id)}" type="button">${escapeHtml(title)}</button>`
+                : ""
+          }
         </div>
+        <button class="icon-button day-card__edit-title" data-edit-day-title="${escapeHtml(day.id)}" type="button" title="Edit day title" aria-label="Edit day title">
+          <i data-lucide="pencil"></i>
+        </button>
         ${day.location_name ? `<p class="muted">${escapeHtml(day.location_name)}</p>` : ""}
       </div>
       ${
@@ -1064,6 +1140,37 @@ function renderDayCard(day, items) {
       }
     </article>
   `;
+}
+
+async function saveInlineDayTitle() {
+  const dayId = editingDayTitleId;
+
+  if (!dayId) {
+    return;
+  }
+
+  const nextTitle = editingDayTitleValue;
+  editingDayTitleId = null;
+  editingDayTitleValue = "";
+  rerenderTripDetail();
+
+  try {
+    const updatedDay = await updateTripDayTitle({
+      dayId,
+      title: nextTitle,
+    });
+    tripStore.updateCurrentDay(updatedDay);
+    rerenderTripDetail();
+  } catch (error) {
+    console.error(error);
+    showToast("Something went wrong saving. Please try again.", "error");
+  }
+}
+
+function cancelInlineDayTitleEdit() {
+  editingDayTitleId = null;
+  editingDayTitleValue = "";
+  rerenderTripDetail();
 }
 
 function renderDayItem(item) {

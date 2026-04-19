@@ -54,6 +54,9 @@ function createTripStore() {
     updateCurrentBase(nextBase) {
       currentBases = currentBases.map((base) => (base.id === nextBase.id ? nextBase : base));
     },
+    updateCurrentDay(nextDay) {
+      currentDays = currentDays.map((day) => (day.id === nextDay.id ? nextDay : day));
+    },
     resetCurrentTrip() {
       currentTrip = null;
       currentBases = [];
