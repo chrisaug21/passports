@@ -23,7 +23,7 @@ export async function bootstrapApp() {
     onAuthStateChange((event, nextSession) => {
       sessionStore.setSession(nextSession);
 
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") {
         return;
       }
 

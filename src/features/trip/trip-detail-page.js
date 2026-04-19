@@ -249,6 +249,7 @@ export function wireTripDetailPage(tripId) {
 
       appStore.updateTripDetail({
         editingItemId: itemId,
+        itemEditorDirty: false,
       });
       rerenderTripDetail();
     });
@@ -259,6 +260,9 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
   syncItemEditorTypeFields();
+
+  document.querySelector("#item-editor-form")?.addEventListener("input", markItemEditorDirty);
+  document.querySelector("#item-editor-form")?.addEventListener("change", markItemEditorDirty);
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -319,6 +323,7 @@ export function wireTripDetailPage(tripId) {
       appStore.updateTripDetail({
         isSavingItem: false,
         editingItemId: null,
+        itemEditorDirty: false,
       });
       rerenderTripDetail();
       showToast("Item updated.", "success");
@@ -348,6 +353,7 @@ export async function loadTripDetail(tripId) {
       isCreatingItem: false,
       isSavingItem: false,
       editingItemId: null,
+      itemEditorDirty: false,
     });
     rerenderTripDetail();
   } catch (error) {
@@ -533,6 +539,7 @@ function closeItemEditor() {
   appStore.updateTripDetail({
     editingItemId: null,
     isSavingItem: false,
+    itemEditorDirty: false,
   });
   rerenderTripDetail();
 }
@@ -619,64 +626,17 @@ function confirmCloseItemEditor() {
     return true;
   }
 
-  if (!hasUnsavedItemEditorChanges()) {
+  if (!appStore.getState().tripDetail.itemEditorDirty) {
     return true;
   }
 
   return window.confirm("Discard your unsaved item changes?");
 }
 
-function hasUnsavedItemEditorChanges() {
-  const form = document.querySelector("#item-editor-form");
-  const editingItemId = appStore.getState().tripDetail.editingItemId;
-  const item = tripStore.getCurrentItems().find((entry) => entry.id === editingItemId);
-
-  if (!form || !item) {
-    return false;
+function markItemEditorDirty() {
+  if (!appStore.getState().tripDetail.itemEditorDirty) {
+    appStore.updateTripDetail({
+      itemEditorDirty: true,
+    });
   }
-
-  const formData = new FormData(form);
-  const currentSnapshot = {
-    title: String(formData.get("title") || "").trim(),
-    itemType: String(formData.get("itemType") || "").trim(),
-    status: String(formData.get("status") || "").trim(),
-    baseId: String(formData.get("baseId") || "").trim(),
-    dayId: String(formData.get("dayId") || "").trim(),
-    isAnchor: formData.get("isAnchor") === "on",
-    timeStart: String(formData.get("timeStart") || "").trim(),
-    timeEnd: String(formData.get("timeEnd") || "").trim(),
-    timeIsEstimated: formData.get("timeIsEstimated") === "on",
-    mealSlot: String(formData.get("mealSlot") || "").trim(),
-    activityType: String(formData.get("activityType") || "").trim(),
-    transportMode: String(formData.get("transportMode") || "").trim(),
-    transportOrigin: String(formData.get("transportOrigin") || "").trim(),
-    transportDestination: String(formData.get("transportDestination") || "").trim(),
-    costLow: String(formData.get("costLow") || "").trim(),
-    costHigh: String(formData.get("costHigh") || "").trim(),
-    url: String(formData.get("url") || "").trim(),
-    notes: String(formData.get("notes") || "").trim(),
-  };
-
-  const originalSnapshot = {
-    title: item.title || "",
-    itemType: item.item_type || "",
-    status: item.status || "",
-    baseId: item.base_id || "",
-    dayId: item.day_id || "",
-    isAnchor: Boolean(item.is_anchor),
-    timeStart: item.time_start || "",
-    timeEnd: item.time_end || "",
-    timeIsEstimated: Boolean(item.time_is_estimated),
-    mealSlot: item.meal_slot || "",
-    activityType: item.activity_type || "",
-    transportMode: item.transport_mode || "",
-    transportOrigin: item.transport_origin || "",
-    transportDestination: item.transport_destination || "",
-    costLow: item.cost_low == null ? "" : String(item.cost_low),
-    costHigh: item.cost_high == null ? "" : String(item.cost_high),
-    url: item.url || "",
-    notes: item.notes || "",
-  };
-
-  return JSON.stringify(currentSnapshot) !== JSON.stringify(originalSnapshot);
 }
