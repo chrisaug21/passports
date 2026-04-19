@@ -78,6 +78,15 @@
   border: 1px solid var(--color-border);
 }
 
+.button--danger {
+  background: rgba(192, 83, 83, 0.95);
+}
+
+.button--danger:hover,
+.button--danger:focus-visible {
+  background: rgba(170, 64, 64, 0.98);
+}
+
 .field {
   display: grid;
   gap: 0.5rem;

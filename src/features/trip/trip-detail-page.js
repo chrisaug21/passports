@@ -5,6 +5,8 @@ import {
   createTripBase,
   createTripItem,
   fetchTripDetailBundle,
+  softDeleteTripItem,
+  updateTripSettings,
   updateTripBase,
   updateTripItem,
 } from "../../services/trips-service.js";
@@ -124,6 +126,24 @@ export function renderTripDetailPage() {
         </article>
       </section>
 
+      <section class="panel trip-settings-panel">
+        <div class="trip-settings-panel__header">
+          <div>
+            <p class="eyebrow">Trip</p>
+            <h3>Trip Settings</h3>
+          </div>
+          <button class="button button--secondary" id="toggle-trip-settings" type="button">
+            ${tripDetail.isShowingTripSettings ? "Hide Settings" : "Edit Trip"}
+          </button>
+        </div>
+
+        ${
+          tripDetail.isShowingTripSettings
+            ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
+            : `<p class="muted">Edit trip details, start date, and duration here.</p>`
+        }
+      </section>
+
       <section class="trip-view-tabs">
         <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">Master List</button>
         <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
@@ -203,8 +223,14 @@ export function renderTripDetailPage() {
         bases,
         days,
         isSaving: tripDetail.isSavingItem,
+        isDeleting: tripDetail.isDeletingItem && tripDetail.deletingItemId === editingItem?.id,
       })}
       ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
+      ${renderDeleteItemConfirmModal({
+        item: items.find((entry) => entry.id === tripDetail.deletingItemId) || null,
+        isOpen: tripDetail.showDeleteItemConfirm,
+        isDeleting: tripDetail.isDeletingItem,
+      })}
       ${renderTimezoneOptionsDatalist()}
     </section>
   `;
@@ -230,6 +256,63 @@ export function wireTripDetailPage(tripId) {
       });
       rerenderTripDetail();
     });
+  });
+  document.querySelector("#toggle-trip-settings")?.addEventListener("click", () => {
+    const { isShowingTripSettings } = appStore.getState().tripDetail;
+    appStore.updateTripDetail({
+      isShowingTripSettings: !isShowingTripSettings,
+    });
+    rerenderTripDetail();
+  });
+  document.querySelector("#cancel-trip-settings")?.addEventListener("click", () => {
+    appStore.updateTripDetail({
+      isShowingTripSettings: false,
+      isSavingTrip: false,
+    });
+    rerenderTripDetail();
+  });
+  document.querySelector("#trip-settings-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const trip = tripStore.getCurrentTrip();
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") || "").trim();
+    const tripLength = Number(formData.get("tripLength"));
+
+    if (!trip?.id || !title || !Number.isFinite(tripLength) || tripLength < 1) {
+      showToast("Add a title and a valid trip length first.", "error");
+      return;
+    }
+
+    appStore.updateTripDetail({
+      isSavingTrip: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      const updatedTrip = await updateTripSettings({
+        tripId: trip.id,
+        title,
+        description: String(formData.get("description") || "").trim(),
+        startDate: String(formData.get("startDate") || "").trim(),
+        tripLength,
+      });
+      tripStore.updateCurrentTrip(updatedTrip);
+
+      appStore.updateTripDetail({
+        isSavingTrip: false,
+        isShowingTripSettings: false,
+      });
+      await loadTripDetail(trip.id);
+      showToast("Trip updated.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isSavingTrip: false,
+      });
+      rerenderTripDetail();
+      showToast(getTripItemErrorMessage(error), "error");
+    }
   });
   document.querySelector("#show-add-base-form")?.addEventListener("click", () => {
     appStore.updateTripDetail({
@@ -597,6 +680,57 @@ export function wireTripDetailPage(tripId) {
       showToast(getTripItemErrorMessage(error), "error");
     }
   });
+  document.querySelector("#delete-item-button")?.addEventListener("click", () => {
+    const { editingItemId } = appStore.getState().tripDetail;
+    if (!editingItemId) {
+      return;
+    }
+
+    appStore.updateTripDetail({
+      showDeleteItemConfirm: true,
+      deletingItemId: editingItemId,
+    });
+    rerenderTripDetail();
+  });
+  document.querySelector("#cancel-delete-item")?.addEventListener("click", closeDeleteItemConfirm);
+  document.querySelector("[data-cancel-delete-item]")?.addEventListener("click", closeDeleteItemConfirm);
+  document.querySelector("#confirm-delete-item")?.addEventListener("click", async () => {
+    const trip = tripStore.getCurrentTrip();
+    const { deletingItemId } = appStore.getState().tripDetail;
+
+    if (!trip?.id || !deletingItemId) {
+      return;
+    }
+
+    appStore.updateTripDetail({
+      isDeletingItem: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      await softDeleteTripItem(deletingItemId);
+      tripStore.removeCurrentItem(deletingItemId);
+      appStore.updateTripDetail({
+        isDeletingItem: false,
+        showDeleteItemConfirm: false,
+        deletingItemId: null,
+        editingItemId: null,
+        showDiscardConfirm: false,
+      });
+      itemEditorDraft = null;
+      itemEditorInitialSnapshot = "";
+      pendingDiscardAction = null;
+      rerenderTripDetail();
+      showToast("Item deleted.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isDeletingItem: false,
+      });
+      rerenderTripDetail();
+      showToast(getTripItemErrorMessage(error), "error");
+    }
+  });
 }
 
 export async function loadTripDetail(tripId) {
@@ -611,10 +745,15 @@ export async function loadTripDetail(tripId) {
     appStore.updateTripDetail({
       status: "ready",
       error: "",
+      isShowingTripSettings: false,
+      isSavingTrip: false,
       isCreatingItem: false,
       isSavingItem: false,
       editingItemId: null,
       showDiscardConfirm: false,
+      showDeleteItemConfirm: false,
+      isDeletingItem: false,
+      deletingItemId: null,
       isShowingAddBaseForm: false,
       editingBaseId: null,
       assigningBaseId: null,
@@ -666,6 +805,38 @@ function renderMasterListRow(item, days, bases) {
       </div>
       <button class="button button--secondary master-list-row__action" data-edit-item="${item.id}" type="button">Edit</button>
     </article>
+  `;
+}
+
+function renderTripSettingsForm(trip, isSaving) {
+  return `
+    <form class="trip-settings-form" id="trip-settings-form">
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Title</span>
+          <input name="title" type="text" maxlength="120" value="${escapeAttribute(trip.title || "")}" required />
+        </label>
+        <label class="field">
+          <span>Trip Length</span>
+          <input name="tripLength" type="number" min="1" step="1" value="${trip.trip_length}" required />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Start Date</span>
+          <input name="startDate" type="date" value="${trip.start_date || ""}" />
+        </label>
+      </div>
+      <label class="field">
+        <span>Description</span>
+        <textarea name="description" rows="3" placeholder="What kind of trip is this?">${escapeTextarea(trip.description || "")}</textarea>
+      </label>
+      <p class="muted">If you shorten the trip, items on removed days move back to the unassigned pool.</p>
+      <div class="base-form__actions">
+        <button class="button button--secondary" id="cancel-trip-settings" type="button">Cancel</button>
+        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Trip"}</button>
+      </div>
+    </form>
   `;
 }
 
@@ -905,7 +1076,7 @@ function renderDayItem(item) {
   `;
 }
 
-function renderItemEditorModal({ item, bases, days, isSaving }) {
+function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
   if (!item) {
     return `
       <div class="modal-shell is-hidden" id="item-editor-modal" aria-hidden="true">
@@ -1022,6 +1193,7 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
           </div>
 
           <div class="modal-card__actions">
+            <button class="button button--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Delete Item</button>
             <button class="button button--secondary" id="cancel-item-editor" type="button">Cancel</button>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
@@ -1307,6 +1479,31 @@ function renderDiscardConfirmModal(isOpen) {
   `;
 }
 
+function renderDeleteItemConfirmModal({ item, isOpen, isDeleting }) {
+  if (!isOpen || !item) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" id="delete-item-confirm-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-delete-item></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Delete Item</p>
+            <h3>Delete ${escapeTextarea(item.title)}?</h3>
+          </div>
+        </div>
+        <p class="muted">This removes the item from the trip, but keeps it archived in the database.</p>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-delete-item" type="button">Cancel</button>
+          <button class="button button--danger" id="confirm-delete-item" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Item"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function wireDiscardConfirmModal() {
   document.querySelector("#keep-editing-button")?.addEventListener("click", keepEditing);
   document.querySelector("[data-keep-editing]")?.addEventListener("click", keepEditing);
@@ -1416,6 +1613,15 @@ function keepEditing() {
   pendingDiscardAction = null;
   appStore.updateTripDetail({
     showDiscardConfirm: false,
+  });
+  rerenderTripDetail();
+}
+
+function closeDeleteItemConfirm() {
+  appStore.updateTripDetail({
+    showDeleteItemConfirm: false,
+    isDeletingItem: false,
+    deletingItemId: null,
   });
   rerenderTripDetail();
 }

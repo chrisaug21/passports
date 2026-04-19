@@ -20,6 +20,10 @@ function createTripStore() {
     getCurrentTrip() {
       return currentTrip;
     },
+    updateCurrentTrip(nextTrip) {
+      currentTrip = nextTrip;
+      trips = trips.map((trip) => (trip.id === nextTrip.id ? { ...trip, ...nextTrip } : trip));
+    },
     getCurrentBases() {
       return currentBases;
     },
@@ -40,6 +44,9 @@ function createTripStore() {
     },
     updateCurrentItem(nextItem) {
       currentItems = currentItems.map((item) => (item.id === nextItem.id ? nextItem : item));
+    },
+    removeCurrentItem(itemId) {
+      currentItems = currentItems.filter((item) => item.id !== itemId);
     },
     appendCurrentBase(base) {
       currentBases = [...currentBases, base];

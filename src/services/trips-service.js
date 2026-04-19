@@ -378,6 +378,139 @@ export async function updateTripItem({
   return data;
 }
 
+export async function softDeleteTripItem(itemId) {
+  const supabase = getSupabase();
+
+  const { error } = await supabase
+    .from("trip_items")
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", itemId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateTripSettings({
+  tripId,
+  title,
+  description,
+  startDate,
+  tripLength,
+}) {
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  const { data: existingDays, error: existingDaysError } = await supabase
+    .from("trip_days")
+    .select("id, base_id, day_number, sort_order")
+    .eq("trip_id", tripId)
+    .is("deleted_at", null)
+    .order("day_number", { ascending: true });
+
+  if (existingDaysError) {
+    throw existingDaysError;
+  }
+
+  const activeDays = existingDays || [];
+  const currentTripLength = activeDays.length;
+
+  if (tripLength < currentTripLength) {
+    const removedDays = activeDays.filter((day) => day.day_number > tripLength);
+    const removedDayIds = removedDays.map((day) => day.id);
+
+    if (removedDayIds.length > 0) {
+      const { error: itemsError } = await supabase
+        .from("trip_items")
+        .update({
+          day_id: null,
+          updated_at: now,
+        })
+        .in("day_id", removedDayIds);
+
+      if (itemsError) {
+        throw itemsError;
+      }
+
+      const { error: daysError } = await supabase
+        .from("trip_days")
+        .update({
+          deleted_at: now,
+          updated_at: now,
+        })
+        .in("id", removedDayIds);
+
+      if (daysError) {
+        throw daysError;
+      }
+    }
+  }
+
+  if (tripLength > currentTripLength) {
+    const lastActiveDay = activeDays[activeDays.length - 1] || null;
+    const fallbackBaseId = lastActiveDay?.base_id || null;
+
+    if (!fallbackBaseId) {
+      throw new Error("Could not determine which base should own the new days.");
+    }
+
+    const insertedDays = Array.from({ length: tripLength - currentTripLength }, (_value, index) => ({
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      base_id: fallbackBaseId,
+      day_number: currentTripLength + index + 1,
+      sort_order: currentTripLength + index,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    const { error: insertDaysError } = await supabase
+      .from("trip_days")
+      .insert(insertedDays);
+
+    if (insertDaysError) {
+      throw insertDaysError;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("trips")
+    .update({
+      title,
+      description: description || null,
+      start_date: startDate || null,
+      trip_length: tripLength,
+      updated_at: now,
+    })
+    .eq("id", tripId)
+    .select(
+      `
+        id,
+        owner_id,
+        title,
+        description,
+        trip_length,
+        start_date,
+        status,
+        is_public,
+        cover_photo_url,
+        created_at,
+        updated_at,
+        deleted_at
+      `
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function createTripBase({
   tripId,
   name,
