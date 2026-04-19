@@ -26,6 +26,9 @@ function createTripStore() {
     },
     removeTrip(tripId) {
       trips = trips.filter((trip) => trip.id !== tripId);
+      if (currentTrip?.id === tripId) {
+        currentTrip = null;
+      }
     },
     getCurrentBases() {
       return currentBases;

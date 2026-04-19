@@ -47,6 +47,8 @@ let pendingTripSettingsDraft = null;
 let tripLengthConfirmState = null;
 let editingDayTitleId = null;
 let editingDayTitleValue = "";
+let closeOpenItemActionsMenus = () => {};
+let itemActionsGlobalListenersBound = false;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -322,13 +324,25 @@ export function wireTripDetailPage(tripId) {
     rerenderTripDetail();
   });
   document.querySelector("#mark-trip-done")?.addEventListener("click", () => {
+    const trip = tripStore.getCurrentTrip();
+
+    if (!trip) {
+      return;
+    }
+
+    const targetStatus = "done";
+
     appStore.updateTripDetail({
       showTripStatusConfirm: true,
-      pendingTripStatus: "done",
+      pendingTripStatus: targetStatus,
+    });
+    tripStore.updateCurrentTrip({
+      ...trip,
+      previous_status: trip.status === "done" ? trip.previous_status || "planning" : trip.status,
     });
     rerenderTripDetail();
   });
-  document.querySelector("#reopen-trip")?.addEventListener("click", async () => {
+  document.querySelector("#reopen-trip")?.addEventListener("click", () => {
     const trip = tripStore.getCurrentTrip();
 
     if (!trip?.id) {
@@ -336,29 +350,10 @@ export function wireTripDetailPage(tripId) {
     }
 
     appStore.updateTripDetail({
-      isUpdatingTripStatus: true,
+      showTripStatusConfirm: true,
+      pendingTripStatus: trip.previous_status || "planning",
     });
     rerenderTripDetail();
-
-    try {
-      const updatedTrip = await updateTripStatus({
-        tripId: trip.id,
-        status: "planning",
-      });
-      tripStore.updateCurrentTrip(updatedTrip);
-      appStore.updateTripDetail({
-        isUpdatingTripStatus: false,
-      });
-      rerenderTripDetail();
-      showToast("Trip reopened.", "success");
-    } catch (error) {
-      console.error(error);
-      appStore.updateTripDetail({
-        isUpdatingTripStatus: false,
-      });
-      rerenderTripDetail();
-      showToast(getTripItemErrorMessage("tripUpdate"), "error");
-    }
   });
   document.querySelector("#open-delete-trip-confirm")?.addEventListener("click", () => {
     appStore.updateTripDetail({
@@ -881,7 +876,7 @@ export function wireTripDetailPage(tripId) {
       rerenderTripDetail();
       showToast(
         error?.message === "BASE_HAS_ASSIGNED_DAYS"
-          ? "Remove all days from this base before deleting."
+          ? "Remove all days from this base before deleting it."
           : getTripItemErrorMessage("baseDelete"),
         "error"
       );
@@ -907,14 +902,19 @@ export function wireTripDetailPage(tripId) {
         tripId: trip.id,
         status: pendingTripStatus,
       });
-      tripStore.updateCurrentTrip(updatedTrip);
+      tripStore.updateCurrentTrip({
+        ...updatedTrip,
+        previous_status: pendingTripStatus === "done"
+          ? trip.previous_status || trip.status
+          : pendingTripStatus,
+      });
       appStore.updateTripDetail({
         isUpdatingTripStatus: false,
         showTripStatusConfirm: false,
         pendingTripStatus: null,
       });
       rerenderTripDetail();
-      showToast("Trip marked as done.", "success");
+      showToast(pendingTripStatus === "done" ? "Trip marked as done." : "Trip reopened.", "success");
     } catch (error) {
       console.error(error);
       appStore.updateTripDetail({
@@ -1935,9 +1935,12 @@ function renderDeleteBaseConfirmModal({ base, isOpen, isDeleting }) {
 }
 
 function renderTripStatusConfirmModal({ trip, isOpen, pendingStatus, isSaving }) {
-  if (!isOpen || !trip || pendingStatus !== "done") {
+  if (!isOpen || !trip || !pendingStatus) {
     return "";
   }
+
+  const isMarkingDone = pendingStatus === "done";
+  const statusLabel = formatStatusLabel(pendingStatus).toLowerCase();
 
   return `
     <div class="modal-shell" aria-hidden="false">
@@ -1945,14 +1948,14 @@ function renderTripStatusConfirmModal({ trip, isOpen, pendingStatus, isSaving })
       <section class="panel modal-card modal-card--confirm">
         <div class="modal-card__header">
           <div>
-            <p class="eyebrow">Mark Trip as Done</p>
-            <h3>Mark ${escapeHtml(trip.title || "this trip")} as done?</h3>
+            <p class="eyebrow">${isMarkingDone ? "Mark Trip as Done" : "Reopen Trip"}</p>
+            <h3>${isMarkingDone ? `Mark ${escapeHtml(trip.title || "this trip")} as done?` : `Reopen ${escapeHtml(trip.title || "this trip")}?`}</h3>
           </div>
         </div>
-        <p class="muted">You can still view and edit it.</p>
+        <p class="muted">${isMarkingDone ? "You can still view and edit it." : `This will move the trip back to ${escapeHtml(statusLabel)}.`}</p>
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-trip-status-confirm" type="button">Cancel</button>
-          <button class="button" id="confirm-trip-status-change" type="button" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Mark as Done"}</button>
+          <button class="button" id="confirm-trip-status-change" type="button" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : isMarkingDone ? "Mark as Done" : "Reopen Trip"}</button>
         </div>
       </section>
     </div>
@@ -1974,7 +1977,7 @@ function renderDeleteTripConfirmModal({ trip, isOpen, isDeleting }) {
             <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
           </div>
         </div>
-        <p class="muted">This will permanently hide ${escapeHtml(trip.title || "this trip")} and cannot be undone.</p>
+        <p class="muted">This hides ${escapeHtml(trip.title || "this trip")} from your trips.</p>
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-delete-trip" type="button">Cancel</button>
           <button class="button button--danger" id="confirm-delete-trip" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Trip"}</button>
@@ -1998,13 +2001,8 @@ function renderItemActionsMenu(item) {
 
 function wireItemActionsMenus() {
   const menus = [...document.querySelectorAll(".item-actions-menu")];
-
-  if (menus.length === 0) {
-    return;
-  }
-
-  const closeMenus = (exceptionMenu = null) => {
-    menus.forEach((menu) => {
+  closeOpenItemActionsMenus = (exceptionMenu = null) => {
+    document.querySelectorAll(".item-actions-menu").forEach((menu) => {
       if (menu !== exceptionMenu) {
         menu.open = false;
       }
@@ -2014,24 +2012,30 @@ function wireItemActionsMenus() {
   menus.forEach((menu) => {
     menu.addEventListener("toggle", () => {
       if (menu.open) {
-        closeMenus(menu);
+        closeOpenItemActionsMenus(menu);
       }
     });
   });
+
+  if (itemActionsGlobalListenersBound) {
+    return;
+  }
 
   document.addEventListener("click", (event) => {
     const menu = event.target instanceof Element ? event.target.closest(".item-actions-menu") : null;
 
     if (!menu) {
-      closeMenus();
+      closeOpenItemActionsMenus();
     }
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closeMenus();
+      closeOpenItemActionsMenus();
     }
   });
+
+  itemActionsGlobalListenersBound = true;
 }
 
 function renderTripLifecycleSection(trip) {

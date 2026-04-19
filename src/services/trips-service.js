@@ -582,31 +582,15 @@ export async function updateTripBase({
 }
 
 export async function softDeleteTripBase(baseId) {
-  const supabase = getSupabase();
-  const { count, error: countError } = await supabase
-    .from("trip_days")
-    .select("id", { count: "exact", head: true })
-    .eq("base_id", baseId)
-    .is("deleted_at", null);
-
-  if (countError) {
-    throw countError;
-  }
-
-  if ((count || 0) > 0) {
-    throw new Error("BASE_HAS_ASSIGNED_DAYS");
-  }
-
-  const { error } = await supabase
-    .from("trip_bases")
-    .update({
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", baseId)
-    .is("deleted_at", null);
+  const { error } = await getSupabase().rpc("soft_delete_trip_base", {
+    p_base_id: baseId,
+  });
 
   if (error) {
+    if (error.message === "BASE_HAS_ASSIGNED_DAYS") {
+      throw new Error("BASE_HAS_ASSIGNED_DAYS");
+    }
+
     throw error;
   }
 }
@@ -738,14 +722,9 @@ export async function updateTripStatus({ tripId, status }) {
 }
 
 export async function softDeleteTrip(tripId) {
-  const { error } = await getSupabase()
-    .from("trips")
-    .update({
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", tripId)
-    .is("deleted_at", null);
+  const { error } = await getSupabase().rpc("soft_delete_trip_cascade", {
+    p_trip_id: tripId,
+  });
 
   if (error) {
     throw error;

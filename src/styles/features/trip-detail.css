@@ -487,7 +487,7 @@
 }
 
 .item-actions-menu__item--danger {
-  color: rgba(170, 64, 64, 0.98);
+  color: var(--color-danger-strong);
 }
 
 .field-hint.is-hidden {
