@@ -55,9 +55,6 @@ export function renderTripDetailPage() {
   const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
-  const allocationState = getAllocationState(trip, days);
-  const allocationRows = buildAllocationRows(bases, allocationState.days);
-  const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
 
   if (tripDetail.status === "loading") {
     return `
@@ -99,6 +96,10 @@ export function renderTripDetailPage() {
       </section>
     `;
   }
+
+  const allocationState = getAllocationState(trip, days);
+  const allocationRows = buildAllocationRows(bases, allocationState.days);
+  const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
 
   return `
     <section class="trip-detail">
@@ -1577,7 +1578,7 @@ function renderTripLengthConfirmModal(state) {
 }
 
 function getAllocationState(trip, days) {
-  if (allocationDraft?.tripId === trip?.id) {
+  if (allocationDraft && allocationDraft.tripId === trip?.id) {
     return allocationDraft;
   }
 
