@@ -68,7 +68,7 @@ export async function listTripsForCurrentUser(userId) {
     .select(
       `
         role,
-        trips (
+        trips!inner (
           id,
           owner_id,
           title,
@@ -94,11 +94,11 @@ export async function listTripsForCurrentUser(userId) {
   }
 
   return (data || [])
+    .filter((row) => row?.trips?.id)
     .map((row) => ({
       ...row.trips,
       membership_role: row.role,
-    }))
-    .filter(Boolean);
+    }));
 }
 
 export async function createTripWithDefaults({ ownerId, title, description, tripLength, startDate }) {
