@@ -151,6 +151,17 @@
   gap: 1rem;
 }
 
+.days-view {
+  position: relative;
+}
+
+.days-view:has(.item-actions-menu[open]),
+.days-view__pool:has(.item-actions-menu[open]),
+.days-base-section:has(.item-actions-menu[open]) {
+  position: relative;
+  z-index: 45;
+}
+
 .allocation-list {
   display: grid;
   gap: 0.9rem;
@@ -334,6 +345,11 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
+  position: relative;
+}
+
+.day-card-grid:has(.item-actions-menu[open]) {
+  z-index: 40;
 }
 
 .day-card {
@@ -347,7 +363,7 @@
 }
 
 .day-card:has(.item-actions-menu[open]) {
-  z-index: 35;
+  z-index: 50;
 }
 
 .day-card__header {
@@ -524,7 +540,7 @@
 
 .master-list-panel:has(.item-actions-menu[open]) {
   position: relative;
-  z-index: 35;
+  z-index: 45;
 }
 
 .item-actions-menu__item {
