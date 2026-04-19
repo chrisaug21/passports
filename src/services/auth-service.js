@@ -41,8 +41,8 @@ export async function getSession() {
 }
 
 export function onAuthStateChange(callback) {
-  const { data } = getSupabase().auth.onAuthStateChange((_event, session) => {
-    callback(session);
+  const { data } = getSupabase().auth.onAuthStateChange((event, session) => {
+    callback(event, session);
   });
 
   return () => {

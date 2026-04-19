@@ -20,8 +20,13 @@ export async function bootstrapApp() {
     const session = await getSession();
     sessionStore.setSession(session);
 
-    onAuthStateChange((nextSession) => {
+    onAuthStateChange((event, nextSession) => {
       sessionStore.setSession(nextSession);
+
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        return;
+      }
+
       tripStore.setTrips([]);
       tripStore.resetCurrentTrip();
       appStore.resetDashboard();
