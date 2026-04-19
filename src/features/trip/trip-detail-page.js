@@ -1,9 +1,22 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import { createTripItem, fetchTripDetailBundle, updateTripItem } from "../../services/trips-service.js";
-import { formatItemTypeLabel, formatLongDate, formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
+import {
+  formatCostLabel,
+  formatItemTypeLabel,
+  formatLongDate,
+  formatStatusLabel,
+  formatTimeLabel,
+  formatTripDateSummary,
+} from "../../lib/format.js";
 import { navigate } from "../../app/router.js";
-import { ITEM_STATUSES, ITEM_TYPES } from "../../config/constants.js";
+import {
+  ACTIVITY_TYPES,
+  ITEM_STATUSES,
+  ITEM_TYPES,
+  MEAL_SLOTS,
+  TRANSPORT_MODES,
+} from "../../config/constants.js";
 import { sessionStore } from "../../state/session-store.js";
 import { showToast } from "../shared/toast.js";
 
@@ -282,6 +295,18 @@ export function wireTripDetailPage(tripId) {
         isAnchor: formData.get("isAnchor") === "on",
         baseId: nextBaseId,
         dayId: nextDayId,
+        mealSlot: String(formData.get("mealSlot") || "").trim(),
+        activityType: String(formData.get("activityType") || "").trim(),
+        transportMode: String(formData.get("transportMode") || "").trim(),
+        transportOrigin: String(formData.get("transportOrigin") || "").trim(),
+        transportDestination: String(formData.get("transportDestination") || "").trim(),
+        timeStart: String(formData.get("timeStart") || "").trim(),
+        timeEnd: String(formData.get("timeEnd") || "").trim(),
+        timeIsEstimated: formData.get("timeIsEstimated") === "on",
+        costLow: String(formData.get("costLow") || "").trim(),
+        costHigh: String(formData.get("costHigh") || "").trim(),
+        url: String(formData.get("url") || "").trim(),
+        notes: String(formData.get("notes") || "").trim(),
       });
 
       tripStore.updateCurrentItem(updatedItem);
@@ -333,6 +358,17 @@ export async function loadTripDetail(tripId) {
 function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
   const base = bases.find((entry) => entry.id === item.base_id);
+  const detailParts = [
+    item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
+    item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
+    item.item_type === "transport" && item.transport_mode ? formatItemTypeLabel(item.transport_mode) : "",
+    item.item_type === "transport" && (item.transport_origin || item.transport_destination)
+      ? [item.transport_origin, item.transport_destination].filter(Boolean).join(" → ")
+      : "",
+    item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
+    item.time_end ? `to ${formatTimeLabel(item.time_end, false)}` : "",
+    formatCostLabel(item.cost_low, item.cost_high),
+  ].filter(Boolean);
 
   return `
     <article class="master-list-row">
@@ -346,6 +382,7 @@ function renderMasterListRow(item, days, bases) {
           ${base ? ` · ${base.name}` : " · Unassigned base"}
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
         </p>
+        ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
       <button class="button button--secondary master-list-row__action" data-edit-item="${item.id}" type="button">Edit</button>
     </article>
@@ -416,6 +453,52 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
             <span>Anchor item</span>
           </label>
 
+          <div class="item-editor-section">
+            <p class="item-editor-section__title">Timing</p>
+            <div class="item-editor-form__grid">
+              <label class="field">
+                <span>Start Time</span>
+                <input name="timeStart" type="time" value="${item.time_start || ""}" />
+              </label>
+              <label class="field">
+                <span>End Time</span>
+                <input name="timeEnd" type="time" value="${item.time_end || ""}" />
+              </label>
+            </div>
+            <label class="checkbox-field">
+              <input name="timeIsEstimated" type="checkbox" ${item.time_is_estimated ? "checked" : ""} />
+              <span>Time is estimated</span>
+            </label>
+          </div>
+
+          ${renderTypeSpecificFields(item)}
+
+          <div class="item-editor-section">
+            <p class="item-editor-section__title">Cost</p>
+            <div class="item-editor-form__grid">
+              <label class="field">
+                <span>Low / Exact</span>
+                <input name="costLow" type="number" step="0.01" min="0" value="${item.cost_low ?? ""}" />
+              </label>
+              <label class="field">
+                <span>High</span>
+                <input name="costHigh" type="number" step="0.01" min="0" value="${item.cost_high ?? ""}" />
+              </label>
+            </div>
+          </div>
+
+          <div class="item-editor-section">
+            <p class="item-editor-section__title">Details</p>
+            <label class="field">
+              <span>URL</span>
+              <input name="url" type="url" value="${escapeAttribute(item.url || "")}" placeholder="https://..." />
+            </label>
+            <label class="field">
+              <span>Notes</span>
+              <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeTextarea(item.notes || "")}</textarea>
+            </label>
+          </div>
+
           <div class="modal-card__actions">
             <button class="button button--secondary" id="cancel-item-editor" type="button">Cancel</button>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
@@ -450,4 +533,52 @@ function escapeAttribute(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function escapeTextarea(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function renderTypeSpecificFields(item) {
+  return `
+    <div class="item-editor-section">
+      <p class="item-editor-section__title">Type-Specific Details</p>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Meal Slot</span>
+          <select name="mealSlot">
+            <option value="">None</option>
+            ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${item.meal_slot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>Activity Type</span>
+          <select name="activityType">
+            <option value="">None</option>
+            ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${item.activity_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span>Transport Mode</span>
+        <select name="transportMode">
+          <option value="">None</option>
+          ${TRANSPORT_MODES.map((mode) => `<option value="${mode}" ${item.transport_mode === mode ? "selected" : ""}>${formatItemTypeLabel(mode)}</option>`).join("")}
+        </select>
+      </label>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Transport Origin</span>
+          <input name="transportOrigin" type="text" value="${escapeAttribute(item.transport_origin || "")}" />
+        </label>
+        <label class="field">
+          <span>Transport Destination</span>
+          <input name="transportDestination" type="text" value="${escapeAttribute(item.transport_destination || "")}" />
+        </label>
+      </div>
+    </div>
+  `;
 }

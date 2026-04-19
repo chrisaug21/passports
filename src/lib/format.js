@@ -34,3 +34,39 @@ export function formatLongDate(value) {
     year: "numeric",
   }).format(new Date(`${value}T12:00:00`));
 }
+
+export function formatTimeLabel(value, isEstimated = false) {
+  if (!value) {
+    return "";
+  }
+
+  const [hours, minutes] = value.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+
+  return isEstimated ? `Around ${formatted}` : formatted;
+}
+
+export function formatCostLabel(low, high) {
+  if (low == null && high == null) {
+    return "";
+  }
+
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+
+  if (low != null && high != null && Number(low) !== Number(high)) {
+    return `${formatter.format(Number(low))} - ${formatter.format(Number(high))}`;
+  }
+
+  const value = low ?? high;
+  return formatter.format(Number(value));
+}

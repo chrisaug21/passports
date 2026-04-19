@@ -296,6 +296,18 @@ export async function updateTripItem({
   isAnchor,
   baseId,
   dayId,
+  mealSlot,
+  activityType,
+  transportMode,
+  transportOrigin,
+  transportDestination,
+  timeStart,
+  timeEnd,
+  timeIsEstimated,
+  costLow,
+  costHigh,
+  url,
+  notes,
 }) {
   const supabase = getSupabase();
 
@@ -308,6 +320,18 @@ export async function updateTripItem({
       is_anchor: isAnchor,
       base_id: baseId || null,
       day_id: dayId || null,
+      meal_slot: mealSlot || null,
+      activity_type: activityType || null,
+      transport_mode: transportMode || null,
+      transport_origin: transportOrigin || null,
+      transport_destination: transportDestination || null,
+      time_start: timeStart || null,
+      time_end: timeEnd || null,
+      time_is_estimated: Boolean(timeIsEstimated),
+      cost_low: costLow === "" ? null : costLow,
+      cost_high: costHigh === "" ? null : costHigh,
+      url: url || null,
+      notes: notes || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", itemId)
