@@ -1,4 +1,9 @@
-import { DEFAULT_BASE_NAME, DEFAULT_BASE_TIMEZONE, ITEM_STATUSES } from "../config/constants.js";
+import {
+  DEFAULT_BASE_NAME,
+  DEFAULT_BASE_TIMEZONE,
+  ITEM_STATUSES,
+  TRIP_STATUSES,
+} from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 
 function normalizeNullableId(value) {
@@ -576,6 +581,20 @@ export async function updateTripBase({
   return data;
 }
 
+export async function softDeleteTripBase(baseId) {
+  const { error } = await getSupabase().rpc("soft_delete_trip_base", {
+    p_base_id: baseId,
+  });
+
+  if (error) {
+    if (error.message === "BASE_HAS_ASSIGNED_DAYS") {
+      throw new Error("BASE_HAS_ASSIGNED_DAYS");
+    }
+
+    throw error;
+  }
+}
+
 async function fetchActiveTripDaysForAllocation(tripId) {
   const { data, error } = await getSupabase()
     .from("trip_days")
@@ -660,4 +679,54 @@ export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {
       },
     ],
   });
+}
+
+export async function updateTripStatus({ tripId, status }) {
+  const normalizedStatus = String(status || "").trim();
+
+  if (!TRIP_STATUSES.includes(normalizedStatus)) {
+    throw new Error("Please choose a valid trip status.");
+  }
+
+  const { data, error } = await getSupabase()
+    .from("trips")
+    .update({
+      status: normalizedStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId)
+    .is("deleted_at", null)
+    .select(
+      `
+        id,
+        owner_id,
+        title,
+        description,
+        trip_length,
+        start_date,
+        status,
+        is_public,
+        cover_photo_url,
+        created_at,
+        updated_at,
+        deleted_at
+      `
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function softDeleteTrip(tripId) {
+  const { error } = await getSupabase().rpc("soft_delete_trip_cascade", {
+    p_trip_id: tripId,
+  });
+
+  if (error) {
+    throw error;
+  }
 }

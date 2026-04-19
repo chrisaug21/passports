@@ -12,6 +12,8 @@
   --color-action-strong: #0a8e67;
   --color-structure: #2b5be0;
   --color-danger: #c05353;
+  --color-danger-strong: #aa4040;
+  --color-danger-soft: rgba(192, 83, 83, 0.12);
   --color-toast-bg: rgba(26, 35, 50, 0.92);
   --shadow-panel: 0 20px 50px rgba(27, 43, 66, 0.1);
   --shadow-soft: 0 10px 30px rgba(27, 43, 66, 0.08);

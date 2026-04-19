@@ -1,5 +1,33 @@
 export const appStore = createAppStore();
 
+function createInitialTripDetail() {
+  return {
+    status: "idle",
+    error: "",
+    isShowingTripSettings: false,
+    isSavingTrip: false,
+    isCreatingItem: false,
+    isSavingItem: false,
+    editingItemId: null,
+    showDiscardConfirm: false,
+    showDeleteItemConfirm: false,
+    isDeletingItem: false,
+    deletingItemId: null,
+    viewMode: "master-list",
+    isShowingAddBaseForm: false,
+    editingBaseId: null,
+    isSavingBase: false,
+    showDeleteBaseConfirm: false,
+    isDeletingBase: false,
+    deletingBaseId: null,
+    showTripStatusConfirm: false,
+    pendingTripStatus: null,
+    isUpdatingTripStatus: false,
+    showDeleteTripConfirm: false,
+    isDeletingTrip: false,
+  };
+}
+
 function createAppStore() {
   let state = {
     dashboard: {
@@ -8,23 +36,7 @@ function createAppStore() {
       error: "",
       isCreatingTrip: false,
     },
-    tripDetail: {
-      status: "idle",
-      error: "",
-      isShowingTripSettings: false,
-      isSavingTrip: false,
-      isCreatingItem: false,
-      isSavingItem: false,
-      editingItemId: null,
-      showDiscardConfirm: false,
-      showDeleteItemConfirm: false,
-      isDeletingItem: false,
-      deletingItemId: null,
-      viewMode: "master-list",
-      isShowingAddBaseForm: false,
-      editingBaseId: null,
-      isSavingBase: false,
-    },
+    tripDetail: createInitialTripDetail(),
   };
 
   const listeners = new Set();
@@ -72,23 +84,7 @@ function createAppStore() {
     resetTripDetail() {
       state = {
         ...state,
-        tripDetail: {
-          status: "idle",
-          error: "",
-          isShowingTripSettings: false,
-          isSavingTrip: false,
-          isCreatingItem: false,
-          isSavingItem: false,
-          editingItemId: null,
-          showDiscardConfirm: false,
-          showDeleteItemConfirm: false,
-          isDeletingItem: false,
-          deletingItemId: null,
-          viewMode: "master-list",
-          isShowingAddBaseForm: false,
-          editingBaseId: null,
-          isSavingBase: false,
-        },
+        tripDetail: createInitialTripDetail(),
       };
       emit();
     },

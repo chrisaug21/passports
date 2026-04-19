@@ -79,12 +79,23 @@
 }
 
 .button--danger {
-  background: rgba(192, 83, 83, 0.95);
+  background: var(--color-danger);
 }
 
 .button--danger:hover,
 .button--danger:focus-visible {
-  background: rgba(170, 64, 64, 0.98);
+  background: var(--color-danger-strong);
+}
+
+.button--danger-secondary {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+  border: 1px solid var(--color-danger-soft);
+}
+
+.button--danger-secondary:hover,
+.button--danger-secondary:focus-visible {
+  background: color-mix(in srgb, var(--color-danger-soft) 75%, white);
 }
 
 .field {

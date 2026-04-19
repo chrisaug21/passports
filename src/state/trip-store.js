@@ -24,6 +24,12 @@ function createTripStore() {
       currentTrip = nextTrip;
       trips = trips.map((trip) => (trip.id === nextTrip.id ? { ...trip, ...nextTrip } : trip));
     },
+    removeTrip(tripId) {
+      trips = trips.filter((trip) => trip.id !== tripId);
+      if (currentTrip?.id === tripId) {
+        currentTrip = null;
+      }
+    },
     getCurrentBases() {
       return currentBases;
     },
@@ -53,6 +59,9 @@ function createTripStore() {
     },
     updateCurrentBase(nextBase) {
       currentBases = currentBases.map((base) => (base.id === nextBase.id ? nextBase : base));
+    },
+    removeCurrentBase(baseId) {
+      currentBases = currentBases.filter((base) => base.id !== baseId);
     },
     updateCurrentDay(nextDay) {
       currentDays = currentDays.map((day) => (day.id === nextDay.id ? nextDay : day));
