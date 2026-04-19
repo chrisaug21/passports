@@ -372,3 +372,103 @@ export async function updateTripItem({
 
   return data;
 }
+
+export async function createTripBase({
+  tripId,
+  name,
+  locationName,
+  localTimezone,
+  dateStart,
+  dateEnd,
+  sortOrder,
+}) {
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("trip_bases")
+    .insert({
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      name,
+      location_name: locationName || null,
+      local_timezone: localTimezone || DEFAULT_BASE_TIMEZONE,
+      date_start: dateStart || null,
+      date_end: dateEnd || null,
+      sort_order: sortOrder,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateTripBase({
+  baseId,
+  name,
+  locationName,
+  localTimezone,
+  dateStart,
+  dateEnd,
+}) {
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("trip_bases")
+    .update({
+      name,
+      location_name: locationName || null,
+      local_timezone: localTimezone || DEFAULT_BASE_TIMEZONE,
+      date_start: dateStart || null,
+      date_end: dateEnd || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", baseId)
+    .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function assignTripDaysToBase({ baseId, dayIds }) {
+  if (!dayIds.length) {
+    return;
+  }
+
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  const { error: daysError } = await supabase
+    .from("trip_days")
+    .update({
+      base_id: baseId,
+      updated_at: now,
+    })
+    .in("id", dayIds);
+
+  if (daysError) {
+    throw daysError;
+  }
+
+  const { error: itemsError } = await supabase
+    .from("trip_items")
+    .update({
+      base_id: baseId,
+      updated_at: now,
+    })
+    .in("day_id", dayIds);
+
+  if (itemsError) {
+    throw itemsError;
+  }
+}

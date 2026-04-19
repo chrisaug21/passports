@@ -15,6 +15,11 @@ function createAppStore() {
       isSavingItem: false,
       editingItemId: null,
       showDiscardConfirm: false,
+      viewMode: "master-list",
+      isShowingAddBaseForm: false,
+      editingBaseId: null,
+      assigningBaseId: null,
+      isSavingBase: false,
     },
   };
 
@@ -70,6 +75,11 @@ function createAppStore() {
           isSavingItem: false,
           editingItemId: null,
           showDiscardConfirm: false,
+          viewMode: "master-list",
+          isShowingAddBaseForm: false,
+          editingBaseId: null,
+          assigningBaseId: null,
+          isSavingBase: false,
         },
       };
       emit();

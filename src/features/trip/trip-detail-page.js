@@ -1,6 +1,13 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
-import { createTripItem, fetchTripDetailBundle, updateTripItem } from "../../services/trips-service.js";
+import {
+  assignTripDaysToBase,
+  createTripBase,
+  createTripItem,
+  fetchTripDetailBundle,
+  updateTripBase,
+  updateTripItem,
+} from "../../services/trips-service.js";
 import {
   formatCostLabel,
   formatItemTypeLabel,
@@ -36,6 +43,8 @@ export function renderTripDetailPage() {
   const days = tripStore.getCurrentDays();
   const items = tripStore.getCurrentItems();
   const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
+  const unassignedItems = items.filter((item) => !item.day_id);
+  const assignedItems = items.filter((item) => item.day_id);
 
   if (tripDetail.status === "loading") {
     return `
@@ -114,10 +123,29 @@ export function renderTripDetailPage() {
       </section>
 
       <section class="trip-view-tabs">
-        <button class="trip-view-tabs__button is-active" type="button">Master List</button>
-        <button class="trip-view-tabs__button" type="button" disabled>Days View Next</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">Master List</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
       </section>
 
+      <section class="panel base-manager-panel">
+        <div class="base-manager-panel__header">
+          <div>
+            <p class="eyebrow">Bases</p>
+            <h3>Base Management</h3>
+          </div>
+          <button class="button button--secondary" id="show-add-base-form" type="button">Add Base</button>
+        </div>
+
+        <div class="base-list">
+          ${bases.map((base) => renderBaseCard(base, days, tripDetail)).join("")}
+        </div>
+
+        ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(trip, bases.length, days) : ""}
+      </section>
+
+      ${
+        tripDetail.viewMode === "master-list"
+          ? `
       <section class="panel master-list-panel">
         <div class="master-list-panel__header">
           <div>
@@ -164,6 +192,9 @@ export function renderTripDetailPage() {
             `
         }
       </section>
+      `
+          : renderDaysView(bases, days, assignedItems, unassignedItems)
+      }
 
       ${renderItemEditorModal({
         item: editingItem,
@@ -183,6 +214,223 @@ export function wireTripDetailPage(tripId) {
 
   document.querySelector("#retry-trip-load")?.addEventListener("click", () => {
     loadTripDetail(tripId);
+  });
+  document.querySelectorAll("[data-view-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const viewMode = button.getAttribute("data-view-mode");
+      if (!viewMode) {
+        return;
+      }
+
+      appStore.updateTripDetail({
+        viewMode,
+      });
+      rerenderTripDetail();
+    });
+  });
+  document.querySelector("#show-add-base-form")?.addEventListener("click", () => {
+    appStore.updateTripDetail({
+      isShowingAddBaseForm: true,
+      editingBaseId: null,
+      assigningBaseId: null,
+    });
+    rerenderTripDetail();
+  });
+  document.querySelector("#cancel-add-base")?.addEventListener("click", () => {
+    appStore.updateTripDetail({
+      isShowingAddBaseForm: false,
+    });
+    rerenderTripDetail();
+  });
+  document.querySelectorAll("[data-edit-base]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const baseId = button.getAttribute("data-edit-base");
+      appStore.updateTripDetail({
+        editingBaseId: baseId,
+        isShowingAddBaseForm: false,
+        assigningBaseId: null,
+      });
+      rerenderTripDetail();
+    });
+  });
+  document.querySelectorAll("[data-cancel-edit-base]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appStore.updateTripDetail({
+        editingBaseId: null,
+      });
+      rerenderTripDetail();
+    });
+  });
+  document.querySelectorAll("[data-assign-base]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const baseId = button.getAttribute("data-assign-base");
+      appStore.updateTripDetail({
+        assigningBaseId: baseId,
+        isShowingAddBaseForm: false,
+        editingBaseId: null,
+      });
+      rerenderTripDetail();
+    });
+  });
+  document.querySelectorAll("[data-cancel-assign-base]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appStore.updateTripDetail({
+        assigningBaseId: null,
+      });
+      rerenderTripDetail();
+    });
+  });
+
+  document.querySelector("#add-base-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const trip = tripStore.getCurrentTrip();
+    const days = tripStore.getCurrentDays();
+    const bases = tripStore.getCurrentBases();
+    const formData = new FormData(event.currentTarget);
+    const baseName = String(formData.get("name") || "").trim();
+    const startDay = Number(formData.get("startDay"));
+    const endDay = Number(formData.get("endDay"));
+
+    if (!trip?.id || !baseName || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
+      showToast("Add a base name and day range first.", "error");
+      return;
+    }
+
+    const selectedDayIds = getDayIdsInRange(days, startDay, endDay);
+    if (selectedDayIds.length === 0) {
+      showToast("Choose a valid day range for that base.", "error");
+      return;
+    }
+
+    appStore.updateTripDetail({
+      isSavingBase: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      const newBase = await createTripBase({
+        tripId: trip.id,
+        name: baseName,
+        locationName: String(formData.get("locationName") || "").trim(),
+        localTimezone: String(formData.get("localTimezone") || "").trim(),
+        dateStart: String(formData.get("dateStart") || "").trim(),
+        dateEnd: String(formData.get("dateEnd") || "").trim(),
+        sortOrder: bases.length,
+      });
+
+      await assignTripDaysToBase({
+        baseId: newBase.id,
+        dayIds: selectedDayIds,
+      });
+
+      appStore.updateTripDetail({
+        isSavingBase: false,
+        isShowingAddBaseForm: false,
+      });
+      await loadTripDetail(trip.id);
+      showToast("Base added.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isSavingBase: false,
+      });
+      rerenderTripDetail();
+      showToast(getTripItemErrorMessage(error), "error");
+    }
+  });
+
+  document.querySelectorAll("[data-edit-base-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const trip = tripStore.getCurrentTrip();
+      const baseId = form.getAttribute("data-edit-base-form");
+      const formData = new FormData(form);
+
+      if (!trip?.id || !baseId) {
+        return;
+      }
+
+      appStore.updateTripDetail({
+        isSavingBase: true,
+      });
+      rerenderTripDetail();
+
+      try {
+        await updateTripBase({
+          baseId,
+          name: String(formData.get("name") || "").trim(),
+          locationName: String(formData.get("locationName") || "").trim(),
+          localTimezone: String(formData.get("localTimezone") || "").trim(),
+          dateStart: String(formData.get("dateStart") || "").trim(),
+          dateEnd: String(formData.get("dateEnd") || "").trim(),
+        });
+
+        appStore.updateTripDetail({
+          isSavingBase: false,
+          editingBaseId: null,
+        });
+        await loadTripDetail(trip.id);
+        showToast("Base updated.", "success");
+      } catch (error) {
+        console.error(error);
+        appStore.updateTripDetail({
+          isSavingBase: false,
+        });
+        rerenderTripDetail();
+        showToast(getTripItemErrorMessage(error), "error");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-assign-base-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const trip = tripStore.getCurrentTrip();
+      const baseId = form.getAttribute("data-assign-base-form");
+      const days = tripStore.getCurrentDays();
+      const formData = new FormData(form);
+      const startDay = Number(formData.get("startDay"));
+      const endDay = Number(formData.get("endDay"));
+
+      if (!trip?.id || !baseId || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
+        showToast("Choose a valid day range first.", "error");
+        return;
+      }
+
+      const selectedDayIds = getDayIdsInRange(days, startDay, endDay);
+      if (selectedDayIds.length === 0) {
+        showToast("Choose a valid day range first.", "error");
+        return;
+      }
+
+      appStore.updateTripDetail({
+        isSavingBase: true,
+      });
+      rerenderTripDetail();
+
+      try {
+        await assignTripDaysToBase({
+          baseId,
+          dayIds: selectedDayIds,
+        });
+        appStore.updateTripDetail({
+          isSavingBase: false,
+          assigningBaseId: null,
+        });
+        await loadTripDetail(trip.id);
+        showToast("Days reassigned.", "success");
+      } catch (error) {
+        console.error(error);
+        appStore.updateTripDetail({
+          isSavingBase: false,
+        });
+        rerenderTripDetail();
+        showToast(getTripItemErrorMessage(error), "error");
+      }
+    });
   });
 
   document.querySelector("#master-list-quick-add-form")?.addEventListener("submit", async (event) => {
@@ -365,6 +613,10 @@ export async function loadTripDetail(tripId) {
       isSavingItem: false,
       editingItemId: null,
       showDiscardConfirm: false,
+      isShowingAddBaseForm: false,
+      editingBaseId: null,
+      assigningBaseId: null,
+      isSavingBase: false,
     });
     itemEditorInitialSnapshot = "";
     itemEditorDraft = null;
@@ -411,6 +663,240 @@ function renderMasterListRow(item, days, bases) {
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
       <button class="button button--secondary master-list-row__action" data-edit-item="${item.id}" type="button">Edit</button>
+    </article>
+  `;
+}
+
+function renderBaseCard(base, days, tripDetail) {
+  const dayRange = getBaseDayRange(base.id, days);
+  const isEditing = tripDetail.editingBaseId === base.id;
+  const isAssigning = tripDetail.assigningBaseId === base.id;
+
+  return `
+    <article class="base-card">
+      <div class="base-card__header">
+        <div>
+          <h4>${base.name}</h4>
+          <p class="muted">
+            ${base.location_name || "No location name"}
+            · ${base.local_timezone}
+            ${dayRange ? ` · Days ${dayRange.start}-${dayRange.end}` : " · No assigned days"}
+          </p>
+        </div>
+        <div class="base-card__actions">
+          <button class="button button--secondary" data-edit-base="${base.id}" type="button">Edit Base</button>
+          <button class="button button--secondary" data-assign-base="${base.id}" type="button">Assign Days</button>
+        </div>
+      </div>
+      ${isEditing ? renderEditBaseForm(base, tripDetail.isSavingBase) : ""}
+      ${isAssigning ? renderAssignBaseForm(base, dayRange, tripDetail.isSavingBase) : ""}
+    </article>
+  `;
+}
+
+function renderAddBaseForm(trip, currentBaseCount, days) {
+  return `
+    <form class="base-form" id="add-base-form">
+      <div class="base-form__header">
+        <h4>Add Base</h4>
+        <button class="button button--secondary" id="cancel-add-base" type="button">Cancel</button>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Name</span>
+          <input name="name" type="text" maxlength="120" placeholder="Barcelona" required />
+        </label>
+        <label class="field">
+          <span>Location Name</span>
+          <input name="locationName" type="text" maxlength="120" placeholder="Barcelona, Spain" />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Timezone</span>
+          <input name="localTimezone" type="text" value="America/New_York" required />
+        </label>
+        <label class="field">
+          <span>Suggested Order</span>
+          <input type="text" value="${currentBaseCount + 1}" disabled />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Date Start</span>
+          <input name="dateStart" type="date" />
+        </label>
+        <label class="field">
+          <span>Date End</span>
+          <input name="dateEnd" type="date" />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Start Day</span>
+          <input name="startDay" type="number" min="1" max="${trip.trip_length}" value="${Math.max(1, days.length)}" required />
+        </label>
+        <label class="field">
+          <span>End Day</span>
+          <input name="endDay" type="number" min="1" max="${trip.trip_length}" value="${trip.trip_length}" required />
+        </label>
+      </div>
+      <div class="base-form__actions">
+        <button class="button" type="submit">Save Base</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderEditBaseForm(base, isSaving) {
+  return `
+    <form class="base-form" data-edit-base-form="${base.id}">
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Name</span>
+          <input name="name" type="text" value="${escapeAttribute(base.name)}" required />
+        </label>
+        <label class="field">
+          <span>Location Name</span>
+          <input name="locationName" type="text" value="${escapeAttribute(base.location_name || "")}" />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Timezone</span>
+          <input name="localTimezone" type="text" value="${escapeAttribute(base.local_timezone || "")}" required />
+        </label>
+        <label class="field">
+          <span>Date Start</span>
+          <input name="dateStart" type="date" value="${base.date_start || ""}" />
+        </label>
+      </div>
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Date End</span>
+          <input name="dateEnd" type="date" value="${base.date_end || ""}" />
+        </label>
+      </div>
+      <div class="base-form__actions">
+        <button class="button button--secondary" data-cancel-edit-base type="button">Cancel</button>
+        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Base"}</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderAssignBaseForm(base, dayRange, isSaving) {
+  return `
+    <form class="base-form" data-assign-base-form="${base.id}">
+      <div class="item-editor-form__grid">
+        <label class="field">
+          <span>Start Day</span>
+          <input name="startDay" type="number" min="1" value="${dayRange?.start || ""}" required />
+        </label>
+        <label class="field">
+          <span>End Day</span>
+          <input name="endDay" type="number" min="1" value="${dayRange?.end || ""}" required />
+        </label>
+      </div>
+      <div class="base-form__actions">
+        <button class="button button--secondary" data-cancel-assign-base type="button">Cancel</button>
+        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Assign Days"}</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderDaysView(bases, days, assignedItems, unassignedItems) {
+  return `
+    <section class="days-view">
+      ${unassignedItems.length > 0 ? `
+        <section class="panel days-view__pool">
+          <div class="days-view__panel-header">
+            <div>
+              <p class="eyebrow">Unassigned Pool</p>
+              <h3>Unassigned Items</h3>
+            </div>
+            <p class="muted">Items without a day assignment still live here.</p>
+          </div>
+          <div class="days-view__list">
+            ${unassignedItems.map((item) => renderDayItem(item)).join("")}
+          </div>
+        </section>
+      ` : ""}
+
+      ${bases.map((base) => renderBaseDaysSection(base, days, assignedItems, bases.length)).join("")}
+    </section>
+  `;
+}
+
+function renderBaseDaysSection(base, days, items, baseCount) {
+  const baseDays = days.filter((day) => day.base_id === base.id);
+
+  return `
+    <section class="panel days-base-section">
+      ${baseCount > 1 ? `
+        <div class="days-view__panel-header">
+          <div>
+            <p class="eyebrow">Base</p>
+            <h3>${base.name}</h3>
+          </div>
+          <p class="muted">${base.location_name || base.local_timezone}</p>
+        </div>
+      ` : `
+        <div class="days-view__panel-header">
+          <div>
+            <p class="eyebrow">Days View</p>
+            <h3>${base.name}</h3>
+          </div>
+          <p class="muted">${base.location_name || base.local_timezone}</p>
+        </div>
+      `}
+      <div class="day-card-grid">
+        ${baseDays.map((day) => renderDayCard(day, items)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderDayCard(day, items) {
+  const dayItems = items
+    .filter((item) => item.day_id === day.id)
+    .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+
+  return `
+    <article class="day-card">
+      <div class="day-card__header">
+        <div>
+          <p class="eyebrow">Day ${day.day_number}</p>
+          <h4>${day.title || `Day ${day.day_number}`}</h4>
+        </div>
+        ${day.location_name ? `<p class="muted">${day.location_name}</p>` : ""}
+      </div>
+      ${
+        dayItems.length === 0
+          ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
+          : `<div class="days-view__list">${dayItems.map((item) => renderDayItem(item)).join("")}</div>`
+      }
+    </article>
+  `;
+}
+
+function renderDayItem(item) {
+  const detailParts = [
+    item.time_start ? formatTimeLabel(item.time_start, item.time_is_estimated) : "",
+    item.item_type === "meal" && item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "",
+    item.item_type === "activity" && item.activity_type ? formatItemTypeLabel(item.activity_type) : "",
+    item.item_type === "transport" && item.transport_mode ? formatItemTypeLabel(item.transport_mode) : "",
+  ].filter(Boolean);
+
+  return `
+    <article class="day-item">
+      <div class="day-item__title-line">
+        <h5>${item.title}</h5>
+        ${item.is_anchor ? '<span class="trip-pill trip-pill--anchor">Anchor</span>' : ""}
+      </div>
+      <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
+      ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
     </article>
   `;
 }
@@ -790,6 +1276,30 @@ function wireDiscardConfirmModal() {
     });
     rerenderTripDetail();
   });
+}
+
+function getBaseDayRange(baseId, days) {
+  const baseDays = days.filter((day) => day.base_id === baseId);
+
+  if (baseDays.length === 0) {
+    return null;
+  }
+
+  const dayNumbers = baseDays.map((day) => day.day_number).sort((left, right) => left - right);
+
+  return {
+    start: dayNumbers[0],
+    end: dayNumbers[dayNumbers.length - 1],
+  };
+}
+
+function getDayIdsInRange(days, startDay, endDay) {
+  const low = Math.min(startDay, endDay);
+  const high = Math.max(startDay, endDay);
+
+  return days
+    .filter((day) => day.day_number >= low && day.day_number <= high)
+    .map((day) => day.id);
 }
 
 function keepEditing() {

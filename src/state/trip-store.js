@@ -41,6 +41,12 @@ function createTripStore() {
     updateCurrentItem(nextItem) {
       currentItems = currentItems.map((item) => (item.id === nextItem.id ? nextItem : item));
     },
+    appendCurrentBase(base) {
+      currentBases = [...currentBases, base];
+    },
+    updateCurrentBase(nextBase) {
+      currentBases = currentBases.map((base) => (base.id === nextBase.id ? nextBase : base));
+    },
     resetCurrentTrip() {
       currentTrip = null;
       currentBases = [];
