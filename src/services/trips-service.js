@@ -600,38 +600,35 @@ export async function saveTripDayAllocations({ tripId, allocations }) {
   const now = new Date().toISOString();
   const activeDays = await fetchActiveTripDaysForAllocation(tripId);
   const activeDayMap = new Map(activeDays.map((day) => [day.day_number, day]));
+  const savedDays = [];
 
-  const rowsToSave = allocations.map(({ dayNumber, toBaseId }) => {
+  for (const { dayNumber, toBaseId } of allocations) {
     const existingDay = activeDayMap.get(dayNumber);
 
     if (!existingDay) {
       throw new Error(`Could not find Day ${dayNumber}.`);
     }
 
-    return {
-      id: existingDay.id,
-      trip_id: existingDay.trip_id,
-      base_id: normalizeNullableId(toBaseId),
-      day_number: existingDay.day_number,
-      title: existingDay.title || null,
-      location_name: existingDay.location_name || null,
-      journal_notes: existingDay.journal_notes || null,
-      sort_order: existingDay.sort_order,
-      created_at: existingDay.created_at,
-      updated_at: now,
-    };
-  });
+    const { data, error } = await supabase
+      .from("trip_days")
+      .update({
+        base_id: normalizeNullableId(toBaseId),
+        updated_at: now,
+      })
+      .eq("id", existingDay.id)
+      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
+      .single();
 
-  const { data, error } = await supabase
-    .from("trip_days")
-    .upsert(rowsToSave, { onConflict: "id" })
-    .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order");
+    if (error) {
+      throw error;
+    }
 
-  if (error) {
-    throw error;
+    if (data) {
+      savedDays.push(data);
+    }
   }
 
-  return data || [];
+  return savedDays;
 }
 
 export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {

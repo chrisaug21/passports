@@ -1757,14 +1757,25 @@ function buildAllocationRows(bases, dayEntries) {
 }
 
 function getAllocationSummary(trip, rows, tripLength) {
-  const allocatedDays = rows.reduce((total, row) => total + row.dayCount, 0);
-  const isComplete = allocatedDays === Number(tripLength);
+  const assignedDays = rows
+    .filter((row) => row.kind === "base")
+    .reduce((total, row) => total + row.dayCount, 0);
+  const unassignedDays = rows
+    .filter((row) => row.kind === "unassigned")
+    .reduce((total, row) => total + row.dayCount, 0);
+  const isComplete = assignedDays === Number(tripLength);
+
+  let label = `${assignedDays} of ${tripLength} day${tripLength === 1 ? "" : "s"} allocated`;
+
+  if (unassignedDays > 0) {
+    label += ` (${unassignedDays} unassigned)`;
+  }
 
   return {
     isComplete,
     label: isComplete
       ? `All ${tripLength} day${tripLength === 1 ? "" : "s"} allocated ✓`
-      : `${allocatedDays} of ${tripLength} day${tripLength === 1 ? "" : "s"} allocated`,
+      : label,
   };
 }
 

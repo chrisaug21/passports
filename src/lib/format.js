@@ -36,12 +36,19 @@ export function formatLongDate(value) {
 }
 
 export function getTripDateByDayNumber(startDate, dayNumber) {
-  if (!startDate || !Number.isFinite(Number(dayNumber))) {
+  const normalizedDayNumber = Number(dayNumber);
+
+  if (!startDate || !Number.isInteger(normalizedDayNumber) || normalizedDayNumber < 1) {
     return null;
   }
 
   const nextDate = new Date(`${startDate}T12:00:00`);
-  nextDate.setDate(nextDate.getDate() + Math.max(Number(dayNumber) - 1, 0));
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return null;
+  }
+
+  nextDate.setDate(nextDate.getDate() + (normalizedDayNumber - 1));
   return nextDate;
 }
 
