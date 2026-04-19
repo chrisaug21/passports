@@ -153,5 +153,5 @@ Always open new PRs as drafts (`--draft` flag with `gh pr create`). This prevent
 - Soft delete only — never hard delete. All main tables have `deleted_at`. Set it; never use DELETE.
 - Never reference Supabase in user-facing error messages. Use plain language: "Something went wrong saving. Please try again."
 - Never hardcode hex colors — CSS custom properties only.
-- Bump VERSION in app.js at the end of every PR without exception.
+- VERSION bump is mandatory on every PR and every push that changes shipped code. Never forget it, never skip it, and never push without doing it first. In this repo the version lives in `src/config/constants.js` as `APP_VERSION`.
 - Keep README.md accurate — update it when new tables, env vars, or major features are added.

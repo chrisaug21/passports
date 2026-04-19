@@ -10,6 +10,12 @@ import { APP_VERSION } from "../config/constants.js";
 
 const appRoot = document.querySelector("#app");
 
+function refreshIcons() {
+  if (window.lucide?.createIcons) {
+    window.lucide.createIcons();
+  }
+}
+
 export async function bootstrapApp() {
   try {
     appRoot.innerHTML = `<main class="app-shell"><section class="panel panel--center"><p class="eyebrow">Passports</p><h1>Loading…</h1><p class="muted">Connecting your travel workspace.</p></section></main>`;
@@ -23,7 +29,7 @@ export async function bootstrapApp() {
     onAuthStateChange((event, nextSession) => {
       sessionStore.setSession(nextSession);
 
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_IN") {
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         return;
       }
 
@@ -106,4 +112,6 @@ export function renderAppShell(content, options = {}) {
   if (options.afterRender) {
     options.afterRender();
   }
+
+  refreshIcons();
 }

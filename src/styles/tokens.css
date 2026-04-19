@@ -3,6 +3,8 @@
   --color-surface: rgba(255, 255, 255, 0.8);
   --color-surface-strong: #ffffff;
   --color-surface-muted: #eef2f7;
+  --surface-allocation: rgba(255, 255, 255, 0.55);
+  --surface-allocation-unassigned: rgba(255, 255, 255, 0.75);
   --color-text: #1a2332;
   --color-text-muted: #5f6b7c;
   --color-border: rgba(26, 35, 50, 0.1);
@@ -16,6 +18,7 @@
   --radius-panel: 28px;
   --radius-control: 16px;
   --radius-pill: 999px;
+  --touch-target: 44px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;

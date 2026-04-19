@@ -35,6 +35,64 @@ export function formatLongDate(value) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+export function getTripDateByDayNumber(startDate, dayNumber) {
+  const normalizedDayNumber = Number(dayNumber);
+
+  if (!startDate || !Number.isInteger(normalizedDayNumber) || normalizedDayNumber < 1) {
+    return null;
+  }
+
+  const nextDate = new Date(`${startDate}T12:00:00`);
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return null;
+  }
+
+  nextDate.setDate(nextDate.getDate() + (normalizedDayNumber - 1));
+  return nextDate;
+}
+
+export function formatDayDateLabel(startDate, dayNumber) {
+  const date = getTripDateByDayNumber(startDate, dayNumber);
+
+  if (!date) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+export function formatShortDateRange(startDate, startDayNumber, endDayNumber) {
+  const start = getTripDateByDayNumber(startDate, startDayNumber);
+  const end = getTripDateByDayNumber(startDate, endDayNumber);
+
+  if (!start || !end) {
+    return "";
+  }
+
+  if (start.getTime() === end.getTime()) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(start);
+  }
+
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+
+  if (sameMonth) {
+    return `${new Intl.DateTimeFormat("en-US", { month: "short" }).format(start)} ${start.getDate()}-${end.getDate()}`;
+  }
+
+  return `${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(start)}-${new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(end)}`;
+}
+
 export function formatTimeLabel(value, isEstimated = false) {
   if (!value) {
     return "";

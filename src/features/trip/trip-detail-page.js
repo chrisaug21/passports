@@ -1,19 +1,21 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import {
-  assignTripDaysToBase,
   createTripBase,
   createTripItem,
   fetchTripDetailBundle,
+  saveTripDayAllocations,
   softDeleteTripItem,
-  updateTripSettings,
   updateTripBase,
+  updateTripSettings,
   updateTripItem,
 } from "../../services/trips-service.js";
 import {
   formatCostLabel,
+  formatDayDateLabel,
   formatItemTypeLabel,
   formatLongDate,
+  formatShortDateRange,
   formatStatusLabel,
   formatTimeLabel,
   formatTripDateSummary,
@@ -29,12 +31,19 @@ import {
 } from "../../config/constants.js";
 import { sessionStore } from "../../state/session-store.js";
 import { showToast } from "../shared/toast.js";
+import { updateTripDayTitle } from "../../services/days-service.js";
 
 let rerenderTripDetail = () => {};
 let itemEditorInitialSnapshot = "";
 let pendingDiscardAction = null;
 let itemEditorDraft = null;
 let supportedTimezonesCache = null;
+let allocationDraft = null;
+let allocationConfirmState = null;
+let pendingTripSettingsDraft = null;
+let tripLengthConfirmState = null;
+let editingDayTitleId = null;
+let editingDayTitleValue = "";
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -91,6 +100,10 @@ export function renderTripDetailPage() {
     `;
   }
 
+  const allocationState = getAllocationState(trip, days);
+  const allocationRows = buildAllocationRows(bases, allocationState.days);
+  const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
+
   return `
     <section class="trip-detail">
       <button class="text-link" id="trip-back-to-dashboard" type="button">← Back to Dashboard</button>
@@ -140,7 +153,7 @@ export function renderTripDetailPage() {
         ${
           tripDetail.isShowingTripSettings
             ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
-            : `<p class="muted">Edit trip details, start date, and duration here.</p>`
+            : renderTripSettingsSummary(trip)
         }
       </section>
 
@@ -153,16 +166,29 @@ export function renderTripDetailPage() {
         <div class="base-manager-panel__header">
           <div>
             <p class="eyebrow">Bases</p>
-            <h3>Base Management</h3>
+            <h3>Day Allocation</h3>
           </div>
           <button class="button button--secondary" id="show-add-base-form" type="button">Add Base</button>
         </div>
 
-        <div class="base-list">
-          ${bases.map((base) => renderBaseCard(base, days, tripDetail)).join("")}
+        <div class="allocation-list">
+          ${allocationRows.map((row) => renderAllocationRow(row, trip, tripDetail, items, bases, allocationState.tripLength)).join("")}
         </div>
 
-        ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(trip, bases.length, days) : ""}
+        <p class="muted ${allocationSummary.isComplete ? "allocation-summary--complete" : "allocation-summary--warning"}">${escapeHtml(allocationSummary.label)}</p>
+
+        ${
+          hasAllocationDraftChanges(trip, days)
+            ? `
+              <div class="base-form__actions">
+                <button class="button button--secondary" id="cancel-allocation-changes" type="button">Cancel Changes</button>
+                <button class="button" id="save-allocation-changes" type="button" ${tripDetail.isSavingBase ? "disabled" : ""}>${tripDetail.isSavingBase ? "Saving…" : "Save Allocation"}</button>
+              </div>
+            `
+            : ""
+        }
+
+        ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length) : ""}
       </section>
 
       ${
@@ -231,6 +257,8 @@ export function renderTripDetailPage() {
         isOpen: tripDetail.showDeleteItemConfirm,
         isDeleting: tripDetail.isDeletingItem,
       })}
+      ${renderAllocationConfirmModal(allocationConfirmState)}
+      ${renderTripLengthConfirmModal(tripLengthConfirmState)}
       ${renderTimezoneOptionsDatalist()}
     </section>
   `;
@@ -265,6 +293,8 @@ export function wireTripDetailPage(tripId) {
     rerenderTripDetail();
   });
   document.querySelector("#cancel-trip-settings")?.addEventListener("click", () => {
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
     appStore.updateTripDetail({
       isShowingTripSettings: false,
       isSavingTrip: false,
@@ -284,41 +314,28 @@ export function wireTripDetailPage(tripId) {
       return;
     }
 
-    appStore.updateTripDetail({
-      isSavingTrip: true,
-    });
-    rerenderTripDetail();
+    const nextSettings = {
+      tripId: trip.id,
+      title,
+      description: String(formData.get("description") || "").trim(),
+      startDate: String(formData.get("startDate") || "").trim(),
+      tripLength,
+    };
+    const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 
-    try {
-      const updatedTrip = await updateTripSettings({
-        tripId: trip.id,
-        title,
-        description: String(formData.get("description") || "").trim(),
-        startDate: String(formData.get("startDate") || "").trim(),
-        tripLength,
-      });
-      tripStore.updateCurrentTrip(updatedTrip);
-
-      appStore.updateTripDetail({
-        isSavingTrip: false,
-        isShowingTripSettings: false,
-      });
-      await loadTripDetail(trip.id);
-      showToast("Trip updated.", "success");
-    } catch (error) {
-      console.error(error);
-      appStore.updateTripDetail({
-        isSavingTrip: false,
-      });
+    if (tripLength < Number(trip.trip_length) && shrinkSummary.itemCount > 0) {
+      pendingTripSettingsDraft = nextSettings;
+      tripLengthConfirmState = shrinkSummary;
       rerenderTripDetail();
-      showToast(getTripItemErrorMessage("update"), "error");
+      return;
     }
+
+    saveTripSettings(nextSettings);
   });
   document.querySelector("#show-add-base-form")?.addEventListener("click", () => {
     appStore.updateTripDetail({
       isShowingAddBaseForm: true,
       editingBaseId: null,
-      assigningBaseId: null,
     });
     rerenderTripDetail();
   });
@@ -334,7 +351,6 @@ export function wireTripDetailPage(tripId) {
       appStore.updateTripDetail({
         editingBaseId: baseId,
         isShowingAddBaseForm: false,
-        assigningBaseId: null,
       });
       rerenderTripDetail();
     });
@@ -347,50 +363,27 @@ export function wireTripDetailPage(tripId) {
       rerenderTripDetail();
     });
   });
-  document.querySelectorAll("[data-assign-base]").forEach((button) => {
+  document.querySelectorAll("[data-allocation-adjust]").forEach((button) => {
     button.addEventListener("click", () => {
-      const baseId = button.getAttribute("data-assign-base");
-      appStore.updateTripDetail({
-        assigningBaseId: baseId,
-        isShowingAddBaseForm: false,
-        editingBaseId: null,
-      });
-      rerenderTripDetail();
+      const slotKey = button.getAttribute("data-slot-key");
+      const direction = button.getAttribute("data-allocation-adjust");
+
+      if (!slotKey || !direction) {
+        return;
+      }
+
+      requestAllocationChange(slotKey, direction);
     });
   });
-  document.querySelectorAll("[data-cancel-assign-base]").forEach((button) => {
-    button.addEventListener("click", () => {
-      appStore.updateTripDetail({
-        assigningBaseId: null,
-      });
-      rerenderTripDetail();
-    });
+  document.querySelector("#cancel-allocation-changes")?.addEventListener("click", () => {
+    allocationDraft = null;
+    allocationConfirmState = null;
+    rerenderTripDetail();
   });
-
-  document.querySelector("#add-base-form")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
+  document.querySelector("#save-allocation-changes")?.addEventListener("click", async () => {
     const trip = tripStore.getCurrentTrip();
-    const days = tripStore.getCurrentDays();
-    const bases = tripStore.getCurrentBases();
-    const formData = new FormData(event.currentTarget);
-    const baseName = String(formData.get("name") || "").trim();
-    const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
-    const startDay = Number(formData.get("startDay"));
-    const endDay = Number(formData.get("endDay"));
 
-    if (!localTimezone) {
-      return;
-    }
-
-    if (!trip?.id || !baseName || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
-      showToast("Add a base name and day range first.", "error");
-      return;
-    }
-
-    const selectedDayIds = getDayIdsInRange(days, startDay, endDay);
-    if (selectedDayIds.length === 0) {
-      showToast("Choose a valid day range for that base.", "error");
+    if (!trip?.id || !allocationDraft) {
       return;
     }
 
@@ -400,19 +393,97 @@ export function wireTripDetailPage(tripId) {
     rerenderTripDetail();
 
     try {
-      const newBase = await createTripBase({
+      await saveAllocationDraft(trip);
+      allocationDraft = null;
+      allocationConfirmState = null;
+      appStore.updateTripDetail({
+        isSavingBase: false,
+      });
+      await loadTripDetail(trip.id);
+      showToast("Day allocation updated.", "success");
+    } catch (error) {
+      console.error(error);
+      appStore.updateTripDetail({
+        isSavingBase: false,
+      });
+      rerenderTripDetail();
+      showToast(
+        error?.message === "TRIP_LENGTH_UPDATED_ALLOCATIONS_FAILED"
+          ? "Trip length updated, but day allocations didn't save — try again."
+          : getTripItemErrorMessage("update"),
+        "error"
+      );
+    }
+  });
+  document.querySelector("#cancel-allocation-confirm")?.addEventListener("click", () => {
+    allocationConfirmState = null;
+    rerenderTripDetail();
+  });
+  document.querySelector("[data-close-allocation-confirm]")?.addEventListener("click", () => {
+    allocationConfirmState = null;
+    rerenderTripDetail();
+  });
+  document.querySelector("#confirm-allocation-change")?.addEventListener("click", () => {
+    if (!allocationConfirmState?.action) {
+      return;
+    }
+
+    const action = allocationConfirmState.action;
+    allocationConfirmState = null;
+    applyAllocationChange(action.slotKey, action.direction);
+  });
+  document.querySelector("#cancel-trip-length-confirm")?.addEventListener("click", () => {
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
+    rerenderTripDetail();
+  });
+  document.querySelector("[data-close-trip-length-confirm]")?.addEventListener("click", () => {
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
+    rerenderTripDetail();
+  });
+  document.querySelector("#confirm-trip-length-change")?.addEventListener("click", () => {
+    const pendingSettings = pendingTripSettingsDraft;
+
+    if (!pendingSettings) {
+      return;
+    }
+
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
+    saveTripSettings(pendingSettings);
+  });
+
+  document.querySelector("#add-base-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const trip = tripStore.getCurrentTrip();
+    const bases = tripStore.getCurrentBases();
+    const formData = new FormData(event.currentTarget);
+    const baseName = String(formData.get("name") || "").trim();
+    const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
+
+    if (!localTimezone) {
+      return;
+    }
+
+    if (!trip?.id || !baseName) {
+      showToast("Add a base name first.", "error");
+      return;
+    }
+
+    appStore.updateTripDetail({
+      isSavingBase: true,
+    });
+    rerenderTripDetail();
+
+    try {
+      await createTripBase({
         tripId: trip.id,
         name: baseName,
         locationName: String(formData.get("locationName") || "").trim(),
         localTimezone,
-        dateStart: String(formData.get("dateStart") || "").trim(),
-        dateEnd: String(formData.get("dateEnd") || "").trim(),
         sortOrder: bases.length,
-      });
-
-      await assignTripDaysToBase({
-        baseId: newBase.id,
-        dayIds: selectedDayIds,
       });
 
       appStore.updateTripDetail({
@@ -440,11 +511,7 @@ export function wireTripDetailPage(tripId) {
       const formData = new FormData(form);
       const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
 
-      if (!localTimezone) {
-        return;
-      }
-
-      if (!trip?.id || !baseId) {
+      if (!localTimezone || !trip?.id || !baseId) {
         return;
       }
 
@@ -459,8 +526,6 @@ export function wireTripDetailPage(tripId) {
           name: String(formData.get("name") || "").trim(),
           locationName: String(formData.get("locationName") || "").trim(),
           localTimezone,
-          dateStart: String(formData.get("dateStart") || "").trim(),
-          dateEnd: String(formData.get("dateEnd") || "").trim(),
         });
 
         appStore.updateTripDetail({
@@ -480,52 +545,12 @@ export function wireTripDetailPage(tripId) {
     });
   });
 
-  document.querySelectorAll("[data-assign-base-form]").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const trip = tripStore.getCurrentTrip();
-      const baseId = form.getAttribute("data-assign-base-form");
-      const days = tripStore.getCurrentDays();
-      const formData = new FormData(form);
-      const startDay = Number(formData.get("startDay"));
-      const endDay = Number(formData.get("endDay"));
-
-      if (!trip?.id || !baseId || !Number.isFinite(startDay) || !Number.isFinite(endDay)) {
-        showToast("Choose a valid day range first.", "error");
-        return;
-      }
-
-      const selectedDayIds = getDayIdsInRange(days, startDay, endDay);
-      if (selectedDayIds.length === 0) {
-        showToast("Choose a valid day range first.", "error");
-        return;
-      }
-
+  document.querySelectorAll("[data-cancel-edit-base]").forEach((button) => {
+    button.addEventListener("click", () => {
       appStore.updateTripDetail({
-        isSavingBase: true,
+        editingBaseId: null,
       });
       rerenderTripDetail();
-
-      try {
-        await assignTripDaysToBase({
-          baseId,
-          dayIds: selectedDayIds,
-        });
-        appStore.updateTripDetail({
-          isSavingBase: false,
-          assigningBaseId: null,
-        });
-        await loadTripDetail(trip.id);
-        showToast("Days reassigned.", "success");
-      } catch (error) {
-        console.error(error);
-        appStore.updateTripDetail({
-          isSavingBase: false,
-        });
-        rerenderTripDetail();
-        showToast(getTripItemErrorMessage("update"), "error");
-      }
     });
   });
 
@@ -731,6 +756,57 @@ export function wireTripDetailPage(tripId) {
       showToast(getTripItemErrorMessage("delete"), "error");
     }
   });
+  document.querySelectorAll("[data-edit-day-title]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dayId = button.getAttribute("data-edit-day-title");
+      const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId);
+
+      if (!dayId || !day) {
+        return;
+      }
+
+      editingDayTitleId = dayId;
+      editingDayTitleValue = day.title || "";
+      rerenderTripDetail();
+    });
+  });
+  document.querySelectorAll("[data-day-title-trigger]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const dayId = button.getAttribute("data-day-title-trigger");
+      const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId);
+
+      if (!dayId || !day?.title) {
+        return;
+      }
+
+      editingDayTitleId = dayId;
+      editingDayTitleValue = day.title || "";
+      rerenderTripDetail();
+    });
+  });
+  const dayTitleInput = document.querySelector("#day-title-inline-input");
+  if (dayTitleInput) {
+    dayTitleInput.focus();
+    dayTitleInput.select();
+    dayTitleInput.addEventListener("input", (event) => {
+      editingDayTitleValue = event.currentTarget.value;
+    });
+    dayTitleInput.addEventListener("blur", async () => {
+      await saveInlineDayTitle();
+    });
+    dayTitleInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        await saveInlineDayTitle();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelInlineDayTitleEdit();
+      }
+    });
+  }
 }
 
 export async function loadTripDetail(tripId) {
@@ -756,12 +832,17 @@ export async function loadTripDetail(tripId) {
       deletingItemId: null,
       isShowingAddBaseForm: false,
       editingBaseId: null,
-      assigningBaseId: null,
       isSavingBase: false,
     });
     itemEditorInitialSnapshot = "";
     itemEditorDraft = null;
     pendingDiscardAction = null;
+    allocationDraft = null;
+    allocationConfirmState = null;
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
+    editingDayTitleId = null;
+    editingDayTitleValue = "";
     rerenderTripDetail();
   } catch (error) {
     console.error(error);
@@ -809,6 +890,8 @@ function renderMasterListRow(item, days, bases) {
 }
 
 function renderTripSettingsForm(trip, isSaving) {
+  const endDateLabel = trip.start_date ? formatShortDateRange(trip.start_date, trip.trip_length, trip.trip_length) : "";
+
   return `
     <form class="trip-settings-form" id="trip-settings-form">
       <div class="item-editor-form__grid">
@@ -826,12 +909,16 @@ function renderTripSettingsForm(trip, isSaving) {
           <span>Start Date</span>
           <input name="startDate" type="date" value="${trip.start_date || ""}" />
         </label>
+        <label class="field">
+          <span>End Date</span>
+          <input type="text" value="${endDateLabel ? `Ends ${endDateLabel}` : "Set a start date to derive this"}" disabled />
+        </label>
       </div>
       <label class="field">
         <span>Description</span>
         <textarea name="description" rows="3" placeholder="What kind of trip is this?">${escapeHtml(trip.description || "")}</textarea>
       </label>
-      <p class="muted">If you shorten the trip, items on removed days move back to the unassigned pool.</p>
+      <p class="muted">Trip end date is always derived from start date plus trip length.</p>
       <div class="base-form__actions">
         <button class="button button--secondary" id="cancel-trip-settings" type="button">Cancel</button>
         <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Trip"}</button>
@@ -840,34 +927,65 @@ function renderTripSettingsForm(trip, isSaving) {
   `;
 }
 
-function renderBaseCard(base, days, tripDetail) {
-  const dayRange = getBaseDayRange(base.id, days);
-  const isEditing = tripDetail.editingBaseId === base.id;
-  const isAssigning = tripDetail.assigningBaseId === base.id;
+function renderTripSettingsSummary(trip) {
+  return `
+    <div class="trip-settings-summary">
+      <p class="muted">${trip.start_date ? `Starts ${formatLongDate(trip.start_date)}` : "Start date not set yet"}</p>
+      ${trip.start_date ? `<p class="muted">Ends ${formatShortDateRange(trip.start_date, trip.trip_length, trip.trip_length)}</p>` : ""}
+      <p class="muted">${trip.trip_length} day${trip.trip_length === 1 ? "" : "s"} planned.</p>
+    </div>
+  `;
+}
+
+function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
+  const isEditing = row.kind === "base" && tripDetail.editingBaseId === row.base.id;
+  const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
+  const rangeLabel = row.dayCount > 0 ? getAllocationRangeLabel(row, trip.start_date) : "No days assigned yet";
+  const detailLabel = row.kind === "base"
+    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
+    : "Day without a base";
 
   return `
-    <article class="base-card">
-      <div class="base-card__header">
+    <article class="allocation-row ${row.kind === "unassigned" ? "allocation-row--unassigned" : ""}">
+      <div class="allocation-row__header">
         <div>
-          <h4>${escapeHtml(base.name || "Untitled base")}</h4>
-          <p class="muted">
-            ${escapeHtml(base.location_name || "No location name")}
-            · ${escapeHtml(base.local_timezone || DEFAULT_BASE_TIMEZONE)}
-            ${dayRange ? ` · Days ${dayRange.start}-${dayRange.end}` : " · No assigned days"}
-          </p>
+          <h4>${escapeHtml(row.label)}</h4>
+          <p class="muted">${detailLabel}</p>
         </div>
-        <div class="base-card__actions">
-          <button class="button button--secondary" data-edit-base="${escapeHtml(base.id)}" type="button">Edit Base</button>
-          <button class="button button--secondary" data-assign-base="${escapeHtml(base.id)}" type="button">Assign Days</button>
+        <div class="allocation-row__meta">
+          <strong>${countLabel}</strong>
+          <span class="muted">${rangeLabel}</span>
         </div>
       </div>
-      ${isEditing ? renderEditBaseForm(base, tripDetail.isSavingBase) : ""}
-      ${isAssigning ? renderAssignBaseForm(base, dayRange, tripDetail.isSavingBase) : ""}
+
+      <div class="allocation-row__actions">
+        <button class="icon-button" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
+        <button class="icon-button" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
+        ${row.kind === "base" ? `<button class="button button--secondary" data-edit-base="${escapeHtml(row.base.id)}" type="button">Edit</button>` : ""}
+      </div>
+
+      ${row.kind === "base" && row.dayCount > 0 ? renderAllocationItemWarning(row, items, bases) : ""}
+      ${isEditing ? renderEditBaseForm(row.base, tripDetail.isSavingBase) : ""}
     </article>
   `;
 }
 
-function renderAddBaseForm(trip, currentBaseCount, days) {
+function renderAllocationItemWarning(row, items, bases) {
+  const movedItems = getItemsForDayRange(row.startDay, row.endDay, items, tripStore.getCurrentDays());
+
+  if (movedItems.length === 0) {
+    return "";
+  }
+
+  const reservedItems = movedItems.filter((item) => item.status === "reserved" || item.status === "confirmed");
+  if (reservedItems.length === 0) {
+    return "";
+  }
+
+  return `<p class="muted">Includes ${reservedItems.length} reserved/confirmed item${reservedItems.length === 1 ? "" : "s"} that may need review after moving days.</p>`;
+}
+
+function renderAddBaseForm(currentBaseCount) {
   return `
     <form class="base-form" id="add-base-form">
       <div class="base-form__header">
@@ -890,30 +1008,11 @@ function renderAddBaseForm(trip, currentBaseCount, days) {
           ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
         </label>
         <label class="field">
-          <span>Suggested Order</span>
+          <span>Order</span>
           <input type="text" value="${currentBaseCount + 1}" disabled />
         </label>
       </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Date Start</span>
-          <input name="dateStart" type="date" />
-        </label>
-        <label class="field">
-          <span>Date End</span>
-          <input name="dateEnd" type="date" />
-        </label>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Start Day</span>
-          <input name="startDay" type="number" min="1" max="${trip.trip_length}" value="${Math.max(1, days.length)}" required />
-        </label>
-        <label class="field">
-          <span>End Day</span>
-          <input name="endDay" type="number" min="1" max="${trip.trip_length}" value="${trip.trip_length}" required />
-        </label>
-      </div>
+      <p class="muted">New bases start with no days. Use the allocation controls to move days into place.</p>
       <div class="base-form__actions">
         <button class="button" type="submit">Save Base</button>
       </div>
@@ -939,16 +1038,6 @@ function renderEditBaseForm(base, isSaving) {
           <span>Timezone</span>
           ${renderTimezonePicker(`edit-base-timezone-${base.id}`, base.local_timezone || DEFAULT_BASE_TIMEZONE)}
         </label>
-        <label class="field">
-          <span>Date Start</span>
-          <input name="dateStart" type="date" value="${base.date_start || ""}" />
-        </label>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Date End</span>
-          <input name="dateEnd" type="date" value="${base.date_end || ""}" />
-        </label>
       </div>
       <div class="base-form__actions">
         <button class="button button--secondary" data-cancel-edit-base type="button">Cancel</button>
@@ -958,29 +1047,9 @@ function renderEditBaseForm(base, isSaving) {
   `;
 }
 
-function renderAssignBaseForm(base, dayRange, isSaving) {
-  return `
-    <form class="base-form" data-assign-base-form="${escapeHtml(base.id)}">
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Start Day</span>
-          <input name="startDay" type="number" min="1" value="${dayRange?.start || ""}" required />
-        </label>
-        <label class="field">
-          <span>End Day</span>
-          <input name="endDay" type="number" min="1" value="${dayRange?.end || ""}" required />
-        </label>
-      </div>
-      <div class="base-form__actions">
-        <button class="button button--secondary" data-cancel-assign-base type="button">Cancel</button>
-        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Assign Days"}</button>
-      </div>
-    </form>
-  `;
-}
-
 function renderDaysView(bases, days, assignedItems, unassignedItems) {
   const sortedUnassignedItems = [...unassignedItems].sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+  const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
 
   return `
     <section class="days-view">
@@ -999,31 +1068,31 @@ function renderDaysView(bases, days, assignedItems, unassignedItems) {
         </section>
       ` : ""}
 
-      ${bases.map((base) => renderBaseDaysSection(base, days, assignedItems, bases.length)).join("")}
+      ${groupedRows.map((row, index) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, index === 0)).join("")}
     </section>
   `;
 }
 
-function renderBaseDaysSection(base, days, items, baseCount) {
-  const baseDays = days.filter((day) => day.base_id === base.id);
+function renderBaseDaysSection(row, days, items, rowCount, isFirst) {
+  const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
 
   return `
     <section class="panel days-base-section">
-      ${baseCount > 1 ? `
+      ${rowCount > 1 ? `
         <div class="days-view__panel-header">
           <div>
-            <p class="eyebrow">Base</p>
-            <h3>${escapeHtml(base.name || "Untitled base")}</h3>
+            <p class="eyebrow">${row.kind === "unassigned" ? "Unassigned" : isFirst ? "Days View" : "Base"}</p>
+            <h3>${escapeHtml(row.label)}</h3>
           </div>
-          <p class="muted">${escapeHtml(base.location_name || base.local_timezone || DEFAULT_BASE_TIMEZONE)}</p>
+          <p class="muted">${getAllocationRangeLabel(row, tripStore.getCurrentTrip()?.start_date)}</p>
         </div>
       ` : `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Days View</p>
-            <h3>${escapeHtml(base.name || "Untitled base")}</h3>
+            <h3>${escapeHtml(row.label)}</h3>
           </div>
-          <p class="muted">${escapeHtml(base.location_name || base.local_timezone || DEFAULT_BASE_TIMEZONE)}</p>
+          <p class="muted">${getAllocationRangeLabel(row, tripStore.getCurrentTrip()?.start_date)}</p>
         </div>
       `}
       <div class="day-card-grid">
@@ -1037,14 +1106,36 @@ function renderDayCard(day, items) {
   const dayItems = items
     .filter((item) => item.day_id === day.id)
     .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
+  const trip = tripStore.getCurrentTrip();
+  const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
+  const isEditingTitle = editingDayTitleId === day.id;
+  const title = String(day.title || "").trim();
 
   return `
     <article class="day-card">
       <div class="day-card__header">
-        <div>
-          <p class="eyebrow">Day ${day.day_number}</p>
-          <h4>${escapeHtml(day.title || `Day ${day.day_number}`)}</h4>
+        <div class="day-card__header-main">
+          <p class="eyebrow">Day ${day.day_number}${dateLabel ? ` · ${escapeHtml(dateLabel)}` : ""}</p>
+          ${
+            isEditingTitle
+              ? `
+                <input
+                  class="day-card__title-input"
+                  id="day-title-inline-input"
+                  type="text"
+                  maxlength="120"
+                  value="${escapeHtml(editingDayTitleValue)}"
+                  placeholder="Add day title"
+                />
+              `
+              : title
+                ? `<button class="day-card__title-button" data-day-title-trigger="${escapeHtml(day.id)}" type="button">${escapeHtml(title)}</button>`
+                : ""
+          }
         </div>
+        <button class="icon-button day-card__edit-title" data-edit-day-title="${escapeHtml(day.id)}" type="button" title="Edit day title" aria-label="Edit day title">
+          <i data-lucide="pencil"></i>
+        </button>
         ${day.location_name ? `<p class="muted">${escapeHtml(day.location_name)}</p>` : ""}
       </div>
       ${
@@ -1054,6 +1145,37 @@ function renderDayCard(day, items) {
       }
     </article>
   `;
+}
+
+async function saveInlineDayTitle() {
+  const dayId = editingDayTitleId;
+
+  if (!dayId) {
+    return;
+  }
+
+  const nextTitle = editingDayTitleValue;
+  editingDayTitleId = null;
+  editingDayTitleValue = "";
+  rerenderTripDetail();
+
+  try {
+    const updatedDay = await updateTripDayTitle({
+      dayId,
+      title: nextTitle,
+    });
+    tripStore.updateCurrentDay(updatedDay);
+    rerenderTripDetail();
+  } catch (error) {
+    console.error(error);
+    showToast("Something went wrong saving. Please try again.", "error");
+  }
+}
+
+function cancelInlineDayTitleEdit() {
+  editingDayTitleId = null;
+  editingDayTitleValue = "";
+  rerenderTripDetail();
 }
 
 function renderDayItem(item) {
@@ -1516,28 +1638,434 @@ function wireDiscardConfirmModal() {
   });
 }
 
-function getBaseDayRange(baseId, days) {
-  const baseDays = days.filter((day) => day.base_id === baseId);
-
-  if (baseDays.length === 0) {
-    return null;
+function renderAllocationConfirmModal(state) {
+  if (!state) {
+    return "";
   }
 
-  const dayNumbers = baseDays.map((day) => day.day_number).sort((left, right) => left - right);
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-close-allocation-confirm></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Review Day Move</p>
+            <h3>${escapeHtml(state.title)}</h3>
+          </div>
+        </div>
+        <p class="muted">${escapeHtml(state.message)}</p>
+        ${state.items.length > 0 ? `<p class="muted">${state.items.map((item) => item.title || "Untitled item").slice(0, 4).map(escapeHtml).join(", ")}</p>` : ""}
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-allocation-confirm" type="button">Cancel</button>
+          <button class="button" id="confirm-allocation-change" type="button">Continue</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderTripLengthConfirmModal(state) {
+  if (!state) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-close-trip-length-confirm></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Reduce Trip Length</p>
+            <h3>Move items from removed days?</h3>
+          </div>
+        </div>
+        <p class="muted">${escapeHtml(state.message)}</p>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-trip-length-confirm" type="button">Cancel</button>
+          <button class="button" id="confirm-trip-length-change" type="button">Continue</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function getAllocationState(trip, days) {
+  if (allocationDraft && allocationDraft.tripId === trip?.id) {
+    return allocationDraft;
+  }
 
   return {
-    start: dayNumbers[0],
-    end: dayNumbers[dayNumbers.length - 1],
+    tripId: trip?.id || null,
+    tripLength: Number(trip?.trip_length || days.length || 0),
+    days: [...days]
+      .sort((left, right) => left.day_number - right.day_number)
+      .map((day) => ({
+        id: day.id,
+        day_number: day.day_number,
+        base_id: day.base_id ?? null,
+      })),
   };
 }
 
-function getDayIdsInRange(days, startDay, endDay) {
-  const low = Math.min(startDay, endDay);
-  const high = Math.max(startDay, endDay);
+function buildAllocationRows(bases, dayEntries) {
+  const rows = [];
+  const days = [...dayEntries].sort((left, right) => left.day_number - right.day_number);
+  let currentRow = null;
 
-  return days
-    .filter((day) => day.day_number >= low && day.day_number <= high)
-    .map((day) => day.id);
+  days.forEach((day) => {
+    const key = day.base_id ?? `unassigned-${day.day_number}`;
+
+    if (!currentRow || currentRow.baseId !== day.base_id) {
+      if (currentRow) {
+        rows.push(currentRow);
+      }
+
+      const base = day.base_id ? bases.find((entry) => entry.id === day.base_id) || null : null;
+      currentRow = {
+        key: base?.id || `unassigned-${day.day_number}`,
+        kind: base ? "base" : "unassigned",
+        base,
+        baseId: day.base_id ?? null,
+        label: base?.name || "Unassigned",
+        startDay: day.day_number,
+        endDay: day.day_number,
+        dayCount: 1,
+      };
+      return;
+    }
+
+    currentRow.endDay = day.day_number;
+    currentRow.dayCount += 1;
+  });
+
+  if (currentRow) {
+    rows.push(currentRow);
+  }
+
+  const usedBaseIds = new Set(rows.filter((row) => row.baseId).map((row) => row.baseId));
+  bases
+    .filter((base) => !usedBaseIds.has(base.id))
+    .forEach((base) => {
+      rows.push({
+        key: base.id,
+        kind: "base",
+        base,
+        baseId: base.id,
+        label: base.name || "Untitled base",
+        startDay: null,
+        endDay: null,
+        dayCount: 0,
+      });
+    });
+
+  return rows;
+}
+
+function getAllocationSummary(trip, rows, tripLength) {
+  const assignedDays = rows
+    .filter((row) => row.kind === "base")
+    .reduce((total, row) => total + row.dayCount, 0);
+  const unassignedDays = rows
+    .filter((row) => row.kind === "unassigned")
+    .reduce((total, row) => total + row.dayCount, 0);
+  const isComplete = assignedDays === Number(tripLength);
+
+  let label = `${assignedDays} of ${tripLength} day${tripLength === 1 ? "" : "s"} allocated`;
+
+  if (unassignedDays > 0) {
+    label += ` (${unassignedDays} unassigned)`;
+  }
+
+  return {
+    isComplete,
+    label: isComplete
+      ? `All ${tripLength} day${tripLength === 1 ? "" : "s"} allocated ✓`
+      : label,
+  };
+}
+
+function hasAllocationDraftChanges(trip, days) {
+  if (!trip?.id || !allocationDraft || allocationDraft.tripId !== trip.id) {
+    return false;
+  }
+
+  if (Number(allocationDraft.tripLength) !== Number(trip.trip_length)) {
+    return true;
+  }
+
+  return days.some((day) => {
+    const draftDay = allocationDraft.days.find((entry) => entry.day_number === day.day_number);
+    return draftDay && normalizeNullableId(draftDay.base_id) !== normalizeNullableId(day.base_id);
+  });
+}
+
+function canDecreaseAllocationRow(row, tripLength) {
+  if (row.dayCount === 0) {
+    return false;
+  }
+
+  return Number(tripLength) > 1;
+}
+
+function getAllocationRangeLabel(row, startDate) {
+  if (!row.dayCount || !row.startDay || !row.endDay) {
+    return "No days assigned yet";
+  }
+
+  const dayLabel = row.startDay === row.endDay ? `Day ${row.startDay}` : `Days ${row.startDay}-${row.endDay}`;
+  const dateLabel = startDate ? formatShortDateRange(startDate, row.startDay, row.endDay) : "";
+
+  return dateLabel ? `${dayLabel} · ${dateLabel}` : dayLabel;
+}
+
+function getTripShrinkSummary(nextTripLength, days, items) {
+  const removedDays = days.filter((day) => day.day_number > nextTripLength);
+  const removedDayIds = new Set(removedDays.map((day) => day.id));
+  const affectedItems = items.filter((item) => removedDayIds.has(item.day_id));
+  const removedLabels = formatRemovedDayLabels(removedDays.map((day) => day.day_number));
+
+  return {
+    itemCount: affectedItems.length,
+    message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels}. ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
+  };
+}
+
+function getItemsForDayRange(startDay, endDay, items, days) {
+  const dayIds = new Set(
+    days
+      .filter((day) => day.day_number >= startDay && day.day_number <= endDay)
+      .map((day) => day.id)
+  );
+
+  return items.filter((item) => dayIds.has(item.day_id));
+}
+
+function requestAllocationChange(slotKey, direction) {
+  const trip = tripStore.getCurrentTrip();
+  const days = tripStore.getCurrentDays();
+  const items = tripStore.getCurrentItems();
+  const draft = getAllocationState(trip, days);
+  const rows = buildAllocationRows(tripStore.getCurrentBases(), draft.days);
+  const rowIndex = rows.findIndex((row) => row.key === slotKey);
+
+  if (!trip || rowIndex === -1) {
+    return;
+  }
+
+  const row = rows[rowIndex];
+  const affectedDayNumber = direction === "increase"
+    ? row.dayCount > 0
+      ? row.endDay + 1
+      : rows[rowIndex - 1]?.endDay + 1 || 1
+    : row.endDay;
+  const nextRow = rows[rowIndex + 1] || null;
+  const affectedDay = days.find((day) => day.day_number === affectedDayNumber) || null;
+  const affectedItems = affectedDay ? items.filter((item) => item.day_id === affectedDay.id) : [];
+  const importantItems = affectedItems.filter((item) => item.status === "reserved" || item.status === "confirmed");
+
+  if (importantItems.length === 0 && !(direction === "decrease" && row.dayCount > 0 && affectedItems.length > 0 && !nextRow)) {
+    applyAllocationChange(slotKey, direction);
+    return;
+  }
+
+  allocationConfirmState = {
+    title: direction === "increase" ? `Move Day ${affectedDayNumber}?` : `Remove Day ${affectedDayNumber}?`,
+    message: nextRow
+      ? `Day ${affectedDayNumber} has ${importantItems.length} reserved/confirmed item${importantItems.length === 1 ? "" : "s"} and will move to ${nextRow.label}. Review after saving.`
+      : `Day ${affectedDayNumber} has ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} and they will move to unassigned when this day is removed.`,
+    items: importantItems.length > 0 ? importantItems : affectedItems,
+    action: {
+      slotKey,
+      direction,
+    },
+  };
+  rerenderTripDetail();
+}
+
+function applyAllocationChange(slotKey, direction) {
+  const trip = tripStore.getCurrentTrip();
+  const draft = getAllocationState(trip, tripStore.getCurrentDays());
+  const rows = buildAllocationRows(tripStore.getCurrentBases(), draft.days);
+  const rowIndex = rows.findIndex((row) => row.key === slotKey);
+
+  if (rowIndex === -1) {
+    return;
+  }
+
+  const row = rows[rowIndex];
+  const nextRow = rows[rowIndex + 1] || null;
+  allocationDraft = {
+    ...draft,
+    days: draft.days.map((day) => ({ ...day })),
+  };
+
+  if (direction === "increase") {
+    if (nextRow?.startDay) {
+      const movedDay = allocationDraft.days.find((day) => day.day_number === nextRow.startDay);
+      if (movedDay) {
+        movedDay.base_id = row.baseId;
+      }
+    } else {
+      allocationDraft.tripLength += 1;
+      allocationDraft.days.push({
+        id: null,
+        day_number: allocationDraft.tripLength,
+        base_id: row.baseId,
+      });
+    }
+  }
+
+  if (direction === "decrease" && row.endDay) {
+    const movedDay = allocationDraft.days.find((day) => day.day_number === row.endDay);
+
+    if (!movedDay) {
+      return;
+    }
+
+    if (nextRow?.key) {
+      movedDay.base_id = nextRow.baseId;
+    } else {
+      allocationDraft.days = allocationDraft.days.filter((day) => day.day_number !== row.endDay);
+      allocationDraft.tripLength -= 1;
+    }
+  }
+
+  allocationDraft.days = allocationDraft.days
+    .sort((left, right) => left.day_number - right.day_number)
+    .map((day, index) => ({
+      ...day,
+      day_number: index + 1,
+    }));
+
+  rerenderTripDetail();
+}
+
+async function saveAllocationDraft(trip) {
+  const originalTripLength = Number(trip.trip_length);
+  const nextTripLength = Number(allocationDraft.tripLength);
+  let tripLengthUpdated = false;
+
+  if (nextTripLength !== originalTripLength) {
+    await updateTripSettings({
+      tripId: trip.id,
+      title: trip.title,
+      description: trip.description || "",
+      startDate: trip.start_date || "",
+      tripLength: nextTripLength,
+    });
+    tripLengthUpdated = true;
+  }
+
+  const freshBundle = await fetchTripDetailBundle(trip.id);
+  const changedAllocations = allocationDraft.days
+    .filter((draftDay) => draftDay.day_number <= nextTripLength)
+    .map((draftDay) => {
+      const persistedDay = freshBundle.days.find((day) => day.day_number === draftDay.day_number);
+      if (!persistedDay) {
+        return null;
+      }
+
+      if (normalizeNullableId(persistedDay.base_id) === normalizeNullableId(draftDay.base_id)) {
+        return null;
+      }
+
+      return {
+        dayNumber: draftDay.day_number,
+        toBaseId: draftDay.base_id,
+      };
+    })
+    .filter(Boolean);
+
+  if (changedAllocations.length > 0) {
+    try {
+      await saveTripDayAllocations({
+        tripId: trip.id,
+        allocations: changedAllocations,
+      });
+    } catch (error) {
+      if (tripLengthUpdated) {
+        await loadTripDetail(trip.id);
+        throw new Error("TRIP_LENGTH_UPDATED_ALLOCATIONS_FAILED");
+      }
+
+      throw error;
+    }
+  }
+}
+
+function formatRemovedDayLabels(dayNumbers) {
+  const sortedDayNumbers = [...dayNumbers]
+    .filter((dayNumber) => Number.isInteger(dayNumber))
+    .sort((left, right) => left - right);
+  const labels = [];
+  let rangeStart = null;
+  let previousDayNumber = null;
+
+  sortedDayNumbers.forEach((dayNumber) => {
+    if (rangeStart == null) {
+      rangeStart = dayNumber;
+      previousDayNumber = dayNumber;
+      return;
+    }
+
+    if (dayNumber === previousDayNumber + 1) {
+      previousDayNumber = dayNumber;
+      return;
+    }
+
+    labels.push(formatRemovedDayRange(rangeStart, previousDayNumber));
+    rangeStart = dayNumber;
+    previousDayNumber = dayNumber;
+  });
+
+  if (rangeStart != null) {
+    labels.push(formatRemovedDayRange(rangeStart, previousDayNumber));
+  }
+
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  if (labels.length === 2) {
+    return `${labels[0]} and ${labels[1]}`;
+  }
+
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+function formatRemovedDayRange(startDayNumber, endDayNumber) {
+  if (startDayNumber === endDayNumber) {
+    return `Day ${startDayNumber}`;
+  }
+
+  return `Days ${startDayNumber}-${endDayNumber}`;
+}
+
+async function saveTripSettings(settings) {
+  appStore.updateTripDetail({
+    isSavingTrip: true,
+  });
+  rerenderTripDetail();
+
+  try {
+    const updatedTrip = await updateTripSettings(settings);
+    tripStore.updateCurrentTrip(updatedTrip);
+    pendingTripSettingsDraft = null;
+    tripLengthConfirmState = null;
+    appStore.updateTripDetail({
+      isSavingTrip: false,
+      isShowingTripSettings: false,
+    });
+    await loadTripDetail(settings.tripId);
+    showToast("Trip updated.", "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateTripDetail({
+      isSavingTrip: false,
+    });
+    rerenderTripDetail();
+    showToast(getTripItemErrorMessage("update"), "error");
+  }
 }
 
 function getSupportedTimezones() {

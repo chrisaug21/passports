@@ -188,7 +188,7 @@ export async function fetchTripDetailBundle(tripId) {
       .single(),
     supabase
       .from("trip_bases")
-      .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+      .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),
@@ -447,43 +447,19 @@ export async function updateTripSettings({
   const currentTripLength = activeDays.length;
 
   if (tripLength < currentTripLength) {
-    const removedDays = activeDays.filter((day) => day.day_number > tripLength);
-    const removedDayIds = removedDays.map((day) => day.id);
+    const { error: shrinkError } = await supabase.rpc("shrink_trip_length", {
+      p_trip_id: tripId,
+      p_new_length: tripLength,
+    });
 
-    if (removedDayIds.length > 0) {
-      const { error: itemsError } = await supabase
-        .from("trip_items")
-        .update({
-          day_id: null,
-          updated_at: now,
-        })
-        .in("day_id", removedDayIds);
-
-      if (itemsError) {
-        throw itemsError;
-      }
-
-      const { error: daysError } = await supabase
-        .from("trip_days")
-        .update({
-          deleted_at: now,
-          updated_at: now,
-        })
-        .in("id", removedDayIds);
-
-      if (daysError) {
-        throw daysError;
-      }
+    if (shrinkError) {
+      throw shrinkError;
     }
   }
 
   if (tripLength > currentTripLength) {
     const lastActiveDay = activeDays[activeDays.length - 1] || null;
     const fallbackBaseId = lastActiveDay?.base_id || null;
-
-    if (!fallbackBaseId) {
-      throw new Error("Could not determine which base should own the new days.");
-    }
 
     const insertedDays = Array.from({ length: tripLength - currentTripLength }, (_value, index) => ({
       id: crypto.randomUUID(),
@@ -544,8 +520,6 @@ export async function createTripBase({
   name,
   locationName,
   localTimezone,
-  dateStart,
-  dateEnd,
   sortOrder,
 }) {
   const supabase = getSupabase();
@@ -560,13 +534,11 @@ export async function createTripBase({
       name,
       location_name: locationName || null,
       local_timezone: validatedTimezone,
-      date_start: dateStart || null,
-      date_end: dateEnd || null,
       sort_order: sortOrder,
       created_at: now,
       updated_at: now,
     })
-    .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+    .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
     .single();
 
   if (error) {
@@ -581,8 +553,6 @@ export async function updateTripBase({
   name,
   locationName,
   localTimezone,
-  dateStart,
-  dateEnd,
 }) {
   const supabase = getSupabase();
   const validatedTimezone = getValidatedTimezone(localTimezone);
@@ -593,12 +563,10 @@ export async function updateTripBase({
       name,
       location_name: locationName || null,
       local_timezone: validatedTimezone,
-      date_start: dateStart || null,
-      date_end: dateEnd || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", baseId)
-    .select("id, trip_id, name, location_name, local_timezone, date_start, date_end, sort_order, notes")
+    .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
     .single();
 
   if (error) {
@@ -608,38 +576,88 @@ export async function updateTripBase({
   return data;
 }
 
-export async function assignTripDaysToBase({ baseId, dayIds }) {
-  if (!dayIds.length) {
-    return;
+async function fetchActiveTripDaysForAllocation(tripId) {
+  const { data, error } = await getSupabase()
+    .from("trip_days")
+    .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order, created_at")
+    .eq("trip_id", tripId)
+    .is("deleted_at", null)
+    .order("day_number", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function saveTripDayAllocations({ tripId, allocations }) {
+  if (!Array.isArray(allocations) || allocations.length === 0) {
+    return [];
   }
 
   const supabase = getSupabase();
   const now = new Date().toISOString();
-  const { data: base, error: baseError } = await supabase
-    .from("trip_bases")
-    .select("id, trip_id")
-    .eq("id", baseId)
-    .is("deleted_at", null)
-    .single();
+  const activeDays = await fetchActiveTripDaysForAllocation(tripId);
+  const activeDayMap = new Map(activeDays.map((day) => [day.day_number, day]));
+  const groupedDayIds = new Map();
+  const savedDays = [];
 
-  if (baseError) {
-    throw baseError;
+  for (const { dayNumber, toBaseId } of allocations) {
+    const existingDay = activeDayMap.get(dayNumber);
+
+    if (!existingDay) {
+      throw new Error(`Could not find Day ${dayNumber}.`);
+    }
+
+    const normalizedBaseId = normalizeNullableId(toBaseId);
+    const groupKey = normalizedBaseId ?? "__unassigned__";
+    const existingGroup = groupedDayIds.get(groupKey);
+
+    if (existingGroup) {
+      existingGroup.ids.push(existingDay.id);
+      continue;
+    }
+
+    groupedDayIds.set(groupKey, {
+      baseId: normalizedBaseId,
+      ids: [existingDay.id],
+    });
   }
 
-  if (!base?.trip_id) {
-    throw new Error("Could not find that base.");
+  for (const { baseId, ids } of groupedDayIds.values()) {
+    const { data, error } = await supabase
+      .from("trip_days")
+      .update({
+        base_id: baseId,
+        updated_at: now,
+      })
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .in("id", ids)
+      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order");
+
+    if (error) {
+      throw error;
+    }
+
+    if (data?.length) {
+      savedDays.push(...data);
+    }
   }
 
-  const { error: daysError } = await supabase
-    .from("trip_days")
-    .update({
-      base_id: baseId,
-      updated_at: now,
-    })
-    .eq("trip_id", base.trip_id)
-    .in("id", dayIds);
+  return savedDays;
+}
 
-  if (daysError) {
-    throw daysError;
-  }
+export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {
+  return saveTripDayAllocations({
+    tripId,
+    allocations: [
+      {
+        dayNumber,
+        fromBaseId,
+        toBaseId,
+      },
+    ],
+  });
 }
