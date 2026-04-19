@@ -6,6 +6,34 @@ import {
 } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 
+const TRIP_ITEM_SELECT = `
+  id,
+  trip_id,
+  base_id,
+  day_id,
+  created_by,
+  title,
+  item_type,
+  status,
+  is_anchor,
+  meal_slot,
+  activity_type,
+  transport_mode,
+  transport_origin,
+  transport_destination,
+  time_start,
+  time_end,
+  time_is_estimated,
+  cost_low,
+  cost_high,
+  confirmation_ref,
+  url,
+  notes,
+  sort_order,
+  created_at,
+  updated_at
+`;
+
 function normalizeNullableId(value) {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue === "" ? null : normalizedValue;
@@ -205,35 +233,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("day_number", { ascending: true }),
     supabase
       .from("trip_items")
-      .select(
-        `
-          id,
-          trip_id,
-          base_id,
-          day_id,
-          created_by,
-          title,
-          item_type,
-          status,
-          is_anchor,
-          meal_slot,
-          activity_type,
-          transport_mode,
-          transport_origin,
-          transport_destination,
-          time_start,
-          time_end,
-          time_is_estimated,
-          cost_low,
-          cost_high,
-          confirmation_ref,
-          url,
-          notes,
-          sort_order,
-          created_at,
-          updated_at
-        `
-      )
+      .select(TRIP_ITEM_SELECT)
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),
@@ -283,35 +283,7 @@ export async function createTripItem({ tripId, createdBy, title, itemType, sortO
       created_at: now,
       updated_at: now,
     })
-    .select(
-      `
-        id,
-        trip_id,
-        base_id,
-        day_id,
-        created_by,
-        title,
-        item_type,
-        status,
-        is_anchor,
-        meal_slot,
-        activity_type,
-        transport_mode,
-        transport_origin,
-        transport_destination,
-        time_start,
-        time_end,
-        time_is_estimated,
-        cost_low,
-        cost_high,
-        confirmation_ref,
-        url,
-        notes,
-        sort_order,
-        created_at,
-        updated_at
-      `
-    )
+    .select(TRIP_ITEM_SELECT)
     .single();
 
   if (error) {
@@ -349,59 +321,36 @@ export async function updateTripItem({
     throw new Error("Please choose a valid item status.");
   }
 
+  const updatePayload = {
+    title,
+    item_type: itemType,
+    status: normalizedStatus,
+    is_anchor: isAnchor,
+    base_id: normalizeNullableId(baseId),
+    day_id: normalizeNullableId(dayId),
+    meal_slot: mealSlot || null,
+    activity_type: activityType || null,
+    transport_mode: transportMode || null,
+    transport_origin: transportOrigin || null,
+    transport_destination: transportDestination || null,
+    time_start: timeStart || null,
+    time_end: timeEnd || null,
+    cost_low: costLow === "" ? null : costLow,
+    cost_high: costHigh === "" ? null : costHigh,
+    url: url || null,
+    notes: notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (timeIsEstimated !== undefined) {
+    updatePayload.time_is_estimated = Boolean(timeIsEstimated);
+  }
+
   const { data, error } = await supabase
     .from("trip_items")
-    .update({
-      title,
-      item_type: itemType,
-      status: normalizedStatus,
-      is_anchor: isAnchor,
-      base_id: normalizeNullableId(baseId),
-      day_id: normalizeNullableId(dayId),
-      meal_slot: mealSlot || null,
-      activity_type: activityType || null,
-      transport_mode: transportMode || null,
-      transport_origin: transportOrigin || null,
-      transport_destination: transportDestination || null,
-      time_start: timeStart || null,
-      time_end: timeEnd || null,
-      time_is_estimated: Boolean(timeIsEstimated),
-      cost_low: costLow === "" ? null : costLow,
-      cost_high: costHigh === "" ? null : costHigh,
-      url: url || null,
-      notes: notes || null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", itemId)
-    .select(
-      `
-        id,
-        trip_id,
-        base_id,
-        day_id,
-        created_by,
-        title,
-        item_type,
-        status,
-        is_anchor,
-        meal_slot,
-        activity_type,
-        transport_mode,
-        transport_origin,
-        transport_destination,
-        time_start,
-        time_end,
-        time_is_estimated,
-        cost_low,
-        cost_high,
-        confirmation_ref,
-        url,
-        notes,
-        sort_order,
-        created_at,
-        updated_at
-      `
-    )
+    .select(TRIP_ITEM_SELECT)
     .single();
 
   if (error) {
@@ -409,6 +358,32 @@ export async function updateTripItem({
   }
 
   return data;
+}
+
+export async function batchUpdateTripItems(itemUpdates) {
+  if (!Array.isArray(itemUpdates) || itemUpdates.length === 0) {
+    return [];
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await getSupabase()
+    .from("trip_items")
+    .upsert(
+      itemUpdates.map((item) => ({
+        ...item,
+        updated_at: item.updated_at || now,
+      })),
+      {
+        onConflict: "id",
+      }
+    )
+    .select(TRIP_ITEM_SELECT);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
 }
 
 export async function softDeleteTripItem(itemId) {

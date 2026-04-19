@@ -53,12 +53,18 @@
 .trip-pill {
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
   border-radius: var(--radius-pill);
   padding: 0.45rem 0.75rem;
   background: rgba(43, 91, 224, 0.1);
   color: var(--color-structure);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.trip-pill i {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .trip-pill--anchor {
@@ -408,6 +414,26 @@
   padding: 0.85rem;
 }
 
+.days-view__list--flex {
+  margin-top: 0.2rem;
+}
+
+.day-item__body {
+  min-width: 0;
+}
+
+.day-item--draggable {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  cursor: grab;
+}
+
+.day-item--dragging {
+  opacity: 0.6;
+}
+
 .day-item__header {
   display: flex;
   justify-content: space-between;
@@ -426,6 +452,22 @@
   margin: 0.35rem 0 0;
   color: var(--color-text);
   font-size: 0.92rem;
+}
+
+.day-item__drag-handle {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--color-text-muted);
+}
+
+.day-item__drag-handle svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .item-actions-menu {
@@ -520,6 +562,33 @@
   display: grid;
   gap: 0.85rem;
   padding-top: 0.25rem;
+}
+
+.move-item-modal__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.move-item-modal__group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.move-item-modal__option {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--color-text);
+  min-height: 44px;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font-weight: 700;
+}
+
+.move-item-modal__option:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .item-editor-section.is-hidden {
