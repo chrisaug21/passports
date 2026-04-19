@@ -23,6 +23,7 @@ import { showToast } from "../shared/toast.js";
 let rerenderTripDetail = () => {};
 let itemEditorInitialSnapshot = "";
 let pendingDiscardAction = null;
+let itemEditorDraft = null;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -247,10 +248,14 @@ export function wireTripDetailPage(tripId) {
       }
 
       requestCloseItemEditor(() => {
+        const nextItem = tripStore.getCurrentItems().find((entry) => entry.id === itemId) || null;
+
         appStore.updateTripDetail({
           editingItemId: itemId,
           showDiscardConfirm: false,
         });
+        itemEditorDraft = nextItem ? buildItemEditorDraft(nextItem) : null;
+        itemEditorInitialSnapshot = itemEditorDraft ? serializeItemEditorDraft(itemEditorDraft) : "";
         pendingDiscardAction = null;
         rerenderTripDetail();
       });
@@ -264,6 +269,8 @@ export function wireTripDetailPage(tripId) {
   syncItemEditorTypeFields();
   ensureItemEditorInitialSnapshot();
   wireDiscardConfirmModal();
+  document.querySelector("#item-editor-form")?.addEventListener("input", syncItemEditorDraftFromForm);
+  document.querySelector("#item-editor-form")?.addEventListener("change", syncItemEditorDraftFromForm);
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -327,6 +334,7 @@ export function wireTripDetailPage(tripId) {
         showDiscardConfirm: false,
       });
       itemEditorInitialSnapshot = "";
+      itemEditorDraft = null;
       pendingDiscardAction = null;
       rerenderTripDetail();
       showToast("Item updated.", "success");
@@ -359,6 +367,7 @@ export async function loadTripDetail(tripId) {
       showDiscardConfirm: false,
     });
     itemEditorInitialSnapshot = "";
+    itemEditorDraft = null;
     pendingDiscardAction = null;
     rerenderTripDetail();
   } catch (error) {
@@ -415,6 +424,8 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
     `;
   }
 
+  const draft = itemEditorDraft || buildItemEditorDraft(item);
+
   return `
     <div class="modal-shell" id="item-editor-modal" aria-hidden="false">
       <div class="modal-backdrop" data-close-item-editor></div>
@@ -422,7 +433,7 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
         <div class="modal-card__header">
           <div>
             <p class="eyebrow">Edit Item</p>
-            <h3>${item.title}</h3>
+            <h3>${draft.title}</h3>
           </div>
           <button class="icon-button" id="close-item-editor" type="button" aria-label="Close item editor">×</button>
         </div>
@@ -430,20 +441,20 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
         <form class="item-editor-form" id="item-editor-form">
           <label class="field">
             <span>Title</span>
-            <input name="title" type="text" maxlength="120" value="${escapeAttribute(item.title)}" required />
+            <input name="title" type="text" maxlength="120" value="${escapeAttribute(draft.title)}" required />
           </label>
 
           <div class="item-editor-form__grid">
             <label class="field">
               <span>Type</span>
               <select id="item-type-select" name="itemType" required>
-                ${ITEM_TYPES.map((type) => `<option value="${type}" ${item.item_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+                ${ITEM_TYPES.map((type) => `<option value="${type}" ${draft.itemType === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
               </select>
             </label>
             <label class="field">
               <span>Status</span>
               <select name="status" required>
-                ${ITEM_STATUSES.map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${formatStatusLabel(status)}</option>`).join("")}
+                ${ITEM_STATUSES.map((status) => `<option value="${status}" ${draft.status === status ? "selected" : ""}>${formatStatusLabel(status)}</option>`).join("")}
               </select>
             </label>
           </div>
@@ -453,20 +464,20 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
               <span>Base</span>
               <select name="baseId">
                 <option value="">Unassigned</option>
-                ${bases.map((base) => `<option value="${base.id}" ${item.base_id === base.id ? "selected" : ""}>${base.name}</option>`).join("")}
+                ${bases.map((base) => `<option value="${base.id}" ${draft.baseId === base.id ? "selected" : ""}>${base.name}</option>`).join("")}
               </select>
             </label>
             <label class="field">
               <span>Day</span>
               <select name="dayId">
                 <option value="">Unassigned</option>
-                ${days.map((day) => `<option value="${day.id}" ${item.day_id === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}</option>`).join("")}
+                ${days.map((day) => `<option value="${day.id}" ${draft.dayId === day.id ? "selected" : ""}>Day ${day.day_number}${day.title ? ` · ${day.title}` : ""}</option>`).join("")}
               </select>
             </label>
           </div>
 
           <label class="checkbox-field">
-            <input name="isAnchor" type="checkbox" ${item.is_anchor ? "checked" : ""} />
+            <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
             <span>Anchor item</span>
           </label>
 
@@ -475,31 +486,31 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
             <div class="item-editor-form__grid">
               <label class="field">
                 <span>Start Time</span>
-                <input name="timeStart" type="time" value="${item.time_start || ""}" />
+                <input name="timeStart" type="time" value="${draft.timeStart || ""}" />
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input name="timeEnd" type="time" value="${item.time_end || ""}" />
+                <input name="timeEnd" type="time" value="${draft.timeEnd || ""}" />
               </label>
             </div>
             <label class="checkbox-field">
-              <input name="timeIsEstimated" type="checkbox" ${item.time_is_estimated ? "checked" : ""} />
+              <input name="timeIsEstimated" type="checkbox" ${draft.timeIsEstimated ? "checked" : ""} />
               <span>Time is estimated</span>
             </label>
           </div>
 
-          ${renderTypeSpecificFields(item)}
+          ${renderTypeSpecificFields(draft)}
 
           <div class="item-editor-section">
             <p class="item-editor-section__title">Cost</p>
             <div class="item-editor-form__grid">
               <label class="field">
                 <span>Low / Exact</span>
-                <input name="costLow" type="number" step="0.01" min="0" value="${item.cost_low ?? ""}" />
+                <input name="costLow" type="number" step="0.01" min="0" value="${draft.costLow ?? ""}" />
               </label>
               <label class="field">
                 <span>High</span>
-                <input name="costHigh" type="number" step="0.01" min="0" value="${item.cost_high ?? ""}" />
+                <input name="costHigh" type="number" step="0.01" min="0" value="${draft.costHigh ?? ""}" />
               </label>
             </div>
           </div>
@@ -508,11 +519,11 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
             <p class="item-editor-section__title">Details</p>
             <label class="field">
               <span>URL</span>
-              <input name="url" type="url" value="${escapeAttribute(item.url || "")}" placeholder="https://..." />
+              <input name="url" type="url" value="${escapeAttribute(draft.url || "")}" placeholder="https://..." />
             </label>
             <label class="field">
               <span>Notes</span>
-              <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeTextarea(item.notes || "")}</textarea>
+              <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeTextarea(draft.notes || "")}</textarea>
             </label>
           </div>
 
@@ -544,6 +555,7 @@ function closeItemEditor() {
       showDiscardConfirm: false,
     });
     itemEditorInitialSnapshot = "";
+    itemEditorDraft = null;
     pendingDiscardAction = null;
     rerenderTripDetail();
   });
@@ -564,7 +576,7 @@ function escapeTextarea(value) {
     .replaceAll(">", "&gt;");
 }
 
-function renderTypeSpecificFields(item) {
+function renderTypeSpecificFields(draft) {
   return `
     <div class="item-editor-section" data-item-type-section="meal">
       <p class="item-editor-section__title">Type-Specific Details</p>
@@ -572,7 +584,7 @@ function renderTypeSpecificFields(item) {
         <span>Meal Slot</span>
         <select name="mealSlot">
           <option value="">None</option>
-          ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${item.meal_slot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
+          ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${draft.mealSlot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
         </select>
       </label>
     </div>
@@ -582,7 +594,7 @@ function renderTypeSpecificFields(item) {
         <span>Activity Type</span>
         <select name="activityType">
           <option value="">None</option>
-          ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${item.activity_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+          ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${draft.activityType === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
         </select>
       </label>
     </div>
@@ -592,17 +604,17 @@ function renderTypeSpecificFields(item) {
         <span>Transport Mode</span>
         <select name="transportMode">
           <option value="">None</option>
-          ${TRANSPORT_MODES.map((mode) => `<option value="${mode}" ${item.transport_mode === mode ? "selected" : ""}>${formatItemTypeLabel(mode)}</option>`).join("")}
+          ${TRANSPORT_MODES.map((mode) => `<option value="${mode}" ${draft.transportMode === mode ? "selected" : ""}>${formatItemTypeLabel(mode)}</option>`).join("")}
         </select>
       </label>
       <div class="item-editor-form__grid">
         <label class="field">
           <span>Transport Origin</span>
-          <input name="transportOrigin" type="text" value="${escapeAttribute(item.transport_origin || "")}" />
+          <input name="transportOrigin" type="text" value="${escapeAttribute(draft.transportOrigin || "")}" />
         </label>
         <label class="field">
           <span>Transport Destination</span>
-          <input name="transportDestination" type="text" value="${escapeAttribute(item.transport_destination || "")}" />
+          <input name="transportDestination" type="text" value="${escapeAttribute(draft.transportDestination || "")}" />
         </label>
       </div>
     </div>
@@ -645,14 +657,19 @@ function requestCloseItemEditor(onDiscard) {
 }
 
 function captureItemEditorInitialSnapshot() {
-  const form = document.querySelector("#item-editor-form");
+  if (!itemEditorDraft) {
+    const editingItemId = appStore.getState().tripDetail.editingItemId;
+    const item = tripStore.getCurrentItems().find((entry) => entry.id === editingItemId);
 
-  if (!form) {
-    itemEditorInitialSnapshot = "";
-    return;
+    if (!item) {
+      itemEditorInitialSnapshot = "";
+      return;
+    }
+
+    itemEditorDraft = buildItemEditorDraft(item);
   }
 
-  itemEditorInitialSnapshot = serializeItemEditorForm(form);
+  itemEditorInitialSnapshot = serializeItemEditorDraft(itemEditorDraft);
 }
 
 function ensureItemEditorInitialSnapshot() {
@@ -664,19 +681,25 @@ function ensureItemEditorInitialSnapshot() {
 }
 
 function hasUnsavedItemEditorChanges() {
-  const form = document.querySelector("#item-editor-form");
+  syncItemEditorDraftFromForm();
 
-  if (!form) {
+  if (!itemEditorDraft) {
     return false;
   }
 
-  return serializeItemEditorForm(form) !== itemEditorInitialSnapshot;
+  return serializeItemEditorDraft(itemEditorDraft) !== itemEditorInitialSnapshot;
 }
 
-function serializeItemEditorForm(form) {
+function syncItemEditorDraftFromForm() {
+  const form = document.querySelector("#item-editor-form");
+
+  if (!form) {
+    return;
+  }
+
   const formData = new FormData(form);
 
-  const snapshot = {
+  itemEditorDraft = {
     title: String(formData.get("title") || "").trim(),
     itemType: String(formData.get("itemType") || "").trim(),
     status: String(formData.get("status") || "").trim(),
@@ -696,8 +719,33 @@ function serializeItemEditorForm(form) {
     url: String(formData.get("url") || "").trim(),
     notes: String(formData.get("notes") || "").trim(),
   };
+}
 
-  return JSON.stringify(snapshot);
+function serializeItemEditorDraft(draft) {
+  return JSON.stringify(draft);
+}
+
+function buildItemEditorDraft(item) {
+  return {
+    title: item.title || "",
+    itemType: item.item_type || "",
+    status: item.status || "",
+    baseId: item.base_id || "",
+    dayId: item.day_id || "",
+    isAnchor: Boolean(item.is_anchor),
+    timeStart: item.time_start || "",
+    timeEnd: item.time_end || "",
+    timeIsEstimated: Boolean(item.time_is_estimated),
+    mealSlot: item.meal_slot || "",
+    activityType: item.activity_type || "",
+    transportMode: item.transport_mode || "",
+    transportOrigin: item.transport_origin || "",
+    transportDestination: item.transport_destination || "",
+    costLow: item.cost_low == null ? "" : String(item.cost_low),
+    costHigh: item.cost_high == null ? "" : String(item.cost_high),
+    url: item.url || "",
+    notes: item.notes || "",
+  };
 }
 
 function renderDiscardConfirmModal(isOpen) {
