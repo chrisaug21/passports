@@ -527,7 +527,10 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
+  document.querySelector('[name="baseId"]')?.addEventListener("change", syncItemEditorAssignmentHint);
+  document.querySelector('[name="dayId"]')?.addEventListener("change", syncItemEditorAssignmentHint);
   syncItemEditorTypeFields();
+  syncItemEditorAssignmentHint();
   ensureItemEditorInitialSnapshot();
   wireDiscardConfirmModal();
   document.querySelector("#item-editor-form")?.addEventListener("input", syncItemEditorDraftFromForm);
@@ -656,7 +659,7 @@ function renderMasterListRow(item, days, bases) {
         </div>
         <p class="muted">
           ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
-          ${base ? ` · ${base.name}` : " · Unassigned base"}
+          ${base ? ` · ${base.name}` : ""}
           ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
         </p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
@@ -965,6 +968,7 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
               </select>
             </label>
           </div>
+          <p class="field-hint ${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) ? "" : "is-hidden"}" id="item-editor-assignment-hint">${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) || ""}</p>
 
           <label class="checkbox-field">
             <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
@@ -1126,6 +1130,28 @@ function syncItemEditorTypeFields() {
   });
 }
 
+function syncItemEditorAssignmentHint() {
+  const hintElement = document.querySelector("#item-editor-assignment-hint");
+  if (!hintElement) {
+    return;
+  }
+
+  const form = document.querySelector("#item-editor-form");
+  if (!form) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const baseId = String(formData.get("baseId") || "").trim();
+  const dayId = String(formData.get("dayId") || "").trim();
+  const bases = tripStore.getCurrentBases();
+  const days = tripStore.getCurrentDays();
+  const hint = getItemEditorAssignmentHint(baseId, dayId, bases, days);
+
+  hintElement.textContent = hint || "";
+  hintElement.classList.toggle("is-hidden", !hint);
+}
+
 function requestCloseItemEditor(onDiscard) {
   const editingItemId = appStore.getState().tripDetail.editingItemId;
 
@@ -1236,6 +1262,24 @@ function buildItemEditorDraft(item) {
     url: item.url || "",
     notes: item.notes || "",
   };
+}
+
+function getItemEditorAssignmentHint(baseId, dayId, bases, days) {
+  if (!baseId || !dayId) {
+    return "";
+  }
+
+  const selectedDay = days.find((day) => day.id === dayId);
+  if (!selectedDay || selectedDay.base_id === baseId) {
+    return "";
+  }
+
+  const dayBase = bases.find((base) => base.id === selectedDay.base_id);
+  if (!dayBase) {
+    return "";
+  }
+
+  return `Day ${selectedDay.day_number} is in ${dayBase.name} — update base to match?`;
 }
 
 function renderDiscardConfirmModal(isOpen) {
