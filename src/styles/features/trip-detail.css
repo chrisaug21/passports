@@ -208,6 +208,10 @@
   padding-top: 0.25rem;
 }
 
+.item-editor-section.is-hidden {
+  display: none;
+}
+
 .item-editor-section__title {
   margin: 0;
   font-size: 0.9rem;

@@ -105,6 +105,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal-shell.is-hidden {
@@ -122,9 +123,11 @@
   position: relative;
   z-index: 1;
   width: min(560px, 100%);
+  max-height: calc(100vh - 2rem);
   padding: 1.5rem;
   display: grid;
   gap: 1.25rem;
+  overflow-y: auto;
 }
 
 .modal-card__header,

@@ -253,6 +253,8 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#close-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
+  document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
+  syncItemEditorTypeFields();
 
   document.querySelector("#item-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -419,7 +421,7 @@ function renderItemEditorModal({ item, bases, days, isSaving }) {
           <div class="item-editor-form__grid">
             <label class="field">
               <span>Type</span>
-              <select name="itemType" required>
+              <select id="item-type-select" name="itemType" required>
                 ${ITEM_TYPES.map((type) => `<option value="${type}" ${item.item_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
               </select>
             </label>
@@ -544,24 +546,28 @@ function escapeTextarea(value) {
 
 function renderTypeSpecificFields(item) {
   return `
-    <div class="item-editor-section">
+    <div class="item-editor-section" data-item-type-section="meal">
       <p class="item-editor-section__title">Type-Specific Details</p>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Meal Slot</span>
-          <select name="mealSlot">
-            <option value="">None</option>
-            ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${item.meal_slot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
-          </select>
-        </label>
-        <label class="field">
-          <span>Activity Type</span>
-          <select name="activityType">
-            <option value="">None</option>
-            ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${item.activity_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
-          </select>
-        </label>
-      </div>
+      <label class="field">
+        <span>Meal Slot</span>
+        <select name="mealSlot">
+          <option value="">None</option>
+          ${MEAL_SLOTS.map((slot) => `<option value="${slot}" ${item.meal_slot === slot ? "selected" : ""}>${formatItemTypeLabel(slot)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+    <div class="item-editor-section" data-item-type-section="activity">
+      <p class="item-editor-section__title">Type-Specific Details</p>
+      <label class="field">
+        <span>Activity Type</span>
+        <select name="activityType">
+          <option value="">None</option>
+          ${ACTIVITY_TYPES.map((type) => `<option value="${type}" ${item.activity_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+    <div class="item-editor-section" data-item-type-section="transport">
+      <p class="item-editor-section__title">Type-Specific Details</p>
       <label class="field">
         <span>Transport Mode</span>
         <select name="transportMode">
@@ -581,4 +587,19 @@ function renderTypeSpecificFields(item) {
       </div>
     </div>
   `;
+}
+
+function syncItemEditorTypeFields() {
+  const itemTypeSelect = document.querySelector("#item-type-select");
+  const selectedType = itemTypeSelect?.value;
+
+  document.querySelectorAll("[data-item-type-section]").forEach((section) => {
+    const sectionType = section.getAttribute("data-item-type-section");
+    const isActive = sectionType === selectedType;
+
+    section.classList.toggle("is-hidden", !isActive);
+    section.querySelectorAll("input, select, textarea").forEach((field) => {
+      field.disabled = !isActive;
+    });
+  });
 }
