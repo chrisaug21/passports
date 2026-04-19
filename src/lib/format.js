@@ -1,3 +1,31 @@
+const ITEM_TYPE_LABELS = {
+  meal: "Meal",
+  activity: "Activity",
+  transport: "Transport",
+  lodging: "Lodging",
+  breakfast: "Breakfast",
+  brunch: "Brunch",
+  lunch: "Lunch",
+  dinner: "Dinner",
+  arts_culture: "Arts & Culture",
+  live_music_shows: "Live Music & Shows",
+  sightseeing: "Sightseeing",
+  outdoors_nature: "Outdoors & Nature",
+  sports: "Sports",
+  tastings_drinks: "Tastings & Drinks",
+  cafes_markets: "Cafés & Markets",
+  shopping: "Shopping",
+  wellness_spa: "Wellness & Spa",
+  entertainment: "Entertainment",
+  nightlife: "Nightlife",
+  other: "Other",
+  flight: "Flight",
+  train: "Train",
+  car: "Car",
+  ferry: "Ferry",
+  bus: "Bus",
+};
+
 export function formatTripDateSummary(trip) {
   if (!trip.start_date) {
     return `${trip.trip_length} day${trip.trip_length === 1 ? "" : "s"} · dates TBD`;
@@ -20,7 +48,17 @@ export function formatStatusLabel(value) {
 }
 
 export function formatItemTypeLabel(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return ITEM_TYPE_LABELS[normalizedValue] || normalizedValue
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export function formatLongDate(value) {
