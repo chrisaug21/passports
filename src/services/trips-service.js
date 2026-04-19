@@ -377,6 +377,7 @@ export async function batchUpdateTripItems(itemUpdates) {
         onConflict: "id",
       }
     )
+    .is("deleted_at", null)
     .select(TRIP_ITEM_SELECT);
 
   if (error) {

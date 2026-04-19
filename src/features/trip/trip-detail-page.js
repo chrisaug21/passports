@@ -835,24 +835,49 @@ export function wireTripDetailPage(tripId) {
         return;
       }
 
+      const opId = Symbol("move-item");
       appStore.updateTripDetail({
         isMovingItem: true,
+        movingOperationId: opId,
       });
       rerenderTripDetail();
 
       try {
-        await moveItemToDestination(movingItemId, destinationDayId);
+        const didMove = await moveItemToDestination(movingItemId, destinationDayId);
+        const currentTripDetail = appStore.getState().tripDetail;
+
+        if (currentTripDetail.movingOperationId !== opId || currentTripDetail.movingItemId !== movingItemId) {
+          return;
+        }
+
+        if (!didMove) {
+          appStore.updateTripDetail({
+            isMovingItem: false,
+            movingOperationId: null,
+          });
+          rerenderTripDetail();
+          return;
+        }
+
         appStore.updateTripDetail({
           showMoveItemModal: false,
           movingItemId: null,
           isMovingItem: false,
+          movingOperationId: null,
         });
         rerenderTripDetail();
         showToast(`${getDisplayTitleForToast(item.title, "Item")} moved to ${getMoveDestinationLabel(destinationDayId, tripStore.getCurrentDays())}`, "success");
       } catch (error) {
         console.error(error);
+        const currentTripDetail = appStore.getState().tripDetail;
+
+        if (currentTripDetail.movingOperationId !== opId || currentTripDetail.movingItemId !== movingItemId) {
+          return;
+        }
+
         appStore.updateTripDetail({
           isMovingItem: false,
+          movingOperationId: null,
         });
         rerenderTripDetail();
         showToast("Something went wrong saving. Please try again.", "error");
@@ -1121,6 +1146,7 @@ export async function loadTripDetail(tripId) {
       showMoveItemModal: false,
       movingItemId: null,
       isMovingItem: false,
+      movingOperationId: null,
       isShowingAddBaseForm: false,
       editingBaseId: null,
       isSavingBase: false,
@@ -1194,6 +1220,12 @@ function getFlexItemsForDay(items, dayId, excludedItemId = null) {
     .sort(compareFlexItems);
 }
 
+function getAnchorDestinationSortOrder(items, dayId, excludedItemId = null) {
+  return items
+    .filter((item) => item.day_id === dayId && item.id !== excludedItemId)
+    .length;
+}
+
 function buildItemSaveBatch(currentItem, nextItem, items) {
   const updates = [];
   const previousDayId = currentItem.day_id ?? null;
@@ -1210,7 +1242,13 @@ function buildItemSaveBatch(currentItem, nextItem, items) {
   }
 
   if (nextItem.is_anchor) {
-    updates.push(nextItem);
+    const nextAnchorItem = (changedDay || changedAnchorState)
+      ? buildUpdatedItem(nextItem, {
+          sort_order: getAnchorDestinationSortOrder(items, nextDayId, currentItem.id),
+        })
+      : nextItem;
+
+    updates.push(nextAnchorItem);
     return dedupeItemsById(updates);
   }
 
@@ -1335,7 +1373,12 @@ async function moveItemToDestination(itemId, destinationDayId) {
   const item = items.find((entry) => entry.id === itemId);
 
   if (!item) {
-    return;
+    return false;
+  }
+
+  if (item.is_anchor && !String(item.time_start || "").trim()) {
+    showToast("Anchor items require a start time.", "error");
+    return false;
   }
 
   const destinationDay = destinationDayId ? days.find((day) => day.id === destinationDayId) || null : null;
@@ -1362,11 +1405,12 @@ async function moveItemToDestination(itemId, destinationDayId) {
     updates.push(buildUpdatedItem(item, {
       day_id: destinationDayId,
       base_id: nextBaseId,
-      sort_order: getSortedUnassignedItems(items.filter((entry) => (entry.day_id ?? null) === destinationDayId)).length,
+      sort_order: getAnchorDestinationSortOrder(items, destinationDayId, item.id),
     }));
   }
 
   await persistItemBatchUpdates(dedupeItemsById(updates));
+  return true;
 }
 
 function renderTripSettingsForm(trip, isSaving) {
@@ -2263,6 +2307,7 @@ function renderMoveItemModal({ trip, item, bases, days, isOpen, isMoving }) {
       days: days.filter((day) => day.base_id === base.id),
     }))
     .filter((group) => group.days.length > 0);
+  const showEmptyState = daysByBase.length === 0 && !item.day_id;
 
   return `
     <div class="modal-shell" id="move-item-modal" aria-hidden="false">
@@ -2276,29 +2321,35 @@ function renderMoveItemModal({ trip, item, bases, days, isOpen, isMoving }) {
           <button class="icon-button" id="close-move-item" type="button" aria-label="Close move dialog">×</button>
         </div>
         <div class="move-item-modal__list">
-          <button
-            class="move-item-modal__option"
-            data-move-item-destination=""
-            type="button"
-            ${!item.day_id || isMoving ? "disabled" : ""}
-          >
-            <span>Unassigned</span>
-          </button>
-          ${daysByBase.map((group) => `
-            <div class="move-item-modal__group">
-              <p class="eyebrow">${escapeHtml(group.base.name || "Untitled base")}</p>
-              ${group.days.map((day) => `
+          ${
+            showEmptyState
+              ? `<p class="muted">No days available to move to. Add days to your trip first.</p>`
+              : `
                 <button
                   class="move-item-modal__option"
-                  data-move-item-destination="${escapeHtml(day.id)}"
+                  data-move-item-destination=""
                   type="button"
-                  ${item.day_id === day.id || isMoving ? "disabled" : ""}
+                  ${!item.day_id || isMoving ? "disabled" : ""}
                 >
-                  <span>Day ${day.day_number}${trip?.start_date ? ` · ${escapeHtml(formatDayDateLabel(trip.start_date, day.day_number))}` : ""}</span>
+                  <span>Unassigned</span>
                 </button>
-              `).join("")}
-            </div>
-          `).join("")}
+                ${daysByBase.map((group) => `
+                  <div class="move-item-modal__group">
+                    <p class="eyebrow">${escapeHtml(group.base.name || "Untitled base")}</p>
+                    ${group.days.map((day) => `
+                      <button
+                        class="move-item-modal__option"
+                        data-move-item-destination="${escapeHtml(day.id)}"
+                        type="button"
+                        ${item.day_id === day.id || isMoving ? "disabled" : ""}
+                      >
+                        <span>Day ${day.day_number}${trip?.start_date ? ` · ${escapeHtml(formatDayDateLabel(trip.start_date, day.day_number))}` : ""}</span>
+                      </button>
+                    `).join("")}
+                  </div>
+                `).join("")}
+              `
+          }
         </div>
       </section>
     </div>
@@ -2999,6 +3050,7 @@ function openMoveItemModal(itemId) {
     showMoveItemModal: true,
     movingItemId: itemId,
     isMovingItem: false,
+    movingOperationId: null,
   });
   rerenderTripDetail();
 }
@@ -3008,6 +3060,7 @@ function closeMoveItemModal() {
     showMoveItemModal: false,
     movingItemId: null,
     isMovingItem: false,
+    movingOperationId: null,
   });
   rerenderTripDetail();
 }

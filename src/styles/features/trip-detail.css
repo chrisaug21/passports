@@ -473,8 +473,8 @@
 }
 
 .day-item__reorder-button {
-  width: 36px;
-  min-height: 36px;
+  width: var(--touch-target, 44px);
+  min-height: var(--touch-target, 44px);
   display: grid;
   place-items: center;
   border: 1px solid var(--color-border);

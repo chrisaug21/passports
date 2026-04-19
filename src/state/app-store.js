@@ -16,6 +16,7 @@ function createInitialTripDetail() {
     showMoveItemModal: false,
     movingItemId: null,
     isMovingItem: false,
+    movingOperationId: null,
     viewMode: "master-list",
     isShowingAddBaseForm: false,
     editingBaseId: null,
