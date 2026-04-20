@@ -17,7 +17,7 @@ function createInitialTripDetail() {
     movingItemId: null,
     isMovingItem: false,
     movingOperationId: null,
-    viewMode: "master-list",
+    viewMode: "days",
     isShowingAddBaseForm: false,
     editingBaseId: null,
     isSavingBase: false,

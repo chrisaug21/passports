@@ -1,4 +1,6 @@
 .panel {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
@@ -97,6 +99,22 @@
 .button--danger-secondary:hover,
 .button--danger-secondary:focus-visible {
   background: color-mix(in srgb, var(--color-danger-soft) 75%, white);
+}
+
+.button-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-weight: 600;
+}
+
+.button-link--danger {
+  color: var(--color-danger-strong);
+}
+
+.button-link:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .field {

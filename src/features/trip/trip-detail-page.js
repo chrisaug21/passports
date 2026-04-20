@@ -17,7 +17,6 @@ import {
   formatCostLabel,
   formatDayDateLabel,
   formatItemTypeLabel,
-  formatLongDate,
   formatShortDateRange,
   formatStatusLabel,
   formatTimeLabel,
@@ -115,24 +114,27 @@ export function renderTripDetailPage() {
       <button class="text-link" id="trip-back-to-dashboard" type="button">← Back to Dashboard</button>
 
       <section class="panel trip-header">
-        <div class="trip-header__top">
-          <div class="trip-header__meta">
-            <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
-            <div class="trip-header__summary-line">
-              <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
-              <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
+        <div class="trip-header__media"${getTripHeaderMediaStyle(trip)}></div>
+        <div class="trip-header__content">
+          <div class="trip-header__top">
+            <div class="trip-header__meta">
+              <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
+              <div class="trip-header__summary-line">
+                <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
+                <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
+              </div>
+              ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
-            ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
+            <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
+              ${tripDetail.isShowingTripSettings ? "Hide editor" : "Edit Trip"}
+            </button>
           </div>
-          <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
-            ${tripDetail.isShowingTripSettings ? "Hide editor" : "Edit Trip"}
-          </button>
+          ${
+            tripDetail.isShowingTripSettings
+              ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
+              : renderTripSettingsSummary(trip)
+          }
         </div>
-        ${
-          tripDetail.isShowingTripSettings
-            ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
-            : renderTripSettingsSummary(trip)
-        }
       </section>
 
       <section class="trip-stat-tiles" aria-label="Trip stats">
@@ -174,7 +176,7 @@ export function renderTripDetailPage() {
       </section>
 
       <section class="trip-view-tabs" aria-label="Trip views">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">All Stops</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
         <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
       </section>
 
@@ -1104,30 +1106,27 @@ export function wireTripDetailPage(tripId) {
 }
 
 export async function loadTripDetail(tripId) {
-  appStore.updateTripDetail({
-    status: "loading",
-    error: "",
-  });
+  const previousTripDetail = appStore.getState().tripDetail;
+  const currentTrip = tripStore.getCurrentTrip();
+  const isSameTrip = currentTrip?.id === tripId;
+
+  if (!isSameTrip) {
+    appStore.updateTripDetail({
+      status: "loading",
+      error: "",
+    });
+  }
 
   try {
     const bundle = await fetchTripDetailBundle(tripId);
     tripStore.setCurrentTripBundle(bundle);
     appStore.updateTripDetail({
+      ...(isSameTrip ? previousTripDetail : {}),
       status: "ready",
       error: "",
       isShowingTripSettings: false,
       isSavingTrip: false,
       isCreatingItem: false,
-      isSavingItem: false,
-      editingItemId: null,
-      showDiscardConfirm: false,
-      showDeleteItemConfirm: false,
-      isDeletingItem: false,
-      deletingItemId: null,
-      showMoveItemModal: false,
-      movingItemId: null,
-      isMovingItem: false,
-      movingOperationId: null,
       isShowingAddBaseForm: false,
       editingBaseId: null,
       isSavingBase: false,
@@ -1140,9 +1139,11 @@ export async function loadTripDetail(tripId) {
       showDeleteTripConfirm: false,
       isDeletingTrip: false,
     });
-    itemEditorInitialSnapshot = "";
-    itemEditorDraft = null;
-    pendingDiscardAction = null;
+    if (!isSameTrip) {
+      itemEditorInitialSnapshot = "";
+      itemEditorDraft = null;
+      pendingDiscardAction = null;
+    }
     allocationDraft = null;
     allocationConfirmState = null;
     pendingTripSettingsDraft = null;
@@ -1181,11 +1182,11 @@ function renderMasterListRow(item, days, bases) {
       <div class="master-list-row__main">
         <div class="master-list-row__title-line">
           ${renderItemTypeIcon(item, "master-list-row__type-icon")}
-          ${renderStatusDot(item.status)}
+          ${item.is_anchor ? renderAnchorIndicator() : ""}
           <h4>${escapeHtml(item.title || "Untitled item")}</h4>
         </div>
-        <p class="muted">
-          ${formatStatusLabel(item.status)}
+        ${renderItemStatusMeta(item.status)}
+        <p class="muted master-list-row__meta">
           ${base ? ` · ${escapeHtml(base.name || "")}` : ""}
           ${day ? ` · Day ${day.day_number}` : " · Not yet placed"}
         </p>
@@ -1435,14 +1436,7 @@ function renderTripSettingsForm(trip, isSaving) {
 }
 
 function renderTripSettingsSummary(trip) {
-  return `
-    <div class="trip-settings-summary">
-      <p class="muted">${trip.start_date ? `Starts ${formatLongDate(trip.start_date)}` : "Start date not set yet"}</p>
-      ${trip.start_date ? `<p class="muted">Ends ${formatShortDateRange(trip.start_date, trip.trip_length, trip.trip_length)}</p>` : ""}
-      <p class="muted">${trip.trip_length} day${trip.trip_length === 1 ? "" : "s"} planned.</p>
-      <p class="muted">${trip.status === "done" ? "This trip is marked done and will appear in Past Trips on the dashboard." : "Mark a trip as done when it becomes a past trip you still want to keep."}</p>
-    </div>
-  `;
+  return "";
 }
 
 function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
@@ -1450,8 +1444,8 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
   const rangeLabel = row.dayCount > 0 ? getAllocationRangeLabel(row, trip.start_date) : "No days assigned yet";
   const detailLabel = row.kind === "base"
-    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
-    : "Day without a base";
+    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)} · ${countLabel} · ${rangeLabel}`
+    : `Day without a base · ${countLabel} · ${rangeLabel}`;
 
   return `
     <article class="allocation-row ${row.kind === "unassigned" ? "allocation-row--unassigned" : ""}">
@@ -1460,21 +1454,16 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
           <h4>${escapeHtml(row.label)}</h4>
           <p class="muted">${detailLabel}</p>
         </div>
-        <div class="allocation-row__meta">
-          <strong>${countLabel}</strong>
-          <span class="muted">${rangeLabel}</span>
+        <div class="allocation-row__actions">
+          <button class="icon-button" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
+          <button class="icon-button" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
+          ${row.kind === "base" ? `<button class="button button--secondary" data-edit-base="${escapeHtml(row.base.id)}" type="button">Edit</button>` : ""}
+          ${
+            row.kind === "base" && row.dayCount === 0
+              ? `<button class="button button--danger" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
+              : ""
+          }
         </div>
-      </div>
-
-      <div class="allocation-row__actions">
-        <button class="icon-button" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
-        <button class="icon-button" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
-        ${row.kind === "base" ? `<button class="button button--secondary" data-edit-base="${escapeHtml(row.base.id)}" type="button">Edit</button>` : ""}
-        ${
-          row.kind === "base" && row.dayCount === 0
-            ? `<button class="button button--danger" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
-            : ""
-        }
       </div>
 
       ${row.kind === "base" && row.dayCount > 0 ? renderAllocationItemWarning(row, items, bases) : ""}
@@ -1570,8 +1559,8 @@ function renderDaysView(bases, days, assignedItems, unassignedItems) {
         <section class="panel days-view__pool">
           <div class="days-view__panel-header">
             <div>
-              <p class="eyebrow">Not Yet Placed</p>
-              <h3>Not yet placed</h3>
+              <p class="eyebrow">Unassigned Ideas</p>
+              <h3>Unassigned Ideas</h3>
             </div>
             <p class="muted">Ideas and stops not yet added to a day.</p>
           </div>
@@ -1705,12 +1694,11 @@ function renderDayItem(item, options = {}) {
 
   return `
     <article class="day-item" data-day-item-id="${escapeHtml(item.id)}" data-day-id="${escapeHtml(item.day_id || "")}">
-      ${item.is_anchor ? renderAnchorIndicator() : ""}
       <div class="day-item__body">
         <div class="day-item__header">
           <div class="day-item__title-line">
+            ${item.is_anchor ? renderAnchorIndicator() : ""}
             ${renderItemTypeIcon(item)}
-            ${renderStatusDot(item.status)}
             <h5>${escapeHtml(item.title || "Untitled item")}</h5>
           </div>
           <div class="day-item__header-actions">
@@ -1745,7 +1733,9 @@ function renderDayItem(item, options = {}) {
             ${renderItemActionsMenu(item)}
           </div>
         </div>
+        ${renderItemStatusMeta(item.status)}
         ${renderItemSubtypeLine(item)}
+        ${renderItemBaseLine(item)}
         ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
     </article>
@@ -1756,7 +1746,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
   if (!item) {
     return `
       <div class="modal-shell is-hidden" id="item-editor-modal" aria-hidden="true">
-        <div class="modal-backdrop" data-close-item-editor></div>
+        <div class="modal-backdrop"></div>
       </div>
     `;
   }
@@ -1765,8 +1755,8 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
 
   return `
     <div class="modal-shell" id="item-editor-modal" aria-hidden="false">
-      <div class="modal-backdrop" data-close-item-editor></div>
-      <section class="panel modal-card">
+      <div class="modal-backdrop"></div>
+      <section class="panel modal-card modal-card--editor">
         <div class="modal-card__header">
           <div>
             <h3>${escapeHtml(draft.title || "Untitled item")}</h3>
@@ -1775,6 +1765,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
         </div>
 
         <form class="item-editor-form" id="item-editor-form">
+          <div class="item-editor-form__content">
           <label class="field">
             <span>Title</span>
             <input name="title" type="text" maxlength="120" value="${escapeHtml(draft.title)}" required />
@@ -1862,10 +1853,10 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
               <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeHtml(draft.notes || "")}</textarea>
             </label>
           </div>
+          </div>
 
-          <div class="modal-card__actions">
-            <button class="button button--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Remove from trip</button>
-            <button class="button button--secondary" id="cancel-item-editor" type="button">Cancel</button>
+          <div class="modal-card__actions modal-card__actions--sticky">
+            <button class="button-link button-link--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Remove from trip</button>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
         </form>
@@ -1974,7 +1965,7 @@ function getItemIconName(item) {
     live_music_shows: "music",
     sightseeing: "camera",
     outdoors_nature: "trees",
-    sports: "trophy",
+    sports: "disc",
     tastings_drinks: "wine",
     cafes_markets: "coffee",
     shopping: "shopping-bag",
@@ -2011,8 +2002,56 @@ function getItemSubtypeLabel(item) {
   return "";
 }
 
-function renderStatusDot(status) {
-  return `<span class="status-dot status-dot--${escapeHtml(String(status || ""))}" aria-hidden="true"></span>`;
+function renderItemBaseLine(item) {
+  if (item.day_id || !item.base_id) {
+    return "";
+  }
+
+  const base = tripStore.getCurrentBases().find((entry) => entry.id === item.base_id);
+  if (!base?.name) {
+    return "";
+  }
+
+  return `<p class="muted day-item__base">${escapeHtml(base.name)}</p>`;
+}
+
+function renderItemStatusMeta(status) {
+  const safeStatus = String(status || "");
+
+  return `
+    <p class="item-status-meta item-status-meta--${escapeHtml(safeStatus)}">
+      <span class="status-dot status-dot--${escapeHtml(safeStatus)}" aria-hidden="true"></span>
+      <span>${escapeHtml(formatStatusLabel(safeStatus))}</span>
+    </p>
+  `;
+}
+
+function getTripHeaderMediaStyle(trip) {
+  const safeCoverUrl = sanitizeCoverUrl(trip?.cover_photo_url);
+
+  if (!safeCoverUrl) {
+    return "";
+  }
+
+  return ` style="background-image: linear-gradient(180deg, rgba(17, 27, 39, 0.04), rgba(17, 27, 39, 0.42)), url(&quot;${escapeHtml(safeCoverUrl)}&quot;);"`;
+}
+
+function sanitizeCoverUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(String(value));
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return "";
+    }
+
+    return url.toString();
+  } catch (_error) {
+    return "";
+  }
 }
 
 function compareAnchorItems(left, right) {
@@ -2607,6 +2646,14 @@ function wireItemActionsMenus() {
   menus.forEach((menu) => {
     menu.addEventListener("toggle", () => {
       if (menu.open) {
+        const trigger = menu.querySelector(".item-actions-menu__trigger");
+
+        if (trigger) {
+          const { left, width } = trigger.getBoundingClientRect();
+          const midpoint = left + (width / 2);
+          menu.dataset.menuDirection = midpoint >= (window.innerWidth / 2) ? "left" : "right";
+        }
+
         closeOpenItemActionsMenus(menu);
       }
     });

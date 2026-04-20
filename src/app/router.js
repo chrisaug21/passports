@@ -40,7 +40,9 @@ export function navigate(pathname) {
   renderRoute();
 }
 
-export function renderRoute() {
+export function renderRoute(options = {}) {
+  const { preserveScroll = false } = options;
+  const previousScrollY = preserveScroll ? window.scrollY : 0;
   const { session } = sessionStore.getState();
   const pathname = normalizePath(window.location.pathname);
 
@@ -53,6 +55,9 @@ export function renderRoute() {
       afterRender: () => {
         document.title = "Passports | Sign In";
         wireLoginPage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
       },
     });
     return;
@@ -67,11 +72,14 @@ export function renderRoute() {
       afterRender: () => {
         document.title = "Passports";
         wireDashboardPage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
       },
     });
 
     setDashboardRenderer(() => {
-      renderRoute();
+      renderRoute({ preserveScroll: true });
     });
 
     if (appStore.getState().dashboard.status === "idle") {
@@ -88,11 +96,14 @@ export function renderRoute() {
       afterRender: () => {
         document.title = "Passports | Trip";
         wireTripDetailPage(tripId);
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
       },
     });
 
     setTripDetailRenderer(() => {
-      renderRoute();
+      renderRoute({ preserveScroll: true });
     });
 
     const currentTrip = tripStore.getCurrentTrip();

@@ -19,6 +19,12 @@
   padding: 0;
 }
 
+.topbar__wordmark-wrap {
+  display: inline-flex;
+  align-items: end;
+  gap: 0.4rem;
+}
+
 .topbar__wordmark {
   display: inline-block;
   font-family: var(--font-display);
@@ -26,6 +32,14 @@
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
+  color: var(--color-structure);
+}
+
+.topbar__version {
+  color: rgba(26, 35, 50, 0.4);
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.1;
 }
 
 .account-menu {
@@ -76,8 +90,7 @@
   gap: 0.75rem;
 }
 
-.account-menu__email,
-.account-menu__version {
+.account-menu__email {
   margin: 0;
 }
 
@@ -85,11 +98,6 @@
   color: var(--color-text-muted);
   font-size: 0.9rem;
   line-height: 1.4;
-}
-
-.account-menu__version {
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
 }
 
 .account-menu__signout {

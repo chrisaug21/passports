@@ -9,6 +9,7 @@ import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
 
 const appRoot = document.querySelector("#app");
+let accountMenuListenersBound = false;
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -70,18 +71,20 @@ export function renderAppShell(content, options = {}) {
     <main class="app-shell">
       <header class="topbar">
         <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
-          <span class="topbar__wordmark">Passports</span>
+          <span class="topbar__wordmark-wrap">
+            <span class="topbar__wordmark">Passports</span>
+            <span class="topbar__version">${APP_VERSION}</span>
+          </span>
         </button>
         ${
           session
             ? `
-              <details class="account-menu">
+              <details class="account-menu" id="account-menu">
                 <summary class="account-menu__trigger" aria-label="Open account menu">
                   <span class="account-menu__avatar">${escapeHtml(initials)}</span>
                 </summary>
                 <div class="account-menu__panel">
                   <p class="account-menu__email">${escapeHtml(email)}</p>
-                  <p class="account-menu__version">${APP_VERSION}</p>
                   <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                 </div>
               </details>
@@ -99,6 +102,7 @@ export function renderAppShell(content, options = {}) {
   });
 
   if (session) {
+    bindAccountMenuListeners();
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
 
@@ -131,13 +135,33 @@ export function renderAppShell(content, options = {}) {
 
 function getUserInitials(email) {
   const localPart = String(email || "").split("@")[0] || "";
-  const segments = localPart.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  const segments = localPart.split(/[._-]+/).filter(Boolean);
 
   if (segments.length >= 2) {
     return `${segments[0][0] || ""}${segments[1][0] || ""}`.toUpperCase();
   }
 
-  return localPart.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "U";
+  return localPart.slice(0, 2).toUpperCase() || "U";
+}
+
+function bindAccountMenuListeners() {
+  if (accountMenuListenersBound) {
+    return;
+  }
+
+  document.addEventListener("click", (event) => {
+    const menu = document.querySelector("#account-menu");
+
+    if (!menu || !(event.target instanceof Element)) {
+      return;
+    }
+
+    if (!menu.contains(event.target)) {
+      menu.open = false;
+    }
+  });
+
+  accountMenuListenersBound = true;
 }
 
 function escapeHtml(value) {
