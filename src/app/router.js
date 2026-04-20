@@ -45,6 +45,7 @@ export function renderRoute(options = {}) {
   const previousScrollY = preserveScroll ? window.scrollY : 0;
   const { session } = sessionStore.getState();
   const pathname = normalizePath(window.location.pathname);
+  document.body.classList.remove("modal-open");
 
   if (!session) {
     if (pathname !== "/login") {

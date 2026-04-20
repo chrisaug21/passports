@@ -1,4 +1,5 @@
 .dashboard {
+  --dashboard-card-width: 320px;
   display: grid;
   gap: 1.25rem;
 }
@@ -27,9 +28,10 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, 320px);
+  grid-template-columns: repeat(3, var(--dashboard-card-width));
   gap: 1rem;
   justify-content: start;
+  align-items: start;
 }
 
 .dashboard-past-trips {
@@ -65,7 +67,7 @@
 }
 
 .trip-card {
-  width: 320px;
+  width: var(--dashboard-card-width);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: 22px;
@@ -131,7 +133,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .modal-shell.is-hidden {
@@ -197,12 +199,16 @@
 }
 
 @media (max-width: 1023px) {
+  .dashboard {
+    --dashboard-card-width: 296px;
+  }
+
   .dashboard-grid {
-    grid-template-columns: repeat(2, 320px);
+    grid-template-columns: repeat(2, var(--dashboard-card-width));
   }
 }
 
-@media (max-width: 719px) {
+@media (max-width: 639px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

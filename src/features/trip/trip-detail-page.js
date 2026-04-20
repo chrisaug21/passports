@@ -48,6 +48,7 @@ let editingDayTitleId = null;
 let editingDayTitleValue = "";
 let closeOpenItemActionsMenus = () => {};
 let itemActionsGlobalListenersBound = false;
+let persistedEditorItemId = null;
 
 export function setTripDetailRenderer(renderer) {
   rerenderTripDetail = renderer;
@@ -62,6 +63,7 @@ export function renderTripDetailPage() {
   const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
+  syncTripDetailModalState(tripDetail);
 
   if (tripDetail.status === "loading") {
     return `
@@ -689,6 +691,7 @@ export function wireTripDetailPage(tripId) {
           editingItemId: itemId,
           showDiscardConfirm: false,
         });
+        persistedEditorItemId = itemId;
         itemEditorDraft = nextItem ? buildItemEditorDraft(nextItem) : null;
         itemEditorInitialSnapshot = itemEditorDraft ? serializeItemEditorDraft(itemEditorDraft) : "";
         pendingDiscardAction = null;
@@ -722,6 +725,7 @@ export function wireTripDetailPage(tripId) {
   document.querySelector("#close-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("#cancel-item-editor")?.addEventListener("click", closeItemEditor);
   document.querySelector("[data-close-item-editor]")?.addEventListener("click", closeItemEditor);
+  wireAnchorCheckbox();
   document.querySelector("#item-type-select")?.addEventListener("change", syncItemEditorTypeFields);
   document.querySelector('[name="baseId"]')?.addEventListener("change", syncItemEditorAssignmentHint);
   document.querySelector('[name="dayId"]')?.addEventListener("change", syncItemEditorAssignmentHint);
@@ -792,6 +796,7 @@ export function wireTripDetailPage(tripId) {
         editingItemId: null,
         showDiscardConfirm: false,
       });
+      persistedEditorItemId = null;
       itemEditorInitialSnapshot = "";
       itemEditorDraft = null;
       pendingDiscardAction = null;
@@ -902,6 +907,7 @@ export function wireTripDetailPage(tripId) {
         editingItemId: null,
         showDiscardConfirm: false,
       });
+      persistedEditorItemId = null;
       itemEditorDraft = null;
       itemEditorInitialSnapshot = "";
       pendingDiscardAction = null;
@@ -1120,6 +1126,9 @@ export async function loadTripDetail(tripId) {
   try {
     const bundle = await fetchTripDetailBundle(tripId);
     tripStore.setCurrentTripBundle(bundle);
+    const persistedItemStillExists = persistedEditorItemId
+      ? bundle.items.find((item) => item.id === persistedEditorItemId)
+      : null;
     appStore.updateTripDetail({
       ...(isSameTrip ? previousTripDetail : {}),
       status: "ready",
@@ -1138,11 +1147,15 @@ export async function loadTripDetail(tripId) {
       isUpdatingTripStatus: false,
       showDeleteTripConfirm: false,
       isDeletingTrip: false,
+      editingItemId: persistedItemStillExists ? persistedEditorItemId : null,
     });
     if (!isSameTrip) {
       itemEditorInitialSnapshot = "";
       itemEditorDraft = null;
       pendingDiscardAction = null;
+    }
+    if (!persistedItemStillExists) {
+      persistedEditorItemId = null;
     }
     allocationDraft = null;
     allocationConfirmState = null;
@@ -1444,29 +1457,36 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
   const rangeLabel = row.dayCount > 0 ? getAllocationRangeLabel(row, trip.start_date) : "No days assigned yet";
   const detailLabel = row.kind === "base"
-    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)} · ${countLabel} · ${rangeLabel}`
-    : `Day without a base · ${countLabel} · ${rangeLabel}`;
+    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
+    : "Day without a base";
+  const summaryLabel = row.dayCount > 0
+    ? `${countLabel} · Days ${row.startDay}-${row.endDay} · ${rangeLabel}`
+    : `${countLabel} · ${rangeLabel}`;
 
   return `
     <article class="allocation-row ${row.kind === "unassigned" ? "allocation-row--unassigned" : ""}">
       <div class="allocation-row__header">
-        <div>
+        <div class="allocation-row__copy">
           <h4>${escapeHtml(row.label)}</h4>
           <p class="muted">${detailLabel}</p>
+          <p class="allocation-row__summary">${escapeHtml(summaryLabel)}</p>
         </div>
-        <div class="allocation-row__actions">
-          <button class="icon-button" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
-          <button class="icon-button" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
-          ${row.kind === "base" ? `<button class="button button--secondary" data-edit-base="${escapeHtml(row.base.id)}" type="button">Edit</button>` : ""}
+        <div class="allocation-row__toolbar">
+          ${row.kind === "base" ? `<button class="allocation-row__edit" data-edit-base="${escapeHtml(row.base.id)}" type="button" aria-label="Edit base"><i data-lucide="pencil"></i></button>` : ""}
           ${
             row.kind === "base" && row.dayCount === 0
-              ? `<button class="button button--danger" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
+              ? `<button class="button button--danger allocation-row__delete" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
               : ""
           }
         </div>
       </div>
 
       ${row.kind === "base" && row.dayCount > 0 ? renderAllocationItemWarning(row, items, bases) : ""}
+      <div class="allocation-row__controls">
+        <button class="allocation-row__adjust" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
+        <span class="allocation-row__count">${row.dayCount}</span>
+        <button class="allocation-row__adjust" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
+      </div>
       ${isEditing ? renderEditBaseForm(row.base, tripDetail.isSavingBase) : ""}
     </article>
   `;
@@ -1484,7 +1504,7 @@ function renderAllocationItemWarning(row, items, bases) {
     return "";
   }
 
-  return `<p class="muted">Includes ${reservedItems.length} reserved/confirmed item${reservedItems.length === 1 ? "" : "s"} that may need review after moving days.</p>`;
+  return `<p class="allocation-row__warning">Includes ${reservedItems.length} reserved/confirmed item${reservedItems.length === 1 ? "" : "s"} that may need review after moving days.</p>`;
 }
 
 function renderAddBaseForm(currentBaseCount) {
@@ -1807,8 +1827,11 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
           </div>
           <p class="field-hint ${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) ? "" : "is-hidden"}" id="item-editor-assignment-hint">${escapeHtml(getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) || "")}</p>
 
-          <label class="checkbox-field">
-            <input name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} />
+          <label class="anchor-checkbox-label">
+            <input class="anchor-checkbox-input" name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} hidden />
+            <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor ? "true" : "false"}" tabindex="0">
+              ${draft.isAnchor ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}
+            </span>
             <span>Anchor item</span>
           </label>
 
@@ -1885,6 +1908,7 @@ function closeItemEditor() {
       isSavingItem: false,
       showDiscardConfirm: false,
     });
+    persistedEditorItemId = null;
     itemEditorInitialSnapshot = "";
     itemEditorDraft = null;
     pendingDiscardAction = null;
@@ -1910,17 +1934,25 @@ function renderAnchorIndicator() {
 
 function getTripStatTiles(trip, bases, items) {
   const confirmedStatuses = new Set(["confirmed", "reserved", "done"]);
+  const mealCount = items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length;
+  const activityCount = items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length;
+  const stayCount = items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length;
+  const flightCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "flight").length;
+  const trainCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "train").length;
+  const rideCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "car").length;
+  const ferryCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "ferry").length;
+  const ideaCount = items.filter((item) => item.status === "idea" || item.status === "shortlisted" || !item.day_id).length;
   const tiles = [
-    { label: "Bases", count: bases.length },
-    { label: "Days", count: Number(trip.trip_length) || 0 },
-    { label: "Eats", count: items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length },
-    { label: "Activities", count: items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length },
-    { label: "Stays", count: items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length },
-    { label: "Flights", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "flight").length },
-    { label: "Trains", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "train").length },
-    { label: "Rides", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "car").length },
-    { label: "Ferries", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "ferry").length },
-    { label: "Ideas", count: items.filter((item) => item.status === "idea" || item.status === "shortlisted" || !item.day_id).length },
+    { label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length },
+    { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
+    { label: getCountLabel(mealCount, "Meal", "Eats"), count: mealCount },
+    { label: getCountLabel(activityCount, "Activity", "Activities"), count: activityCount },
+    { label: "Stays", count: stayCount },
+    { label: getCountLabel(flightCount, "Flight", "Flights"), count: flightCount },
+    { label: getCountLabel(trainCount, "Train", "Trains"), count: trainCount },
+    { label: getCountLabel(rideCount, "Ride", "Rides"), count: rideCount },
+    { label: getCountLabel(ferryCount, "Ferry", "Ferries"), count: ferryCount },
+    { label: getCountLabel(ideaCount, "Idea", "Ideas"), count: ideaCount },
   ].filter((tile) => tile.count > 0);
 
   if (tiles.length === 0) {
@@ -1931,6 +1963,29 @@ function getTripStatTiles(trip, bases, items) {
   }
 
   return tiles;
+}
+
+function getCountLabel(count, singular, plural) {
+  return count === 1 ? singular : plural;
+}
+
+function syncTripDetailModalState(tripDetail) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const hasOpenModal = Boolean(
+    tripDetail.editingItemId ||
+    tripDetail.showDiscardConfirm ||
+    tripDetail.showDeleteItemConfirm ||
+    tripDetail.showMoveItemModal ||
+    tripDetail.showDeleteBaseConfirm ||
+    tripDetail.showTripStatusConfirm ||
+    tripDetail.showDeleteTripConfirm ||
+    allocationConfirmState
+  );
+
+  document.body.classList.toggle("modal-open", hasOpenModal);
 }
 
 function renderItemTypeIcon(item, className = "") {
@@ -2024,6 +2079,41 @@ function renderItemStatusMeta(status) {
       <span>${escapeHtml(formatStatusLabel(safeStatus))}</span>
     </p>
   `;
+}
+
+function wireAnchorCheckbox() {
+  const visualBox = document.querySelector(".anchor-checkbox");
+  const input = document.querySelector(".anchor-checkbox-input");
+
+  if (!visualBox || !input) {
+    return;
+  }
+
+  const sync = () => {
+    visualBox.setAttribute("aria-checked", input.checked ? "true" : "false");
+    visualBox.innerHTML = input.checked ? '<i data-lucide="check" aria-hidden="true"></i>' : "";
+    window.lucide?.createIcons?.();
+  };
+
+  const toggle = () => {
+    input.checked = !input.checked;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    sync();
+  };
+
+  visualBox.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggle();
+  });
+
+  visualBox.addEventListener("keydown", (event) => {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      toggle();
+    }
+  });
+
+  sync();
 }
 
 function getTripHeaderMediaStyle(trip) {
