@@ -9,6 +9,7 @@ The current foundation includes:
 - master list quick add and editing
 - base management
 - days view
+- installable PWA shell with manifest and service worker
 - trip settings and trip lifecycle controls
 - item and base soft delete
 - dashboard Past Trips section for completed trips

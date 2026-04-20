@@ -17,6 +17,7 @@ body {
   min-height: 100vh;
   color: var(--color-text);
   font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -28,6 +29,10 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+a {
+  color: inherit;
 }
 
 input,

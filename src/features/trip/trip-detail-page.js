@@ -108,53 +108,26 @@ export function renderTripDetailPage() {
   const allocationState = getAllocationState(trip, days);
   const allocationRows = buildAllocationRows(bases, allocationState.days);
   const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
+  const statTiles = getTripStatTiles(trip, bases, items);
 
   return `
     <section class="trip-detail">
       <button class="text-link" id="trip-back-to-dashboard" type="button">← Back to Dashboard</button>
 
       <section class="panel trip-header">
-        <div class="trip-header__meta">
-          <p class="eyebrow">Master List</p>
-          <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
-          <p class="muted">${escapeHtml(trip.description || "Trip details are starting here. Master List will be the main planning workspace.")}</p>
-        </div>
-        <div class="trip-header__status-block">
-          <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
-          <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
-          <p class="muted">${trip.start_date ? `Starts ${formatLongDate(trip.start_date)}` : "Start date not set yet"}</p>
-        </div>
-      </section>
-
-      <section class="trip-stats">
-        <article class="panel trip-stat">
-          <p class="eyebrow">Bases</p>
-          <h3>${bases.length}</h3>
-          <p class="muted">${bases.length === 1 ? escapeHtml(bases[0]?.name || "Main Base") : "Cities or stays in this trip"}</p>
-        </article>
-        <article class="panel trip-stat">
-          <p class="eyebrow">Days</p>
-          <h3>${days.length}</h3>
-          <p class="muted">Trip length structure is already in place.</p>
-        </article>
-        <article class="panel trip-stat">
-          <p class="eyebrow">Items</p>
-          <h3>${items.length}</h3>
-          <p class="muted">${items.length === 0 ? "No meals, activities, transport, or lodging yet." : "Items already saved to this trip."}</p>
-        </article>
-      </section>
-
-      <section class="panel trip-settings-panel">
-        <div class="trip-settings-panel__header">
-          <div>
-            <p class="eyebrow">Trip</p>
-            <h3>Trip Settings</h3>
+        <div class="trip-header__top">
+          <div class="trip-header__meta">
+            <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
+            <div class="trip-header__summary-line">
+              <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
+              <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
+            </div>
+            ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
           </div>
-          <button class="button button--secondary" id="toggle-trip-settings" type="button">
-            ${tripDetail.isShowingTripSettings ? "Hide Settings" : "Edit Trip"}
+          <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
+            ${tripDetail.isShowingTripSettings ? "Hide editor" : "Edit Trip"}
           </button>
         </div>
-
         ${
           tripDetail.isShowingTripSettings
             ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
@@ -162,9 +135,13 @@ export function renderTripDetailPage() {
         }
       </section>
 
-      <section class="trip-view-tabs">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">Master List</button>
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+      <section class="trip-stat-tiles" aria-label="Trip stats">
+        ${statTiles.map((tile) => `
+          <article class="panel trip-stat-tile">
+            <h3>${tile.count}</h3>
+            <p>${tile.label}</p>
+          </article>
+        `).join("")}
       </section>
 
       <section class="panel base-manager-panel">
@@ -196,16 +173,20 @@ export function renderTripDetailPage() {
         ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length) : ""}
       </section>
 
+      <section class="trip-view-tabs" aria-label="Trip views">
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">All Stops</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+      </section>
+
       ${
         tripDetail.viewMode === "master-list"
           ? `
       <section class="panel master-list-panel">
         <div class="master-list-panel__header">
           <div>
-            <p class="eyebrow">All Items</p>
-            <h3>Master List</h3>
+            <p class="eyebrow">All Stops</p>
+            <h3>All Stops</h3>
           </div>
-          <p class="muted">Quick-add is live in this checkpoint. Edit and assignment flows come next.</p>
         </div>
 
         <form class="master-list-quick-add" id="master-list-quick-add-form">
@@ -226,7 +207,7 @@ export function renderTripDetailPage() {
             </select>
           </label>
           <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
-            ${tripDetail.isCreatingItem ? "Saving…" : "Add Item"}
+            ${tripDetail.isCreatingItem ? "Saving…" : "Add to trip"}
           </button>
         </form>
 
@@ -1199,13 +1180,14 @@ function renderMasterListRow(item, days, bases) {
     <article class="master-list-row">
       <div class="master-list-row__main">
         <div class="master-list-row__title-line">
+          ${renderItemTypeIcon(item, "master-list-row__type-icon")}
+          ${renderStatusDot(item.status)}
           <h4>${escapeHtml(item.title || "Untitled item")}</h4>
-          ${item.is_anchor ? renderAnchorBadge() : ""}
         </div>
         <p class="muted">
-          ${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}
+          ${formatStatusLabel(item.status)}
           ${base ? ` · ${escapeHtml(base.name || "")}` : ""}
-          ${day ? ` · Day ${day.day_number}` : " · Unassigned day"}
+          ${day ? ` · Day ${day.day_number}` : " · Not yet placed"}
         </p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
@@ -1490,7 +1472,7 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
         ${row.kind === "base" ? `<button class="button button--secondary" data-edit-base="${escapeHtml(row.base.id)}" type="button">Edit</button>` : ""}
         ${
           row.kind === "base" && row.dayCount === 0
-            ? `<button class="button button--danger-secondary" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
+            ? `<button class="button button--danger" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
             : ""
         }
       </div>
@@ -1543,7 +1525,7 @@ function renderAddBaseForm(currentBaseCount) {
           <input type="text" value="${currentBaseCount + 1}" disabled />
         </label>
       </div>
-      <p class="muted">New bases start with no days. Use the allocation controls to move days into place.</p>
+      <p class="muted">New bases start empty — use the +/− controls to assign days.</p>
       <div class="base-form__actions">
         <button class="button" type="submit">Save Base</button>
       </div>
@@ -1588,12 +1570,12 @@ function renderDaysView(bases, days, assignedItems, unassignedItems) {
         <section class="panel days-view__pool">
           <div class="days-view__panel-header">
             <div>
-              <p class="eyebrow">Unassigned Pool</p>
-              <h3>Unassigned Items</h3>
+              <p class="eyebrow">Not Yet Placed</p>
+              <h3>Not yet placed</h3>
             </div>
-            <p class="muted">Items without a day assignment still live here.</p>
+            <p class="muted">Ideas and stops not yet added to a day.</p>
           </div>
-          <div class="days-view__list">
+          <div class="days-view__list days-view__pool-list">
             ${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}
           </div>
         </section>
@@ -1719,18 +1701,17 @@ function renderDayItem(item, options = {}) {
   } = options;
   const detailParts = [
     item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
-    item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
-    item.item_type === "activity" && item.activity_type ? escapeHtml(formatItemTypeLabel(item.activity_type)) : "",
-    item.item_type === "transport" && item.transport_mode ? escapeHtml(formatItemTypeLabel(item.transport_mode)) : "",
   ].filter(Boolean);
 
   return `
     <article class="day-item" data-day-item-id="${escapeHtml(item.id)}" data-day-id="${escapeHtml(item.day_id || "")}">
+      ${item.is_anchor ? renderAnchorIndicator() : ""}
       <div class="day-item__body">
         <div class="day-item__header">
           <div class="day-item__title-line">
+            ${renderItemTypeIcon(item)}
+            ${renderStatusDot(item.status)}
             <h5>${escapeHtml(item.title || "Untitled item")}</h5>
-            ${item.is_anchor ? renderAnchorBadge() : ""}
           </div>
           <div class="day-item__header-actions">
             ${
@@ -1764,7 +1745,7 @@ function renderDayItem(item, options = {}) {
             ${renderItemActionsMenu(item)}
           </div>
         </div>
-        <p class="muted">${formatItemTypeLabel(item.item_type)} · ${formatStatusLabel(item.status)}</p>
+        ${renderItemSubtypeLine(item)}
         ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
     </article>
@@ -1788,7 +1769,6 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
       <section class="panel modal-card">
         <div class="modal-card__header">
           <div>
-            <p class="eyebrow">Edit Item</p>
             <h3>${escapeHtml(draft.title || "Untitled item")}</h3>
           </div>
           <button class="icon-button" id="close-item-editor" type="button" aria-label="Close item editor">×</button>
@@ -1884,7 +1864,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
           </div>
 
           <div class="modal-card__actions">
-            <button class="button button--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Delete Item</button>
+            <button class="button button--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Remove from trip</button>
             <button class="button button--secondary" id="cancel-item-editor" type="button">Cancel</button>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
@@ -1929,13 +1909,110 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;");
 }
 
-function renderAnchorBadge() {
+function renderAnchorIndicator() {
   return `
-    <span class="trip-pill trip-pill--anchor">
-      <i data-lucide="pin" aria-hidden="true"></i>
-      <span>Anchor</span>
+    <span class="anchor-indicator" aria-label="Anchor item" title="Anchor item">
+      <i data-lucide="lock" aria-hidden="true"></i>
     </span>
   `;
+}
+
+function getTripStatTiles(trip, bases, items) {
+  const confirmedStatuses = new Set(["confirmed", "reserved", "done"]);
+  const tiles = [
+    { label: "Bases", count: bases.length },
+    { label: "Days", count: Number(trip.trip_length) || 0 },
+    { label: "Eats", count: items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length },
+    { label: "Activities", count: items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length },
+    { label: "Stays", count: items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length },
+    { label: "Flights", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "flight").length },
+    { label: "Trains", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "train").length },
+    { label: "Rides", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "car").length },
+    { label: "Ferries", count: items.filter((item) => item.item_type === "transport" && item.transport_mode === "ferry").length },
+    { label: "Ideas", count: items.filter((item) => item.status === "idea" || item.status === "shortlisted" || !item.day_id).length },
+  ].filter((tile) => tile.count > 0);
+
+  if (tiles.length === 0) {
+    return [
+      { label: "Days", count: Number(trip.trip_length) || 0 },
+      { label: "Bases", count: bases.length },
+    ];
+  }
+
+  return tiles;
+}
+
+function renderItemTypeIcon(item, className = "") {
+  const iconName = getItemIconName(item);
+  const extraClass = className ? ` ${className}` : "";
+
+  return `<span class="item-type-icon${extraClass}"><i data-lucide="${iconName}" aria-hidden="true"></i></span>`;
+}
+
+function getItemIconName(item) {
+  if (item.item_type === "lodging") {
+    return "bed";
+  }
+
+  if (item.item_type === "meal") {
+    return "utensils";
+  }
+
+  if (item.item_type === "transport") {
+    return {
+      flight: "plane",
+      train: "train-front",
+      car: "car",
+      ferry: "ship",
+      bus: "bus",
+      other: "navigation",
+    }[item.transport_mode] || "navigation";
+  }
+
+  return {
+    arts_culture: "palette",
+    live_music_shows: "music",
+    sightseeing: "camera",
+    outdoors_nature: "trees",
+    sports: "trophy",
+    tastings_drinks: "wine",
+    cafes_markets: "coffee",
+    shopping: "shopping-bag",
+    wellness_spa: "sparkles",
+    entertainment: "ticket",
+    nightlife: "moon",
+    other: "circle-dot",
+  }[item.activity_type] || "circle-dot";
+}
+
+function renderItemSubtypeLine(item) {
+  const label = getItemSubtypeLabel(item);
+
+  if (!label) {
+    return "";
+  }
+
+  return `<p class="muted day-item__subtype">${escapeHtml(label)}</p>`;
+}
+
+function getItemSubtypeLabel(item) {
+  if (item.item_type === "meal") {
+    return item.meal_slot ? formatItemTypeLabel(item.meal_slot) : "";
+  }
+
+  if (item.item_type === "activity") {
+    return item.activity_type ? formatItemTypeLabel(item.activity_type) : "";
+  }
+
+  if (item.item_type === "transport") {
+    return item.transport_mode ? formatItemTypeLabel(item.transport_mode) : "";
+  }
+
+  return "";
+}
+
+function renderStatusDot(status) {
+  return `<span class="status-dot status-dot--${escapeHtml(String(status || ""))}" aria-hidden="true"></span>`;
 }
 
 function compareAnchorItems(left, right) {
@@ -2282,14 +2359,14 @@ function renderDeleteItemConfirmModal({ item, isOpen, isDeleting }) {
       <section class="panel modal-card modal-card--confirm">
         <div class="modal-card__header">
           <div>
-            <p class="eyebrow">Delete Item</p>
-            <h3>Delete ${escapeHtml(item.title || "this item")}?</h3>
+            <p class="eyebrow">Remove from trip</p>
+            <h3>Remove ${escapeHtml(item.title || "this stop")}?</h3>
           </div>
         </div>
         <p class="muted">This cannot be undone.</p>
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-delete-item" type="button">Cancel</button>
-          <button class="button button--danger" id="confirm-delete-item" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Item"}</button>
+          <button class="button button--danger" id="confirm-delete-item" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Removing…" : "Remove from trip"}</button>
         </div>
       </section>
     </div>
@@ -2511,7 +2588,7 @@ function renderItemActionsMenu(item) {
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
         <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
-        <button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Delete</button>
+        <button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Remove</button>
       </div>
     </details>
   `;
@@ -2581,7 +2658,7 @@ function renderTripLifecycleSection(trip) {
         </div>
         <p class="muted">This is different from marking a trip done. Deleted trips are hidden from the dashboard and trip pages.</p>
         <div class="trip-lifecycle__actions">
-          <button class="button button--danger-secondary" id="open-delete-trip-confirm" type="button">Delete Trip</button>
+          <button class="button button--danger" id="open-delete-trip-confirm" type="button">Delete Trip</button>
         </div>
       </div>
     </section>

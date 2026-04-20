@@ -11,15 +11,12 @@ export function renderTripCard(trip) {
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
   const tripDescription = escapeHtml(trip.description || "Trip details coming next.");
   const statusLabel = escapeHtml(formatStatusLabel(safeStatus));
-  const membershipLabel = trip.membership_role === "planner" ? "Planner" : "Traveler";
-
   return `
     <article class="trip-card" data-trip-card data-trip-id="${tripId}" role="button" tabindex="0" aria-label="Open ${tripTitle}">
       <div class="trip-card__media" ${coverStyle}>
         <span class="trip-card__status trip-card__status--${safeStatus}">${statusLabel}</span>
       </div>
       <div class="trip-card__body">
-        <p class="trip-card__meta">${membershipLabel}</p>
         <h3>${tripTitle}</h3>
         <p class="muted">${tripDescription}</p>
         <p class="trip-card__summary">${escapeHtml(formatTripDateSummary(trip))}</p>

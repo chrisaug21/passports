@@ -63,27 +63,40 @@ export async function bootstrapApp() {
 
 export function renderAppShell(content, options = {}) {
   const { session } = sessionStore.getState();
-  const heading = session?.user?.email ? `Signed in as ${session.user.email}` : "Personal travel planner";
+  const email = session?.user?.email || "";
+  const initials = getUserInitials(email);
 
   appRoot.innerHTML = `
     <main class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Passports</p>
-          <h1 class="topbar__title">${heading}</h1>
-        </div>
+        <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
+          <span class="topbar__wordmark">Passports</span>
+        </button>
         ${
           session
-            ? '<button class="button button--secondary" id="sign-out-button" type="button">Sign Out</button>'
+            ? `
+              <details class="account-menu">
+                <summary class="account-menu__trigger" aria-label="Open account menu">
+                  <span class="account-menu__avatar">${escapeHtml(initials)}</span>
+                </summary>
+                <div class="account-menu__panel">
+                  <p class="account-menu__email">${escapeHtml(email)}</p>
+                  <p class="account-menu__version">${APP_VERSION}</p>
+                  <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
+                </div>
+              </details>
+            `
             : ""
         }
       </header>
       ${content}
-      <footer class="app-footer">
-        <p class="app-version">${APP_VERSION}</p>
-      </footer>
     </main>
   `;
+
+  document.querySelector("#topbar-home")?.addEventListener("click", () => {
+    window.history.pushState({}, "", "/app");
+    renderRoute();
+  });
 
   if (session) {
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
@@ -114,4 +127,23 @@ export function renderAppShell(content, options = {}) {
   }
 
   refreshIcons();
+}
+
+function getUserInitials(email) {
+  const localPart = String(email || "").split("@")[0] || "";
+  const segments = localPart.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+
+  if (segments.length >= 2) {
+    return `${segments[0][0] || ""}${segments[1][0] || ""}`.toUpperCase();
+  }
+
+  return localPart.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "U";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }

@@ -10,15 +10,19 @@
   --color-border: rgba(26, 35, 50, 0.1);
   --color-action: #0ea87a;
   --color-action-strong: #0a8e67;
+  --color-action-bright: #16b36a;
   --color-structure: #2b5be0;
   --color-danger: #c05353;
   --color-danger-strong: #aa4040;
   --color-danger-soft: rgba(192, 83, 83, 0.12);
+  --color-status-idea: #9ca3af;
+  --color-status-shortlisted: #f59e0b;
+  --color-status-done: #c4a882;
   --color-toast-bg: rgba(26, 35, 50, 0.92);
   --shadow-panel: 0 20px 50px rgba(27, 43, 66, 0.1);
   --shadow-soft: 0 10px 30px rgba(27, 43, 66, 0.08);
   --radius-panel: 28px;
-  --radius-control: 16px;
+  --radius-control: 8px;
   --radius-pill: 999px;
   --touch-target: 44px;
   --space-1: 0.25rem;
@@ -29,5 +33,5 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --font-display: "Fraunces", Georgia, serif;
-  --font-body: "Nunito", "Segoe UI", sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", sans-serif;
 }

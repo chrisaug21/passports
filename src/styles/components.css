@@ -38,10 +38,10 @@
 
 .eyebrow {
   margin-bottom: 0.75rem;
-  color: var(--color-structure);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -51,12 +51,12 @@
 }
 
 .button {
-  border: 0;
-  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   background: var(--color-action);
   color: white;
   padding: 0.9rem 1.2rem;
-  font-weight: 700;
+  font-weight: 600;
   transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
 }
 
@@ -73,13 +73,14 @@
 }
 
 .button--secondary {
-  background: rgba(255, 255, 255, 0.8);
+  background: transparent;
   color: var(--color-text);
   border: 1px solid var(--color-border);
 }
 
 .button--danger {
   background: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .button--danger:hover,
@@ -90,7 +91,7 @@
 .button--danger-secondary {
   background: var(--color-danger-soft);
   color: var(--color-danger-strong);
-  border: 1px solid var(--color-danger-soft);
+  border: 1px solid rgba(192, 83, 83, 0.22);
 }
 
 .button--danger-secondary:hover,
@@ -104,7 +105,7 @@
 }
 
 .field span {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .field-hint {

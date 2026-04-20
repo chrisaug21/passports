@@ -1,17 +1,7 @@
 .app-shell {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1.5rem 0 3rem;
-}
-
-.app-footer {
-  padding-top: 1.5rem;
-}
-
-.app-version {
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
-  text-align: center;
+  padding: 1rem 0 3rem;
 }
 
 .topbar {
@@ -19,15 +9,91 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem 0;
 }
 
-.topbar__title {
+.topbar__brand {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.topbar__wordmark {
+  display: inline-block;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 700;
+  font-size: clamp(1.25rem, 2.2vw, 1.4rem);
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-menu[open] {
+  z-index: 20;
+}
+
+.account-menu__trigger {
+  list-style: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+}
+
+.account-menu__trigger::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu__avatar {
+  width: 2.7rem;
+  height: 2.7rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.account-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 220px;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.account-menu__email,
+.account-menu__version {
+  margin: 0;
+}
+
+.account-menu__email {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.account-menu__version {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.account-menu__signout {
+  width: 100%;
 }
 
 .auth-layout {
@@ -39,8 +105,7 @@
 
 @media (max-width: 840px) {
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    margin-bottom: 1rem;
   }
 
   .auth-layout {
