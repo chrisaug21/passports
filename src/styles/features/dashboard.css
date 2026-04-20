@@ -1,5 +1,6 @@
 .dashboard {
-  --dashboard-card-width: 320px;
+  --dashboard-grid-gap: 1rem;
+  --dashboard-card-width: calc((100% - (var(--dashboard-grid-gap) * 2)) / 3);
   display: grid;
   gap: 1.25rem;
 }
@@ -28,10 +29,10 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, var(--dashboard-card-width));
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, var(--dashboard-card-width)));
+  gap: var(--dashboard-grid-gap);
   justify-content: start;
-  align-items: start;
+  align-items: stretch;
 }
 
 .dashboard-past-trips {
@@ -67,13 +68,16 @@
 }
 
 .trip-card {
-  width: var(--dashboard-card-width);
+  width: 100%;
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.84);
   box-shadow: var(--shadow-soft);
   cursor: pointer;
+  display: grid;
+  grid-template-rows: 190px minmax(0, 1fr);
 }
 
 .trip-card__media {
@@ -107,6 +111,7 @@
 .trip-card__body {
   padding: 1.1rem 1.1rem 1.25rem;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.65rem;
 }
 
@@ -120,6 +125,17 @@
   font-size: 1.55rem;
   line-height: 1;
   letter-spacing: -0.03em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.trip-card .muted {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .trip-card__summary {
@@ -200,17 +216,21 @@
 
 @media (max-width: 1023px) {
   .dashboard {
-    --dashboard-card-width: 296px;
+    --dashboard-card-width: calc((100% - var(--dashboard-grid-gap)) / 2);
   }
 
   .dashboard-grid {
-    grid-template-columns: repeat(2, var(--dashboard-card-width));
+    grid-template-columns: repeat(2, minmax(0, var(--dashboard-card-width)));
   }
 }
 
 @media (max-width: 639px) {
+  .dashboard {
+    --dashboard-card-width: 100%;
+  }
+
   .dashboard-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .trip-card {

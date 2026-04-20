@@ -28,9 +28,18 @@ export async function bootstrapApp() {
     sessionStore.setSession(session);
 
     onAuthStateChange((event, nextSession) => {
+      const previousSession = sessionStore.getState().session;
+      const previousUserId = previousSession?.user?.id || "";
+      const nextUserId = nextSession?.user?.id || "";
+      const isSameSignedInUser = previousUserId && previousUserId === nextUserId;
       sessionStore.setSession(nextSession);
 
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED" ||
+        (event === "SIGNED_IN" && isSameSignedInUser)
+      ) {
         return;
       }
 

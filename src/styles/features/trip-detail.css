@@ -1,5 +1,6 @@
 .trip-detail {
-  --trip-detail-grid-card-width: 320px;
+  --trip-detail-grid-gap: 1rem;
+  --trip-detail-grid-card-width: calc((100% - (var(--trip-detail-grid-gap) * 2)) / 3);
   display: grid;
   gap: 1rem;
 }
@@ -199,10 +200,10 @@
 
 .allocation-list {
   display: grid;
-  grid-template-columns: repeat(3, var(--trip-detail-grid-card-width));
-  gap: 0.9rem;
+  grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
+  gap: var(--trip-detail-grid-gap);
   justify-content: start;
-  align-items: start;
+  align-items: stretch;
 }
 
 .trip-settings-form {
@@ -251,6 +252,9 @@
   display: grid;
   gap: 0.6rem;
   min-width: 0;
+  min-height: 184px;
+  height: 100%;
+  align-content: start;
 }
 
 .allocation-row--unassigned {
@@ -276,6 +280,10 @@
 .allocation-row__copy h4 {
   font-size: 1rem;
   font-weight: 600;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .allocation-row__copy .muted {
@@ -345,6 +353,10 @@
   color: var(--color-status-shortlisted);
   font-size: 0.75rem;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .allocation-summary--complete {
@@ -457,8 +469,8 @@
 
 .day-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, var(--trip-detail-grid-card-width));
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
+  gap: var(--trip-detail-grid-gap);
   justify-content: start;
   align-items: start;
   position: relative;
@@ -470,7 +482,6 @@
 
 .day-card {
   position: relative;
-  max-width: var(--trip-detail-grid-card-width);
   width: 100%;
   border: 1px solid var(--color-border-card);
   border-radius: 18px;
@@ -635,10 +646,9 @@
   cursor: default;
 }
 
-.item-actions-menu {
-  position: absolute;
-  top: 0;
-  right: 0;
+.day-item__header-actions .item-actions-menu,
+.master-list-row .item-actions-menu {
+  position: relative;
   flex-shrink: 0;
 }
 
@@ -905,7 +915,31 @@
 }
 
 .days-view__pool-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
+  gap: var(--trip-detail-grid-gap);
+  align-items: stretch;
+}
+
+.days-view__pool-list > .day-item {
+  min-height: 184px;
+  height: 100%;
+}
+
+.days-view__pool-list > .day-item .day-item__title-line h5 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.days-view__pool-list > .day-item .day-item__subtype,
+.days-view__pool-list > .day-item .day-item__base,
+.days-view__pool-list > .day-item .day-item__details {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
 }
 
 .modal-card--editor {
@@ -915,19 +949,31 @@
   padding: 0;
   overflow: hidden;
   border-radius: 16px;
+  background: var(--color-surface-muted);
+}
+
+.modal-card,
+.modal-shell {
+  overscroll-behavior: contain;
 }
 
 .modal-card__actions--sticky {
   flex-shrink: 0;
   padding: 16px 24px;
   border-top: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--color-surface-muted);
   flex-direction: row;
 }
 
 .modal-card__header {
   flex-shrink: 0;
   padding: 16px 24px 0;
+  background: var(--color-surface-muted);
+}
+
+.item-editor-form__content {
+  background: var(--color-surface-muted);
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 840px) {
@@ -1005,25 +1051,27 @@
 
 @media (max-width: 1023px) {
   .trip-detail {
-    --trip-detail-grid-card-width: 296px;
+    --trip-detail-grid-card-width: calc((100% - var(--trip-detail-grid-gap)) / 2);
   }
 
   .allocation-list {
-    grid-template-columns: repeat(2, var(--trip-detail-grid-card-width));
+    grid-template-columns: repeat(2, minmax(0, var(--trip-detail-grid-card-width)));
   }
 
   .day-card-grid {
-    grid-template-columns: repeat(2, var(--trip-detail-grid-card-width));
+    grid-template-columns: repeat(2, minmax(0, var(--trip-detail-grid-card-width)));
   }
-}
 
-@media (min-width: 1024px) {
   .days-view__pool-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, var(--trip-detail-grid-card-width)));
   }
 }
 
 @media (max-width: 639px) {
+  .trip-detail {
+    --trip-detail-grid-card-width: 100%;
+  }
+
   .trip-stat-tiles {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1032,7 +1080,7 @@
   .allocation-list,
   .days-view__pool-list,
   .day-card-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .day-item {

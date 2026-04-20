@@ -1459,9 +1459,7 @@ function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
   const detailLabel = row.kind === "base"
     ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
     : "Day without a base";
-  const summaryLabel = row.dayCount > 0
-    ? `${countLabel} · Days ${row.startDay}-${row.endDay} · ${rangeLabel}`
-    : `${countLabel} · ${rangeLabel}`;
+  const summaryLabel = `${countLabel} · ${rangeLabel}`;
 
   return `
     <article class="allocation-row ${row.kind === "unassigned" ? "allocation-row--unassigned" : ""}">
@@ -1766,7 +1764,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
   if (!item) {
     return `
       <div class="modal-shell is-hidden" id="item-editor-modal" aria-hidden="true">
-        <div class="modal-backdrop"></div>
+        <div class="modal-backdrop" data-close-item-editor></div>
       </div>
     `;
   }
@@ -1775,7 +1773,7 @@ function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
 
   return `
     <div class="modal-shell" id="item-editor-modal" aria-hidden="false">
-      <div class="modal-backdrop"></div>
+      <div class="modal-backdrop" data-close-item-editor></div>
       <section class="panel modal-card modal-card--editor">
         <div class="modal-card__header">
           <div>
