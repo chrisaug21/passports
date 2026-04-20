@@ -7,7 +7,10 @@
   --surface-allocation-unassigned: rgba(255, 255, 255, 0.75);
   --color-text: #1a2332;
   --color-text-muted: #5f6b7c;
+  --color-text-subtle: #6e7f94;
   --color-border: rgba(26, 35, 50, 0.1);
+  --color-border-strong: #d1d5db;
+  --color-border-card: #e8edf2;
   --color-action: #0ea87a;
   --color-action-strong: #0a8e67;
   --color-action-bright: #16b36a;
