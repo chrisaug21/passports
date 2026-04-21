@@ -13,7 +13,10 @@ import {
   formatTimezone,
   formatTimezoneOffset,
 } from "../../../lib/format.js";
-import { DEFAULT_BASE_TIMEZONE } from "../../../config/constants.js";
+import {
+  CANONICAL_TIMEZONES,
+  DEFAULT_BASE_TIMEZONE,
+} from "../../../config/constants.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -494,16 +497,7 @@ export function getSupportedTimezones() {
     return tripDetailState.supportedTimezonesCache;
   }
 
-  if (typeof Intl?.supportedValuesOf === "function") {
-    try {
-      tripDetailState.supportedTimezonesCache = Intl.supportedValuesOf("timeZone").slice().sort((left, right) => left.localeCompare(right));
-      return tripDetailState.supportedTimezonesCache;
-    } catch (_error) {
-      // Ignore and fall back to the default timezone.
-    }
-  }
-
-  tripDetailState.supportedTimezonesCache = [DEFAULT_BASE_TIMEZONE];
+  tripDetailState.supportedTimezonesCache = CANONICAL_TIMEZONES.map(([timezone]) => timezone);
   return tripDetailState.supportedTimezonesCache;
 }
 
@@ -633,8 +627,12 @@ export function wireTimezonePickers() {
   });
 }
 
+function getTimezoneEntry(timezone) {
+  return CANONICAL_TIMEZONES.find(([entryTimezone]) => entryTimezone === timezone) || null;
+}
+
 function getTimezoneSelectedLabel(timezone) {
-  return formatTimezone(timezone);
+  return getTimezoneEntry(timezone)?.[1] || formatTimezone(timezone);
 }
 
 function getTimezoneOptionLabel(timezone) {
@@ -677,7 +675,7 @@ function getTimezoneFromPickerValue(value) {
     const optionLabel = getTimezoneOptionLabel(timezone);
     const abbreviation = label.match(/\(([^)]+)\)$/)?.[1] || "";
 
-    return [label, optionLabel, abbreviation].includes(normalizedValue);
+    return [label, optionLabel, abbreviation, timezone].includes(normalizedValue);
   }) || "";
 }
 

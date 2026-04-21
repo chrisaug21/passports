@@ -103,15 +103,14 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             <div class="item-editor-form__grid">
               <label class="field">
               <span>Start Time</span>
-                <input name="timeStart" type="text" inputmode="numeric" list="time-picker-options" value="${escapeHtml(draft.timeStart || "")}" placeholder="3:00 PM" />
+                <input class="item-time-input" name="timeStart" type="text" inputmode="numeric" value="${escapeHtml(draft.timeStart || "")}" placeholder="— : — AM" data-storage-time="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" />
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input name="timeEnd" type="text" inputmode="numeric" list="time-picker-options" value="${escapeHtml(draft.timeEnd || "")}" placeholder="4:00 PM" />
+                <input class="item-time-input" name="timeEnd" type="text" inputmode="numeric" value="${escapeHtml(draft.timeEnd || "")}" placeholder="— : — AM" data-storage-time="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" />
               </label>
             </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
-            ${renderTimeOptionsDatalist()}
             <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
               <input class="anchor-checkbox-input" id="item-anchor-checkbox" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
               <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor && draft.timeStart ? "true" : "false"}" aria-disabled="${draft.timeStart ? "false" : "true"}" tabindex="${draft.timeStart ? "0" : "-1"}">
@@ -485,8 +484,8 @@ function buildItemEditorDraft(item) {
     baseId: item.base_id || "",
     dayId: item.day_id || "",
     isAnchor: Boolean(item.is_anchor),
-    timeStart: item.time_start || "",
-    timeEnd: item.time_end || "",
+    timeStart: formatEditableTime(item.time_start),
+    timeEnd: formatEditableTime(item.time_end),
     mealSlot: item.meal_slot || "",
     activityType: item.activity_type || "",
     transportMode: item.transport_mode || "",
@@ -613,19 +612,7 @@ function getNearestUpcomingHour() {
   return `${String(now.getHours()).padStart(2, "0")}:00`;
 }
 
-function renderTimeOptionsDatalist() {
-  const options = [];
-
-  for (let hour = 0; hour < 24; hour += 1) {
-    for (let minute = 0; minute < 60; minute += 15) {
-      options.push(`${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
-    }
-  }
-
-  return `<datalist id="time-picker-options">${options.map((value) => `<option value="${value}"></option>`).join("")}</datalist>`;
-}
-
-function normalizeTimeInput(value) {
+function parseEditableTimeToStorage(value) {
   const normalizedValue = String(value || "").trim();
 
   if (!normalizedValue) {
@@ -661,6 +648,23 @@ function normalizeTimeInput(value) {
   return `${String(hour).padStart(2, "0")}:${minute}`;
 }
 
+function formatEditableTime(value) {
+  const storageValue = parseEditableTimeToStorage(value);
+
+  if (!storageValue) {
+    return "";
+  }
+
+  const [rawHour, minutes] = storageValue.split(":").map(Number);
+  const meridiem = rawHour >= 12 ? "PM" : "AM";
+  const hour = rawHour % 12 || 12;
+  return `${hour}:${String(minutes).padStart(2, "0")} ${meridiem}`;
+}
+
+function normalizeTimeInput(value) {
+  return parseEditableTimeToStorage(value);
+}
+
 function syncTimeWarning() {
   const startInput = document.querySelector('[name="timeStart"]');
   const endInput = document.querySelector('[name="timeEnd"]');
@@ -678,16 +682,32 @@ function syncTimeWarning() {
 }
 
 function wireTimeInputs() {
+  const isMobile = window.matchMedia?.("(max-width: 767px)")?.matches;
   const defaultTime = getNearestUpcomingHour();
 
   document.querySelectorAll('[name="timeStart"], [name="timeEnd"]').forEach((input) => {
-    input.addEventListener("focus", () => {
-      if (!input.value && input.getAttribute("data-defaulted-empty-time") !== "true") {
-        input.value = defaultTime;
-        input.setAttribute("data-defaulted-empty-time", "true");
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    });
+    if (isMobile) {
+      input.type = "time";
+      input.step = "900";
+      input.value = input.getAttribute("data-storage-time") || "";
+      input.addEventListener("focus", () => {
+        if (!input.value && input.getAttribute("data-defaulted-empty-time") !== "true") {
+          input.value = defaultTime;
+          input.setAttribute("data-defaulted-empty-time", "true");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    }
+
+    if (!isMobile) {
+      input.addEventListener("blur", () => {
+        const normalizedTime = normalizeTimeInput(input.value);
+        if (normalizedTime) {
+          input.value = formatEditableTime(normalizedTime);
+        }
+      });
+    }
+
     input.addEventListener("input", syncTimeWarning);
     input.addEventListener("change", syncTimeWarning);
   });

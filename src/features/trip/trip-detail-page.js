@@ -49,6 +49,7 @@ function syncTripDetailModalState(tripDetail) {
     tripDetail.showDiscardConfirm ||
     tripDetail.showDeleteItemConfirm ||
     tripDetail.showMoveItemModal ||
+    tripDetail.isShowingMasterListFilters ||
     tripDetail.showDeleteBaseConfirm ||
     tripDetail.showDeleteTripConfirm ||
     tripDetailState.allocationConfirmState

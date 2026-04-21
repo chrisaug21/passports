@@ -159,9 +159,6 @@ export function renderTripSettingsForm(trip, isSaving) {
               <textarea name="description" rows="4">${escapeHtml(trip.description || "")}</textarea>
             </label>
 
-            <div class="trip-settings-form__danger">
-              <button class="button-link button-link--danger" id="open-delete-trip-confirm" type="button">Delete Trip</button>
-            </div>
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">

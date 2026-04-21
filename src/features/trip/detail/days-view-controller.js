@@ -1,3 +1,4 @@
+import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { updateTripDayTitle } from "../../../services/days-service.js";
 import { formatDayDateLabel } from "../../../lib/format.js";
@@ -10,7 +11,7 @@ import { escapeHtml } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
-  const { getSortedUnassignedItems, renderDayItem } = helpers;
+  const { getSortedUnassignedItems, renderDayItem, renderUnassignedQuickAdd } = helpers;
   const sortedUnassignedItems = getSortedUnassignedItems(unassignedItems);
   const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
 
@@ -23,8 +24,9 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
           <div>
             <p class="eyebrow">Unassigned Ideas</p>
           </div>
-          <button class="button button--secondary" data-add-item-to-trip type="button">Add to trip</button>
+          <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
         </div>
+        ${renderUnassignedQuickAdd ? renderUnassignedQuickAdd(tripStore.getCurrentTrip() ? appStore.getState().tripDetail : {}) : ""}
         ${
           sortedUnassignedItems.length > 0
             ? `<div class="days-view__list days-view__pool-list">${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}</div>`
@@ -46,7 +48,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
             <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
-          ${row.kind === "base" ? `<button class="button button--secondary" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button">Add to ${escapeHtml(row.label)}</button>` : ""}
+          ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
       ` : `
         <div class="days-view__panel-header">
@@ -54,7 +56,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
             <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
-          ${row.kind === "base" ? `<button class="button button--secondary" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button">Add to ${escapeHtml(row.label)}</button>` : ""}
+          ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
       `}
       <div class="day-card-grid">

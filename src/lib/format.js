@@ -39,14 +39,34 @@ export function formatTripDateSummary(trip, options = {}) {
   const startDate = new Date(`${trip.start_date}T12:00:00`);
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + Math.max(trip.trip_length - 1, 0));
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const includeYear = options.includeYear || endDate < today;
 
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  if (!includeYear) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+
+    return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
+  }
+
+  const startFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    ...(options.includeYear ? { year: "numeric" } : {}),
+  });
+  const endFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 
-  return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
+  if (startDate.getFullYear() === endDate.getFullYear()) {
+    return `${startFormatter.format(startDate)} – ${endFormatter.format(endDate)}`;
+  }
+
+  return `${endFormatter.format(startDate)} – ${endFormatter.format(endDate)}`;
 }
 
 export function formatStatusLabel(value) {

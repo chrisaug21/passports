@@ -1,11 +1,9 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
-  formatItemTypeLabel,
   formatStatusLabel,
   formatTripDateSummary,
 } from "../../../lib/format.js";
-import { ITEM_TYPES } from "../../../config/constants.js";
 import {
   escapeHtml,
   getTripHeaderMediaStyle,
@@ -35,7 +33,8 @@ import {
   getInterleavedDayItems,
   getSortedUnassignedItems,
   renderDayItem,
-  renderMasterListRow,
+  renderMasterListPlanningTable,
+  renderUnassignedQuickAdd,
 } from "./items-controller.js";
 import {
   renderDeleteItemConfirmModal,
@@ -116,7 +115,7 @@ export function renderTripDetailPageView() {
               </div>
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
-            <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
+            <button class="button button--secondary trip-header__edit-button section-action-button" id="toggle-trip-settings" type="button">
               Edit Trip
             </button>
           </div>
@@ -139,7 +138,7 @@ export function renderTripDetailPageView() {
             <p class="eyebrow">Bases</p>
             <h3>Day Allocation</h3>
           </div>
-          <button class="button button--secondary" id="show-add-base-form" type="button">Add Base</button>
+          <button class="button button--secondary section-action-button" id="show-add-base-form" type="button">Add Base</button>
         </div>
 
         <div class="allocation-list">
@@ -175,50 +174,17 @@ export function renderTripDetailPageView() {
             <p class="eyebrow">List View</p>
             <h3>List View</h3>
           </div>
+          <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
         </div>
 
-        <form class="master-list-quick-add" id="master-list-quick-add-form">
-          <label class="field master-list-quick-add__field master-list-quick-add__field--title">
-            <span>Title</span>
-            <input
-              name="title"
-              type="text"
-              maxlength="120"
-              placeholder="Add a restaurant, museum, hotel, or transport idea"
-              required
-            />
-          </label>
-          <label class="field master-list-quick-add__field">
-            <span>Type</span>
-            <select name="itemType" required>
-              ${ITEM_TYPES.map((type) => `<option value="${type}">${formatItemTypeLabel(type)}</option>`).join("")}
-            </select>
-          </label>
-          <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
-            ${tripDetail.isCreatingItem ? "Saving…" : "Add to trip"}
-          </button>
-        </form>
-
-        ${
-          items.length === 0
-            ? `
-              <div class="master-list-empty">
-                <h4>No stops yet</h4>
-                <p class="muted">Add restaurants, museums, hotels, or transport ideas to start planning.</p>
-              </div>
-            `
-            : `
-              <div class="master-list-table">
-                ${items.map((item) => renderMasterListRow(item, days, bases)).join("")}
-              </div>
-            `
-        }
+        ${renderMasterListPlanningTable({ items, days, bases, tripDetail })}
       </section>
       `
           : renderDaysView(bases, days, assignedItems, unassignedItems, {
               getInterleavedDayItems,
               getSortedUnassignedItems,
               renderDayItem,
+              renderUnassignedQuickAdd,
             })
       }
 

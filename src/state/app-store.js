@@ -20,6 +20,17 @@ function createInitialTripDetail() {
     isMovingItem: false,
     movingOperationId: null,
     viewMode: "master-list",
+    masterListFilters: {
+      type: "all",
+      status: "all",
+      baseId: "all",
+    },
+    masterListSort: {
+      key: "default",
+      direction: "asc",
+    },
+    masterListEditingCell: null,
+    isShowingMasterListFilters: false,
     isShowingAddBaseForm: false,
     editingBaseId: null,
     isSavingBase: false,

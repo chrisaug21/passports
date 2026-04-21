@@ -72,6 +72,40 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onRequestDeleteBase?.(button.getAttribute("data-delete-base"));
   });
   bindSubmit("#master-list-quick-add-form", handlers.onQuickAddSubmit);
+  bindAll("[data-master-list-filter]", "change", (select) => {
+    handlers.onMasterListFilterChange?.(select);
+  });
+  bindClick("[data-open-master-list-filters]", handlers.onOpenMasterListFilters);
+  bindClick("[data-close-master-list-filters]", handlers.onCloseMasterListFilters);
+  bindClick("[data-clear-master-list-filters]", handlers.onClearMasterListFilters);
+  bindAll("[data-master-list-sort]", "click", (button) => {
+    handlers.onMasterListSort?.(button);
+  });
+  bindAll("[data-master-list-edit-cell]", "click", (button) => {
+    handlers.onMasterListEditCell?.(button);
+  });
+  document.querySelectorAll("[data-master-list-row]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || target.closest("button, input, select, details, summary, .item-actions-menu")) {
+        return;
+      }
+      handlers.onEditItem?.(row.getAttribute("data-master-list-row"));
+    });
+  });
+  bindAll("[data-master-list-inline-save]", "change", (select) => {
+    handlers.onMasterListInlineSave?.(select);
+  });
+  document.querySelectorAll("[data-master-list-inline-save]").forEach((select) => {
+    select.addEventListener("keydown", (event) => {
+      handlers.onMasterListInlineKeydown?.(event);
+    });
+  });
+  document.querySelectorAll("[data-master-list-title-input]").forEach((input) => {
+    handlers.onMasterListTitleInputReady?.(input);
+    input.addEventListener("blur", handlers.onMasterListTitleBlur);
+    input.addEventListener("keydown", handlers.onMasterListTitleKeydown);
+  });
   bindAll("[data-edit-item]", "click", (button) => {
     handlers.onEditItem?.(button.getAttribute("data-edit-item"));
   });
