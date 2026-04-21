@@ -4,6 +4,80 @@
   padding: 0.6rem 0 3rem;
 }
 
+.app-shell--loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.bootstrap-loader {
+  width: min(360px, 100%);
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: 1rem;
+}
+
+.bootstrap-loader__brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.bootstrap-loader__wordmark {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-structure);
+}
+
+.bootstrap-loader__version {
+  color: rgba(26, 35, 50, 0.4);
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+.bootstrap-loader p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.bootstrap-loader__skeleton {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bootstrap-loader__skeleton span {
+  height: 0.7rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(43, 91, 224, 0.08), rgba(14, 168, 122, 0.18), rgba(43, 91, 224, 0.08));
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1200ms ease-in-out infinite;
+}
+
+.bootstrap-loader__skeleton span:nth-child(2) {
+  width: 78%;
+}
+
+.bootstrap-loader__skeleton span:nth-child(3) {
+  width: 54%;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .topbar {
   display: flex;
   align-items: center;

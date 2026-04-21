@@ -19,7 +19,7 @@ function refreshIcons() {
 
 export async function bootstrapApp() {
   try {
-    appRoot.innerHTML = `<main class="app-shell"><section class="panel panel--center"><p class="eyebrow">Passports</p><h1>Loading…</h1><p class="muted">Connecting your travel workspace.</p></section></main>`;
+    appRoot.innerHTML = renderBootstrapLoadingScreen();
 
     const env = await initializeEnv();
     initializeSupabase(env);
@@ -69,6 +69,25 @@ export async function bootstrapApp() {
       window.location.reload();
     });
   }
+}
+
+function renderBootstrapLoadingScreen() {
+  return `
+    <main class="app-shell app-shell--loading">
+      <section class="bootstrap-loader" aria-live="polite" aria-busy="true">
+        <div class="bootstrap-loader__brand">
+          <span class="bootstrap-loader__wordmark">Passports</span>
+          <span class="bootstrap-loader__version">${APP_VERSION}</span>
+        </div>
+        <p>Loading your trips...</p>
+        <div class="bootstrap-loader__skeleton" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </section>
+    </main>
+  `;
 }
 
 export function renderAppShell(content, options = {}) {
