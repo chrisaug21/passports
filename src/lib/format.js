@@ -172,7 +172,7 @@ export function formatTimezoneOffset(timezone, date = new Date("2026-01-15T12:00
     }).formatToParts(date);
     const offset = parts.find((part) => part.type === "timeZoneName")?.value || "";
 
-    return offset.replace("GMT", "UTC").replace("UTC+0", "UTC").replace("-", "−").replace("+", "+");
+    return offset.replace("GMT", "UTC").replace("UTC+0", "UTC").replace("-", "−");
   } catch (_error) {
     return "";
   }

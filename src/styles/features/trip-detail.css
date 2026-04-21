@@ -323,8 +323,8 @@
 }
 
 .allocation-row__adjust {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: transparent;
@@ -346,8 +346,8 @@
 
 .allocation-row__edit,
 .allocation-row__delete {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
@@ -1134,6 +1134,15 @@
 
   .day-item:not([data-day-id=""]) {
     min-height: 132px;
+  }
+}
+
+@media (pointer: fine) {
+  .allocation-row__adjust,
+  .allocation-row__edit,
+  .allocation-row__delete {
+    width: 32px;
+    height: 32px;
   }
 }
 

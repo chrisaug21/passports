@@ -93,7 +93,7 @@
 .button--danger-secondary {
   background: var(--color-danger-soft);
   color: var(--color-danger-strong);
-  border: 1px solid rgba(192, 83, 83, 0.22);
+  border: 1px solid var(--color-danger-border);
 }
 
 .button--danger-secondary:hover,
@@ -104,7 +104,11 @@
 .button-link {
   border: 0;
   background: transparent;
-  padding: 0;
+  min-height: var(--touch-target);
+  padding: 0.5rem 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
   font-weight: 600;
 }
 

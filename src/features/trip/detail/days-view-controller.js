@@ -117,7 +117,7 @@ async function saveInlineDayTitle() {
     return;
   }
 
-  const nextTitle = tripDetailState.editingDayTitleValue;
+  const nextTitle = tripDetailState.editingDayTitleValue.trim();
   tripDetailState.editingDayTitleId = null;
   tripDetailState.editingDayTitleValue = "";
   rerenderTripDetail();
@@ -131,6 +131,9 @@ async function saveInlineDayTitle() {
     rerenderTripDetail();
   } catch (error) {
     console.error(error);
+    tripDetailState.editingDayTitleId = dayId;
+    tripDetailState.editingDayTitleValue = nextTitle;
+    rerenderTripDetail();
     showToast("Something went wrong saving. Please try again.", "error");
   }
 }

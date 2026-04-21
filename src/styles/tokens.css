@@ -18,6 +18,7 @@
   --color-danger: #c05353;
   --color-danger-strong: #aa4040;
   --color-danger-soft: rgba(192, 83, 83, 0.12);
+  --color-danger-border: rgba(192, 83, 83, 0.22);
   --color-status-idea: #9ca3af;
   --color-status-shortlisted: #f59e0b;
   --color-status-done: #c4a882;
