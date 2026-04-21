@@ -3,7 +3,9 @@ function bindClick(selector, handler) {
     return;
   }
 
-  document.querySelector(selector)?.addEventListener("click", handler);
+  document.querySelectorAll(selector).forEach((element) => {
+    element.addEventListener("click", handler);
+  });
 }
 
 function bindSubmit(selector, handler) {
@@ -11,7 +13,9 @@ function bindSubmit(selector, handler) {
     return;
   }
 
-  document.querySelector(selector)?.addEventListener("submit", handler);
+  document.querySelectorAll(selector).forEach((element) => {
+    element.addEventListener("submit", handler);
+  });
 }
 
 function bindAll(selector, eventName, handler) {
@@ -80,15 +84,23 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("[data-close-item-editor]", handlers.onCloseItemEditor);
   handlers.onAfterItemEditorOpen?.();
   if (handlers.onItemEditorTypeChange) {
-    document.querySelector("#item-type-select")?.addEventListener("change", handlers.onItemEditorTypeChange);
+    document.querySelectorAll("#item-type-select").forEach((element) => {
+      element.addEventListener("change", handlers.onItemEditorTypeChange);
+    });
   }
   if (handlers.onItemEditorAssignmentChange) {
-    document.querySelector('[name="baseId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
-    document.querySelector('[name="dayId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
+    document.querySelectorAll('[name="baseId"]').forEach((element) => {
+      element.addEventListener("change", handlers.onItemEditorAssignmentChange);
+    });
+    document.querySelectorAll('[name="dayId"]').forEach((element) => {
+      element.addEventListener("change", handlers.onItemEditorAssignmentChange);
+    });
   }
   if (handlers.onItemEditorDraftChange) {
-    document.querySelector("#item-editor-form")?.addEventListener("input", handlers.onItemEditorDraftChange);
-    document.querySelector("#item-editor-form")?.addEventListener("change", handlers.onItemEditorDraftChange);
+    document.querySelectorAll("#item-editor-form").forEach((element) => {
+      element.addEventListener("input", handlers.onItemEditorDraftChange);
+      element.addEventListener("change", handlers.onItemEditorDraftChange);
+    });
   }
   bindSubmit("#item-editor-form", handlers.onItemEditorSubmit);
   bindClick("#close-move-item", handlers.onCloseMoveItem);
@@ -126,19 +138,16 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onDayTitleTrigger?.(button.getAttribute("data-day-title-trigger"));
   });
 
-  const dayTitleInput = document.querySelector("#day-title-inline-input");
-  if (!dayTitleInput) {
-    return;
-  }
-
-  handlers.onDayTitleInputReady?.(dayTitleInput);
-  dayTitleInput.addEventListener("input", (event) => {
-    handlers.onDayTitleInput?.(event.currentTarget.value);
+  document.querySelectorAll("#day-title-inline-input").forEach((dayTitleInput) => {
+    handlers.onDayTitleInputReady?.(dayTitleInput);
+    dayTitleInput.addEventListener("input", (event) => {
+      handlers.onDayTitleInput?.(event.currentTarget.value);
+    });
+    if (handlers.onDayTitleBlur) {
+      dayTitleInput.addEventListener("blur", handlers.onDayTitleBlur);
+    }
+    if (handlers.onDayTitleKeydown) {
+      dayTitleInput.addEventListener("keydown", handlers.onDayTitleKeydown);
+    }
   });
-  if (handlers.onDayTitleBlur) {
-    dayTitleInput.addEventListener("blur", handlers.onDayTitleBlur);
-  }
-  if (handlers.onDayTitleKeydown) {
-    dayTitleInput.addEventListener("keydown", handlers.onDayTitleKeydown);
-  }
 }

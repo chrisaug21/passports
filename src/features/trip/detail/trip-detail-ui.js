@@ -2,6 +2,7 @@ import {
   formatItemTypeLabel,
   formatStatusLabel,
 } from "../../../lib/format.js";
+import { TRANSPORT_MODES } from "../../../config/constants.js";
 
 export function escapeHtml(value) {
   return String(value)
@@ -24,21 +25,21 @@ export function getTripStatTiles(trip, bases, items) {
   const mealCount = items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length;
   const activityCount = items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length;
   const stayCount = items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length;
-  const flightCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "flight").length;
-  const trainCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "train").length;
-  const rideCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "car").length;
-  const ferryCount = items.filter((item) => item.item_type === "transport" && item.transport_mode === "ferry").length;
-  const ideaCount = items.filter((item) => item.status === "idea" || item.status === "shortlisted" || !item.day_id).length;
+  const transportCounts = TRANSPORT_MODES.reduce((counts, mode) => ({
+    ...counts,
+    [mode]: items.filter((item) => item.item_type === "transport" && item.transport_mode === mode).length,
+  }), {});
+  const ideaCount = items.filter((item) => item.status === "idea" || item.status === "shortlisted").length;
   const tiles = [
     { label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length },
     { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
     { label: getCountLabel(mealCount, "Meal", "Eats"), count: mealCount },
     { label: getCountLabel(activityCount, "Activity", "Activities"), count: activityCount },
     { label: getCountLabel(stayCount, "Stay", "Stays"), count: stayCount },
-    { label: getCountLabel(flightCount, "Flight", "Flights"), count: flightCount },
-    { label: getCountLabel(trainCount, "Train", "Trains"), count: trainCount },
-    { label: getCountLabel(rideCount, "Ride", "Rides"), count: rideCount },
-    { label: getCountLabel(ferryCount, "Ferry", "Ferries"), count: ferryCount },
+    ...TRANSPORT_MODES.map((mode) => ({
+      label: getTransportCountLabel(transportCounts[mode], mode),
+      count: transportCounts[mode],
+    })),
     { label: getCountLabel(ideaCount, "Idea", "Ideas"), count: ideaCount },
   ].filter((tile) => tile.count > 0);
 
@@ -54,6 +55,19 @@ export function getTripStatTiles(trip, bases, items) {
 
 export function getCountLabel(count, singular, plural) {
   return count === 1 ? singular : plural;
+}
+
+function getTransportCountLabel(count, mode) {
+  const labels = {
+    flight: ["Flight", "Flights"],
+    train: ["Train", "Trains"],
+    car: ["Ride", "Rides"],
+    ferry: ["Ferry", "Ferries"],
+    bus: ["Bus", "Buses"],
+    other: ["Transport", "Transport"],
+  }[mode] || [formatItemTypeLabel(mode), formatItemTypeLabel(mode)];
+
+  return getCountLabel(count, labels[0], labels[1]);
 }
 
 export function renderItemTypeIcon(item, className = "") {

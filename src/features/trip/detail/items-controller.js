@@ -28,6 +28,10 @@ import { normalizeNullableId } from "./base-allocation-controller.js";
 export function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
   const base = bases.find((entry) => entry.id === item.base_id);
+  const metaParts = [
+    base ? escapeHtml(base.name || "") : "",
+    day ? `Day ${day.day_number}` : "Not yet placed",
+  ].filter(Boolean);
   const detailParts = [
     item.item_type === "meal" && item.meal_slot ? escapeHtml(formatItemTypeLabel(item.meal_slot)) : "",
     item.item_type === "activity" && item.activity_type ? escapeHtml(formatItemTypeLabel(item.activity_type)) : "",
@@ -49,10 +53,7 @@ export function renderMasterListRow(item, days, bases) {
           <h4 title="${escapeHtml(item.title || "Untitled item")}">${escapeHtml(item.title || "Untitled item")}</h4>
         </div>
         ${renderItemStatusMeta(item.status)}
-        <p class="muted master-list-row__meta">
-          ${base ? ` · ${escapeHtml(base.name || "")}` : ""}
-          ${day ? ` · Day ${day.day_number}` : " · Not yet placed"}
-        </p>
+        <p class="muted master-list-row__meta">${metaParts.join(" · ")}</p>
         ${detailParts.length > 0 ? `<p class="master-list-row__details">${detailParts.join(" · ")}</p>` : ""}
       </div>
       ${renderItemActionsMenu(item)}

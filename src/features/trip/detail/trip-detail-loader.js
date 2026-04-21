@@ -18,6 +18,7 @@ export async function loadTripDetail(tripId) {
   const isSameTrip = currentTrip?.id === tripId;
 
   if (!isSameTrip) {
+    appStore.resetTripDetail();
     appStore.updateTripDetail({
       status: "loading",
       error: "",

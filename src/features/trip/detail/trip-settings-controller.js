@@ -82,7 +82,7 @@ function formatRemovedDayRange(startDayNumber, endDayNumber) {
 }
 
 export function renderTripSettingsForm(trip, isSaving) {
-  const endDateLabel = trip.start_date ? formatShortDateRange(trip.start_date, trip.trip_length, trip.trip_length) : "";
+  const endDateLabel = trip.start_date ? formatShortDateRange(trip.start_date, 1, trip.trip_length) : "";
 
   return `
     <form class="trip-settings-form" id="trip-settings-form">
