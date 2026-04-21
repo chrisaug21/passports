@@ -1,7 +1,7 @@
 .app-shell {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 1rem 0 3rem;
+  padding: 0 0 3rem;
 }
 
 .topbar {
@@ -10,7 +10,13 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.25rem;
-  padding: 0.25rem 0;
+  min-height: 60px;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
 }
 
 .topbar__brand {
@@ -28,10 +34,10 @@
 .topbar__wordmark {
   display: inline-block;
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.2vw, 1.4rem);
+  font-size: 1.35rem;
   font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--color-structure);
 }
 
@@ -40,6 +46,17 @@
   font-size: 0.625rem;
   font-weight: 500;
   line-height: 1.1;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topbar__new-trip {
+  min-height: 40px;
+  padding: 0.65rem 0.9rem;
 }
 
 .account-menu {
@@ -66,8 +83,8 @@
 }
 
 .account-menu__avatar {
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 2.4rem;
+  height: 2.4rem;
   display: grid;
   place-items: center;
   border-radius: 999px;

@@ -5,22 +5,6 @@
   gap: 1.25rem;
 }
 
-.dashboard-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 1rem;
-  padding: 1.5rem;
-}
-
-.dashboard-hero__title {
-  margin-bottom: 0.75rem;
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 3.25rem);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
-}
-
 .dashboard-state {
   padding: 1.5rem;
   display: grid;
@@ -199,11 +183,6 @@
 }
 
 @media (max-width: 840px) {
-  .dashboard-hero {
-    align-items: start;
-    flex-direction: column;
-  }
-
   .dashboard-past-trips__summary {
     flex-direction: column;
   }

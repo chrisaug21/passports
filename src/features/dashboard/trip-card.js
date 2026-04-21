@@ -1,7 +1,7 @@
 import { formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
 import { TRIP_STATUSES } from "../../config/constants.js";
 
-export function renderTripCard(trip) {
+export function renderTripCard(trip, options = {}) {
   const safeStatus = TRIP_STATUSES.includes(trip.status) ? trip.status : "planning";
   const safeCoverUrl = sanitizeCoverUrl(trip.cover_photo_url);
   const coverStyle = safeCoverUrl
@@ -19,7 +19,7 @@ export function renderTripCard(trip) {
       <div class="trip-card__body">
         <h3>${tripTitle}</h3>
         <p class="muted">${tripDescription}</p>
-        <p class="trip-card__summary">${escapeHtml(formatTripDateSummary(trip))}</p>
+        <p class="trip-card__summary">${escapeHtml(formatTripDateSummary(trip, { includeYear: options.includeYear }))}</p>
       </div>
     </article>
   `;

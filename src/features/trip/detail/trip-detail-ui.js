@@ -34,7 +34,7 @@ export function getTripStatTiles(trip, bases, items) {
     { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
     { label: getCountLabel(mealCount, "Meal", "Eats"), count: mealCount },
     { label: getCountLabel(activityCount, "Activity", "Activities"), count: activityCount },
-    { label: "Stays", count: stayCount },
+    { label: getCountLabel(stayCount, "Stay", "Stays"), count: stayCount },
     { label: getCountLabel(flightCount, "Flight", "Flights"), count: flightCount },
     { label: getCountLabel(trainCount, "Train", "Trains"), count: trainCount },
     { label: getCountLabel(rideCount, "Ride", "Rides"), count: rideCount },

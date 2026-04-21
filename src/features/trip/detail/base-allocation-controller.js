@@ -22,7 +22,7 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
   const rangeLabel = row.dayCount > 0 ? getAllocationRangeLabel(row, trip.start_date) : "No days assigned yet";
   const detailLabel = row.kind === "base"
-    ? `${escapeHtml(row.base.location_name || row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
+    ? `<strong>Timezone:</strong> ${escapeHtml(row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
     : "Day without a base";
   const summaryLabel = `${countLabel} · ${rangeLabel}`;
 
@@ -31,8 +31,8 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
       <div class="allocation-row__header">
         <div class="allocation-row__copy">
           <h4>${escapeHtml(row.label)}</h4>
-          <p class="muted">${detailLabel}</p>
           <p class="allocation-row__summary">${escapeHtml(summaryLabel)}</p>
+          <p class="muted allocation-row__timezone">${detailLabel}</p>
         </div>
         <div class="allocation-row__toolbar">
           ${row.kind === "base" ? `<button class="allocation-row__edit" data-edit-base="${escapeHtml(row.base.id)}" type="button" aria-label="Edit base"><i data-lucide="pencil"></i></button>` : ""}
@@ -44,7 +44,6 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
         </div>
       </div>
 
-      ${row.kind === "base" && row.dayCount > 0 ? renderAllocationItemWarning(row, items, bases) : ""}
       <div class="allocation-row__controls">
         <button class="allocation-row__adjust" data-allocation-adjust="decrease" data-slot-key="${escapeHtml(row.key)}" type="button" ${!canDecreaseAllocationRow(row, tripLength) ? "disabled" : ""}>−</button>
         <span class="allocation-row__count">${row.dayCount}</span>
@@ -53,21 +52,6 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
       ${isEditing ? renderEditBaseForm(row.base, tripDetail.isSavingBase) : ""}
     </article>
   `;
-}
-
-export function renderAllocationItemWarning(row, items, bases) {
-  const movedItems = getItemsForDayRange(row.startDay, row.endDay, items, tripStore.getCurrentDays());
-
-  if (movedItems.length === 0) {
-    return "";
-  }
-
-  const reservedItems = movedItems.filter((item) => item.status === "reserved" || item.status === "confirmed");
-  if (reservedItems.length === 0) {
-    return "";
-  }
-
-  return `<p class="allocation-row__warning">Includes ${reservedItems.length} reserved/confirmed item${reservedItems.length === 1 ? "" : "s"} that may need review after moving days.</p>`;
 }
 
 export function renderAddBaseForm(currentBaseCount) {

@@ -72,6 +72,7 @@ export async function bootstrapApp() {
 }
 
 export function renderAppShell(content, options = {}) {
+  const { showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
   const email = session?.user?.email || "";
   const initials = getUserInitials(email);
@@ -85,21 +86,24 @@ export function renderAppShell(content, options = {}) {
             <span class="topbar__version">${APP_VERSION}</span>
           </span>
         </button>
-        ${
-          session
-            ? `
-              <details class="account-menu" id="account-menu">
-                <summary class="account-menu__trigger" aria-label="Open account menu">
-                  <span class="account-menu__avatar">${escapeHtml(initials)}</span>
-                </summary>
-                <div class="account-menu__panel">
-                  <p class="account-menu__email">${escapeHtml(email)}</p>
-                  <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
-                </div>
-              </details>
-            `
-            : ""
-        }
+        <div class="topbar__actions">
+          ${showNewTripButton && session ? `<button class="button topbar__new-trip" id="open-create-trip-modal" type="button">New Trip</button>` : ""}
+          ${
+            session
+              ? `
+                <details class="account-menu" id="account-menu">
+                  <summary class="account-menu__trigger" aria-label="Open account menu">
+                    <span class="account-menu__avatar">${escapeHtml(initials)}</span>
+                  </summary>
+                  <div class="account-menu__panel">
+                    <p class="account-menu__email">${escapeHtml(email)}</p>
+                    <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
+                  </div>
+                </details>
+              `
+              : ""
+          }
+        </div>
       </header>
       ${content}
     </main>

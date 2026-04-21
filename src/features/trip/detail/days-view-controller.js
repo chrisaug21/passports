@@ -7,10 +7,7 @@ import {
   rerenderTripDetail,
 } from "./trip-detail-state.js";
 import { escapeHtml } from "./trip-detail-ui.js";
-import {
-  buildAllocationRows,
-  getAllocationRangeLabel,
-} from "./base-allocation-controller.js";
+import { buildAllocationRows } from "./base-allocation-controller.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
   const { getSortedUnassignedItems, renderDayItem } = helpers;
@@ -19,12 +16,13 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
 
   return `
     <section class="days-view">
+      ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers)).join("")}
+
       ${sortedUnassignedItems.length > 0 ? `
         <section class="panel days-view__pool">
           <div class="days-view__panel-header">
             <div>
               <p class="eyebrow">Unassigned Ideas</p>
-              <h3>Unassigned Ideas</h3>
             </div>
             <p class="muted">Ideas and stops not yet added to a day.</p>
           </div>
@@ -33,13 +31,11 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
           </div>
         </section>
       ` : ""}
-
-      ${groupedRows.map((row, index) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, index === 0, helpers)).join("")}
     </section>
   `;
 }
 
-export function renderBaseDaysSection(row, days, items, rowCount, isFirst, helpers) {
+export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
 
   return `
@@ -47,18 +43,16 @@ export function renderBaseDaysSection(row, days, items, rowCount, isFirst, helpe
       ${rowCount > 1 ? `
         <div class="days-view__panel-header">
           <div>
-            <p class="eyebrow">${row.kind === "unassigned" ? "Unassigned" : isFirst ? "Days View" : "Base"}</p>
+            <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
-          <p class="muted">${getAllocationRangeLabel(row, tripStore.getCurrentTrip()?.start_date)}</p>
         </div>
       ` : `
         <div class="days-view__panel-header">
           <div>
-            <p class="eyebrow">Days View</p>
+            <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
-          <p class="muted">${getAllocationRangeLabel(row, tripStore.getCurrentTrip()?.start_date)}</p>
         </div>
       `}
       <div class="day-card-grid">

@@ -26,7 +26,7 @@ const ITEM_TYPE_LABELS = {
   bus: "Bus",
 };
 
-export function formatTripDateSummary(trip) {
+export function formatTripDateSummary(trip, options = {}) {
   if (!trip.start_date) {
     return `${trip.trip_length} day${trip.trip_length === 1 ? "" : "s"} · dates TBD`;
   }
@@ -38,6 +38,7 @@ export function formatTripDateSummary(trip) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
+    ...(options.includeYear ? { year: "numeric" } : {}),
   });
 
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;

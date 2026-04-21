@@ -102,7 +102,10 @@ export function renderTripDetailPageView() {
 
   return `
     <section class="trip-detail">
-      <button class="text-link" id="trip-back-to-dashboard" type="button">← Back to Dashboard</button>
+      <button class="text-link trip-detail__dashboard-link" id="trip-back-to-dashboard" type="button">
+        <i data-lucide="home" aria-hidden="true"></i>
+        <span>Dashboard</span>
+      </button>
 
       <section class="panel trip-header">
         <div class="trip-header__media"${getTripHeaderMediaStyle(trip)}></div>
@@ -177,8 +180,8 @@ export function renderTripDetailPageView() {
       <section class="panel master-list-panel">
         <div class="master-list-panel__header">
           <div>
-            <p class="eyebrow">All Stops</p>
-            <h3>All Stops</h3>
+            <p class="eyebrow">List View</p>
+            <h3>List View</h3>
           </div>
         </div>
 

@@ -70,6 +70,7 @@ export function renderRoute(options = {}) {
 
   if (pathname === "/app") {
     renderAppShell(renderDashboardPage(), {
+      showNewTripButton: true,
       afterRender: () => {
         document.title = "Passports";
         wireDashboardPage();

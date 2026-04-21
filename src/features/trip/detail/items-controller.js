@@ -80,6 +80,7 @@ export function renderDayItem(item, options = {}) {
             <h5>${escapeHtml(item.title || "Untitled item")}</h5>
           </div>
           <div class="day-item__header-actions">
+            ${renderItemActionsMenu(item)}
             ${
               !item.is_anchor && dayId
                 ? `
@@ -108,7 +109,6 @@ export function renderDayItem(item, options = {}) {
                 `
                 : ""
             }
-            ${renderItemActionsMenu(item)}
           </div>
         </div>
         ${renderItemStatusMeta(item.status)}
@@ -140,7 +140,6 @@ export function renderItemActionsMenu(item) {
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
         <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
-        <button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Remove</button>
       </div>
     </details>
   `;
