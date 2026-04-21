@@ -95,6 +95,7 @@ export function renderRoute(options = {}) {
     const tripId = pathname.split("/").pop();
 
     renderAppShell(renderTripDetailPage(), {
+      showDashboardLink: true,
       afterRender: () => {
         document.title = "Passports | Trip";
         wireTripDetailPage(tripId);

@@ -26,6 +26,11 @@ const ITEM_TYPE_LABELS = {
   bus: "Bus",
 };
 
+const TIMEZONE_ABBREVIATIONS_BY_LONG_NAME = {
+  "Central European Time": "CET",
+  "Greenwich Mean Time": "GMT",
+};
+
 export function formatTripDateSummary(trip, options = {}) {
   if (!trip.start_date) {
     return `${trip.trip_length} day${trip.trip_length === 1 ? "" : "s"} · dates TBD`;
@@ -130,6 +135,85 @@ export function formatShortDateRange(startDate, startDayNumber, endDayNumber) {
     month: "short",
     day: "numeric",
   }).format(end)}`;
+}
+
+export function formatTimezone(timezone) {
+  const normalizedTimezone = String(timezone || "").trim();
+
+  if (!normalizedTimezone) {
+    return "";
+  }
+
+  const genericLongName = getTimezoneName(normalizedTimezone, "longGeneric");
+  const standardLongName = getTimezoneName(normalizedTimezone, "long");
+  const genericShortName = getTimezoneName(normalizedTimezone, "shortGeneric");
+  const standardShortName = getTimezoneName(normalizedTimezone, "short");
+  const longName = getUsableLongTimezoneName(genericLongName, standardLongName, normalizedTimezone);
+  const shortName = TIMEZONE_ABBREVIATIONS_BY_LONG_NAME[longName] || getUsableShortTimezoneName(genericShortName, standardShortName);
+
+  if (!shortName || shortName === longName || shortName.includes("/")) {
+    return longName;
+  }
+
+  return `${longName} (${shortName})`;
+}
+
+export function formatTimezoneOffset(timezone, date = new Date("2026-01-15T12:00:00Z")) {
+  const normalizedTimezone = String(timezone || "").trim();
+
+  if (!normalizedTimezone) {
+    return "";
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: normalizedTimezone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(date);
+    const offset = parts.find((part) => part.type === "timeZoneName")?.value || "";
+
+    return offset.replace("GMT", "UTC").replace("UTC+0", "UTC").replace("-", "−").replace("+", "+");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function getTimezoneName(timezone, timeZoneName) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName,
+    }).formatToParts(new Date("2026-01-15T12:00:00Z"));
+
+    return parts.find((part) => part.type === "timeZoneName")?.value || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function getUsableLongTimezoneName(genericName, standardName, timezone) {
+  if (genericName && !["United Kingdom Time", "France Time"].includes(genericName)) {
+    return genericName;
+  }
+
+  return standardName || genericName || timezone.replaceAll("_", " ");
+}
+
+function getUsableShortTimezoneName(genericName, standardName) {
+  const mappedName = TIMEZONE_ABBREVIATIONS_BY_LONG_NAME[genericName] || TIMEZONE_ABBREVIATIONS_BY_LONG_NAME[standardName];
+  if (mappedName) {
+    return mappedName;
+  }
+
+  if (genericName && /^[A-Z]{2,5}$/.test(genericName)) {
+    return genericName;
+  }
+
+  if (standardName && /^[A-Z]{2,5}$/.test(standardName)) {
+    return standardName;
+  }
+
+  return genericName || standardName || "";
 }
 
 export function formatTimeLabel(value, isEstimated = false) {

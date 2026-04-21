@@ -8,7 +8,11 @@ import {
   updateTripBase,
   updateTripSettings,
 } from "../../../services/trips-service.js";
-import { formatShortDateRange } from "../../../lib/format.js";
+import {
+  formatShortDateRange,
+  formatTimezone,
+  formatTimezoneOffset,
+} from "../../../lib/format.js";
 import { DEFAULT_BASE_TIMEZONE } from "../../../config/constants.js";
 import { showToast } from "../../shared/toast.js";
 import {
@@ -20,25 +24,25 @@ import { escapeHtml, getDisplayTitleForToast } from "./trip-detail-ui.js";
 export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
   const isEditing = row.kind === "base" && tripDetail.editingBaseId === row.base.id;
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
-  const rangeLabel = row.dayCount > 0 ? getAllocationRangeLabel(row, trip.start_date) : "No days assigned yet";
+  const dateLabel = row.dayCount > 0 && trip.start_date ? formatShortDateRange(trip.start_date, row.startDay, row.endDay) : "";
+  const summaryLabel = dateLabel ? `${countLabel}<span class="allocation-row__separator">·</span>${escapeHtml(dateLabel)}` : countLabel;
   const detailLabel = row.kind === "base"
-    ? `<strong>Timezone:</strong> ${escapeHtml(row.base.local_timezone || DEFAULT_BASE_TIMEZONE)}`
+    ? `<strong>Timezone:</strong> ${escapeHtml(formatTimezone(row.base.local_timezone || DEFAULT_BASE_TIMEZONE))}`
     : "Day without a base";
-  const summaryLabel = `${countLabel} · ${rangeLabel}`;
 
   return `
     <article class="allocation-row ${row.kind === "unassigned" ? "allocation-row--unassigned" : ""}">
       <div class="allocation-row__header">
         <div class="allocation-row__copy">
           <h4>${escapeHtml(row.label)}</h4>
-          <p class="allocation-row__summary">${escapeHtml(summaryLabel)}</p>
+          <p class="allocation-row__summary">${summaryLabel}</p>
           <p class="muted allocation-row__timezone">${detailLabel}</p>
         </div>
         <div class="allocation-row__toolbar">
           ${row.kind === "base" ? `<button class="allocation-row__edit" data-edit-base="${escapeHtml(row.base.id)}" type="button" aria-label="Edit base"><i data-lucide="pencil"></i></button>` : ""}
           ${
             row.kind === "base" && row.dayCount === 0
-              ? `<button class="button button--danger allocation-row__delete" data-delete-base="${escapeHtml(row.base.id)}" type="button">Delete Base</button>`
+              ? `<button class="allocation-row__delete" data-delete-base="${escapeHtml(row.base.id)}" type="button" aria-label="Delete base"><i data-lucide="trash-2"></i></button>`
               : ""
           }
         </div>
@@ -501,16 +505,25 @@ export function getSupportedTimezones() {
 }
 
 export function renderTimezonePicker(inputId, selectedTimezone) {
+  const normalizedTimezone = getSupportedTimezones().includes(selectedTimezone) ? selectedTimezone : DEFAULT_BASE_TIMEZONE;
+  const displayLabel = getTimezoneDisplayValue(normalizedTimezone);
+
   return `
     <input
-      id="${escapeHtml(inputId)}"
       name="localTimezone"
+      type="hidden"
+      value="${escapeHtml(normalizedTimezone)}"
+      data-timezone-value
+    />
+    <input
+      id="${escapeHtml(inputId)}"
       type="text"
       list="timezone-options"
-      value="${escapeHtml(selectedTimezone || DEFAULT_BASE_TIMEZONE)}"
+      value="${escapeHtml(displayLabel)}"
       placeholder="Start typing a timezone"
       autocomplete="off"
       required
+      data-timezone-display
     />
   `;
 }
@@ -518,7 +531,7 @@ export function renderTimezonePicker(inputId, selectedTimezone) {
 export function renderTimezoneOptionsDatalist() {
   return `
     <datalist id="timezone-options">
-      ${getSupportedTimezones().map((timezone) => `<option value="${escapeHtml(timezone)}"></option>`).join("")}
+      ${getSupportedTimezones().map((timezone) => `<option value="${escapeHtml(getTimezoneDisplayValue(timezone))}" label="${escapeHtml(timezone)}"></option>`).join("")}
     </datalist>
   `;
 }
@@ -531,12 +544,59 @@ export function getValidatedTimezone(rawValue) {
     return null;
   }
 
-  if (!getSupportedTimezones().includes(timezone)) {
+  const matchedTimezone = getTimezoneFromPickerValue(timezone);
+
+  if (!matchedTimezone) {
     showToast("Choose a valid IANA timezone from the list.", "error");
     return null;
   }
 
-  return timezone;
+  return matchedTimezone;
+}
+
+export function wireTimezonePickers() {
+  document.querySelectorAll("[data-timezone-display]").forEach((input) => {
+    const wrapper = input.closest(".field");
+    const hiddenInput = wrapper?.querySelector("[data-timezone-value]");
+
+    if (!hiddenInput) {
+      return;
+    }
+
+    input.addEventListener("input", () => {
+      const matchedTimezone = getTimezoneFromPickerValue(input.value);
+
+      if (matchedTimezone) {
+        hiddenInput.value = matchedTimezone;
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      const matchedTimezone = getTimezoneFromPickerValue(input.value) || hiddenInput.value || DEFAULT_BASE_TIMEZONE;
+      hiddenInput.value = matchedTimezone;
+      input.value = getTimezoneDisplayValue(matchedTimezone);
+    });
+  });
+}
+
+function getTimezoneDisplayValue(timezone) {
+  const offset = formatTimezoneOffset(timezone);
+  return `${formatTimezone(timezone)}${offset ? ` — ${offset}` : ""}`;
+}
+
+function getTimezoneFromPickerValue(value) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  const exactTimezone = getSupportedTimezones().find((timezone) => timezone === normalizedValue);
+  if (exactTimezone) {
+    return exactTimezone;
+  }
+
+  return getSupportedTimezones().find((timezone) => getTimezoneDisplayValue(timezone) === normalizedValue) || "";
 }
 
 export function normalizeNullableId(value) {

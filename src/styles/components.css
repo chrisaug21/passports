@@ -138,7 +138,7 @@
   bottom: 1rem;
   display: grid;
   gap: 0.75rem;
-  z-index: 20;
+  z-index: 100;
 }
 
 .toast {

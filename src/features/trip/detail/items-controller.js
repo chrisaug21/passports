@@ -46,7 +46,7 @@ export function renderMasterListRow(item, days, bases) {
         <div class="master-list-row__title-line">
           ${renderItemTypeIcon(item, "master-list-row__type-icon")}
           ${item.is_anchor ? renderAnchorIndicator() : ""}
-          <h4>${escapeHtml(item.title || "Untitled item")}</h4>
+          <h4 title="${escapeHtml(item.title || "Untitled item")}">${escapeHtml(item.title || "Untitled item")}</h4>
         </div>
         ${renderItemStatusMeta(item.status)}
         <p class="muted master-list-row__meta">
@@ -77,7 +77,7 @@ export function renderDayItem(item, options = {}) {
           <div class="day-item__title-line">
             ${item.is_anchor ? renderAnchorIndicator() : ""}
             ${renderItemTypeIcon(item)}
-            <h5>${escapeHtml(item.title || "Untitled item")}</h5>
+            <h5 title="${escapeHtml(item.title || "Untitled item")}">${escapeHtml(item.title || "Untitled item")}</h5>
           </div>
           <div class="day-item__header-actions">
             ${renderItemActionsMenu(item)}

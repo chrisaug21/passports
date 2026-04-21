@@ -93,14 +93,6 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
           </div>
           <p class="field-hint ${getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) ? "" : "is-hidden"}" id="item-editor-assignment-hint">${escapeHtml(getItemEditorAssignmentHint(draft.baseId, draft.dayId, bases, days) || "")}</p>
 
-          <label class="anchor-checkbox-label">
-            <input class="anchor-checkbox-input" name="isAnchor" type="checkbox" ${draft.isAnchor ? "checked" : ""} hidden />
-            <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor ? "true" : "false"}" tabindex="0">
-              ${draft.isAnchor ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}
-            </span>
-            <span>Anchor item</span>
-          </label>
-
           <div class="item-editor-section">
             <p class="item-editor-section__title">Timing</p>
             <div class="item-editor-form__grid">
@@ -113,6 +105,13 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
                 <input name="timeEnd" type="time" value="${escapeHtml(draft.timeEnd || "")}" />
               </label>
             </div>
+            <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
+              <input class="anchor-checkbox-input" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
+              <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor && draft.timeStart ? "true" : "false"}" aria-disabled="${draft.timeStart ? "false" : "true"}" tabindex="${draft.timeStart ? "0" : "-1"}">
+                ${draft.isAnchor && draft.timeStart ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}
+              </span>
+              <span>Anchor item</span>
+            </label>
           </div>
 
           ${renderTypeSpecificFields(draft)}
@@ -505,18 +504,35 @@ function getItemEditorAssignmentHint(baseId, dayId, bases, days) {
 function wireAnchorCheckbox() {
   const visualBox = document.querySelector(".anchor-checkbox");
   const input = document.querySelector(".anchor-checkbox-input");
+  const label = document.querySelector(".anchor-checkbox-label");
+  const startTimeInput = document.querySelector('[name="timeStart"]');
 
   if (!visualBox || !input) {
     return;
   }
 
   const sync = () => {
+    const hasStartTime = Boolean(String(startTimeInput?.value || "").trim());
+    input.disabled = !hasStartTime;
+
+    if (!hasStartTime) {
+      input.checked = false;
+    }
+
+    label?.classList.toggle("is-disabled", !hasStartTime);
+    label?.setAttribute("title", hasStartTime ? "" : "Set a start time to mark as anchor");
     visualBox.setAttribute("aria-checked", input.checked ? "true" : "false");
+    visualBox.setAttribute("aria-disabled", hasStartTime ? "false" : "true");
+    visualBox.setAttribute("tabindex", hasStartTime ? "0" : "-1");
     visualBox.innerHTML = input.checked ? '<i data-lucide="check" aria-hidden="true"></i>' : "";
     window.lucide?.createIcons?.();
   };
 
   const toggle = () => {
+    if (input.disabled) {
+      return;
+    }
+
     input.checked = !input.checked;
     input.dispatchEvent(new Event("change", { bubbles: true }));
     sync();
@@ -534,6 +550,8 @@ function wireAnchorCheckbox() {
     }
   });
 
+  startTimeInput?.addEventListener("input", sync);
+  startTimeInput?.addEventListener("change", sync);
   sync();
 }
 
@@ -628,11 +646,6 @@ export function createItemEditorHandlers() {
       const nextDayId = normalizeNullableId(formData.get("dayId"));
       const isAnchor = formData.get("isAnchor") === "on";
       const timeStart = String(formData.get("timeStart") || "").trim();
-
-      if (isAnchor && !timeStart) {
-        showToast("Anchor items need a start time.", "error");
-        return;
-      }
 
       const nextItem = buildUpdatedItem(currentItem, {
         title: String(formData.get("title") || "").trim(),

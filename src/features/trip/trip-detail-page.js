@@ -12,6 +12,7 @@ import {
 } from "./detail/trip-settings-controller.js";
 import {
   createBaseAllocationHandlers,
+  wireTimezonePickers,
 } from "./detail/base-allocation-controller.js";
 import {
   createDaysViewHandlers,
@@ -94,5 +95,6 @@ export function renderTripDetailPage() {
 
 export function wireTripDetailPage(tripId) {
   wireItemActionsMenus();
+  wireTimezonePickers();
   wireTripDetailPageEvents(createTripDetailHandlers(tripId));
 }

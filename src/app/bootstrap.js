@@ -72,7 +72,7 @@ export async function bootstrapApp() {
 }
 
 export function renderAppShell(content, options = {}) {
-  const { showNewTripButton = false } = options;
+  const { showDashboardLink = false, showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
   const email = session?.user?.email || "";
   const initials = getUserInitials(email);
@@ -80,12 +80,24 @@ export function renderAppShell(content, options = {}) {
   appRoot.innerHTML = `
     <main class="app-shell">
       <header class="topbar">
-        <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
-          <span class="topbar__wordmark-wrap">
-            <span class="topbar__wordmark">Passports</span>
-            <span class="topbar__version">${APP_VERSION}</span>
-          </span>
-        </button>
+        <div class="topbar__left">
+          <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
+            <span class="topbar__wordmark-wrap">
+              <span class="topbar__wordmark">Passports</span>
+              <span class="topbar__version">${APP_VERSION}</span>
+            </span>
+          </button>
+          ${
+            showDashboardLink
+              ? `
+                <button class="topbar__dashboard-link" id="trip-back-to-dashboard" type="button">
+                  <i data-lucide="home" aria-hidden="true"></i>
+                  <span>Dashboard</span>
+                </button>
+              `
+              : ""
+          }
+        </div>
         <div class="topbar__actions">
           ${showNewTripButton && session ? `<button class="button topbar__new-trip" id="open-create-trip-modal" type="button">New Trip</button>` : ""}
           ${
