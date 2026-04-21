@@ -16,20 +16,11 @@ export function setDashboardRenderer(renderer) {
 export function renderDashboardPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
-  const activeTrips = trips.filter((trip) => trip.status !== "done");
-  const pastTrips = trips.filter((trip) => trip.status === "done");
+  const activeTrips = sortTripsByStartDate(trips.filter((trip) => trip.status !== "done"), "asc");
+  const pastTrips = sortTripsByStartDate(trips.filter((trip) => trip.status === "done"), "desc");
 
   return `
     <section class="dashboard">
-      <section class="panel dashboard-hero">
-        <div>
-          <p class="eyebrow">Dashboard</p>
-          <h2 class="dashboard-hero__title">Every trip starts here.</h2>
-          <p class="muted">Create a trip, then fill it in over time. This dashboard is your signed-in home base.</p>
-        </div>
-        <button class="button" id="open-create-trip-modal" type="button">New Trip</button>
-      </section>
-
       ${
         dashboard.status === "loading"
           ? `
@@ -97,7 +88,7 @@ export function renderDashboardPage() {
                     </summary>
                     <div class="dashboard-past-trips__content">
                       <section class="dashboard-grid">
-                        ${pastTrips.map((trip) => renderTripCard(trip)).join("")}
+                        ${pastTrips.map((trip) => renderTripCard(trip, { includeYear: true })).join("")}
                       </section>
                     </div>
                   </details>
@@ -204,6 +195,42 @@ export async function loadDashboard() {
 
 function openCreateTripModal() {
   document.querySelector("#create-trip-modal")?.classList.remove("is-hidden");
+}
+
+function sortTripsByStartDate(trips, direction) {
+  const directionMultiplier = direction === "desc" ? -1 : 1;
+
+  return [...trips].sort((a, b) => {
+    const aTime = getTripStartTime(a);
+    const bTime = getTripStartTime(b);
+
+    if (aTime == null && bTime == null) {
+      return String(a.title || "").localeCompare(String(b.title || ""));
+    }
+
+    if (aTime == null) {
+      return 1;
+    }
+
+    if (bTime == null) {
+      return -1;
+    }
+
+    if (aTime === bTime) {
+      return String(a.title || "").localeCompare(String(b.title || ""));
+    }
+
+    return (aTime - bTime) * directionMultiplier;
+  });
+}
+
+function getTripStartTime(trip) {
+  if (!trip.start_date) {
+    return null;
+  }
+
+  const time = new Date(`${trip.start_date}T12:00:00`).getTime();
+  return Number.isNaN(time) ? null : time;
 }
 
 function getCreateTripErrorMessage(error) {

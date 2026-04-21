@@ -7,7 +7,8 @@ Personal travel planner and diary PWA. Used on phone while traveling, desktop fo
 - Supabase (project: `tqxvtsdghobustiatiqm`) — second Supabase account, separate from Homeboard/Habits
 - Netlify — env vars injected at build via `netlify.toml`
 - Unsplash API — auto-pull hero images by location name; attribution required
-- Fraunces (Google Fonts) — display/heading font; body font TBD (currently Nunito)
+- Fraunces + Instrument Sans (Google Fonts) — display + body type pairing
+- PWA shell — manifest + versioned service worker for installability
 
 ## File Structure
 ```text
@@ -90,7 +91,7 @@ Trip
 - Accent structural (blue): `~#2B5BE0`
 - Warm note (parchment): for done/memento states
 - Display font: Fraunces (Google Fonts)
-- Body font: Nunito (default; to be swapped during design phase)
+- Body font: Instrument Sans
 - Green = action/interaction; blue = information/structure; never use them for the same role
 
 ## Env Vars (never hardcode)

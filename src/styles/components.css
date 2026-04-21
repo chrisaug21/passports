@@ -1,4 +1,6 @@
 .panel {
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.65);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
@@ -38,10 +40,10 @@
 
 .eyebrow {
   margin-bottom: 0.75rem;
-  color: var(--color-structure);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -51,12 +53,12 @@
 }
 
 .button {
-  border: 0;
-  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   background: var(--color-action);
   color: white;
   padding: 0.9rem 1.2rem;
-  font-weight: 700;
+  font-weight: 600;
   transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
 }
 
@@ -73,13 +75,14 @@
 }
 
 .button--secondary {
-  background: rgba(255, 255, 255, 0.8);
+  background: transparent;
   color: var(--color-text);
   border: 1px solid var(--color-border);
 }
 
 .button--danger {
   background: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .button--danger:hover,
@@ -90,12 +93,32 @@
 .button--danger-secondary {
   background: var(--color-danger-soft);
   color: var(--color-danger-strong);
-  border: 1px solid var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
 }
 
 .button--danger-secondary:hover,
 .button--danger-secondary:focus-visible {
   background: color-mix(in srgb, var(--color-danger-soft) 75%, white);
+}
+
+.button-link {
+  border: 0;
+  background: transparent;
+  min-height: var(--touch-target);
+  padding: 0.5rem 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.button-link--danger {
+  color: var(--color-danger-strong);
+}
+
+.button-link:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .field {
@@ -104,7 +127,7 @@
 }
 
 .field span {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .field-hint {
@@ -119,7 +142,7 @@
   bottom: 1rem;
   display: grid;
   gap: 0.75rem;
-  z-index: 20;
+  z-index: 100;
 }
 
 .toast {

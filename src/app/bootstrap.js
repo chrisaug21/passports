@@ -9,6 +9,7 @@ import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
 
 const appRoot = document.querySelector("#app");
+let accountMenuListenersBound = false;
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -18,7 +19,7 @@ function refreshIcons() {
 
 export async function bootstrapApp() {
   try {
-    appRoot.innerHTML = `<main class="app-shell"><section class="panel panel--center"><p class="eyebrow">Passports</p><h1>Loading…</h1><p class="muted">Connecting your travel workspace.</p></section></main>`;
+    appRoot.innerHTML = renderBootstrapLoadingScreen();
 
     const env = await initializeEnv();
     initializeSupabase(env);
@@ -27,9 +28,18 @@ export async function bootstrapApp() {
     sessionStore.setSession(session);
 
     onAuthStateChange((event, nextSession) => {
+      const previousSession = sessionStore.getState().session;
+      const previousUserId = previousSession?.user?.id || "";
+      const nextUserId = nextSession?.user?.id || "";
+      const isSameSignedInUser = previousUserId && previousUserId === nextUserId;
       sessionStore.setSession(nextSession);
 
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED" ||
+        (event === "SIGNED_IN" && isSameSignedInUser)
+      ) {
         return;
       }
 
@@ -61,31 +71,82 @@ export async function bootstrapApp() {
   }
 }
 
+function renderBootstrapLoadingScreen() {
+  return `
+    <main class="app-shell app-shell--loading">
+      <section class="bootstrap-loader" aria-live="polite" aria-busy="true">
+        <div class="bootstrap-loader__brand">
+          <span class="bootstrap-loader__wordmark">Passports</span>
+          <span class="bootstrap-loader__version">${APP_VERSION}</span>
+        </div>
+        <p>Loading your trips...</p>
+        <div class="bootstrap-loader__skeleton" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </section>
+    </main>
+  `;
+}
+
 export function renderAppShell(content, options = {}) {
+  const { showDashboardLink = false, showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
-  const heading = session?.user?.email ? `Signed in as ${session.user.email}` : "Personal travel planner";
+  const email = session?.user?.email || "";
+  const initials = getUserInitials(email);
 
   appRoot.innerHTML = `
     <main class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Passports</p>
-          <h1 class="topbar__title">${heading}</h1>
+        <div class="topbar__left">
+          <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
+            <span class="topbar__wordmark-wrap">
+              <span class="topbar__wordmark">Passports</span>
+              <span class="topbar__version">${APP_VERSION}</span>
+            </span>
+          </button>
+          ${
+            showDashboardLink
+              ? `
+                <button class="topbar__dashboard-link" id="trip-back-to-dashboard" type="button">
+                  <i data-lucide="home" aria-hidden="true"></i>
+                  <span>Dashboard</span>
+                </button>
+              `
+              : ""
+          }
         </div>
-        ${
-          session
-            ? '<button class="button button--secondary" id="sign-out-button" type="button">Sign Out</button>'
-            : ""
-        }
+        <div class="topbar__actions">
+          ${showNewTripButton && session ? `<button class="button topbar__new-trip" id="open-create-trip-modal" type="button">New Trip</button>` : ""}
+          ${
+            session
+              ? `
+                <details class="account-menu" id="account-menu">
+                  <summary class="account-menu__trigger" aria-label="Open account menu">
+                    <span class="account-menu__avatar">${escapeHtml(initials)}</span>
+                  </summary>
+                  <div class="account-menu__panel">
+                    <p class="account-menu__email">${escapeHtml(email)}</p>
+                    <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
+                  </div>
+                </details>
+              `
+              : ""
+          }
+        </div>
       </header>
       ${content}
-      <footer class="app-footer">
-        <p class="app-version">${APP_VERSION}</p>
-      </footer>
     </main>
   `;
 
+  document.querySelector("#topbar-home")?.addEventListener("click", () => {
+    window.history.pushState({}, "", "/app");
+    renderRoute();
+  });
+
   if (session) {
+    bindAccountMenuListeners();
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
 
@@ -114,4 +175,43 @@ export function renderAppShell(content, options = {}) {
   }
 
   refreshIcons();
+}
+
+function getUserInitials(email) {
+  const localPart = String(email || "").split("@")[0] || "";
+  const segments = localPart.split(/[._-]+/).filter(Boolean);
+
+  if (segments.length >= 2) {
+    return `${segments[0][0] || ""}${segments[1][0] || ""}`.toUpperCase();
+  }
+
+  return localPart.slice(0, 2).toUpperCase() || "U";
+}
+
+function bindAccountMenuListeners() {
+  if (accountMenuListenersBound) {
+    return;
+  }
+
+  document.addEventListener("click", (event) => {
+    const menu = document.querySelector("#account-menu");
+
+    if (!menu || !(event.target instanceof Element)) {
+      return;
+    }
+
+    if (!menu.contains(event.target)) {
+      menu.open = false;
+    }
+  });
+
+  accountMenuListenersBound = true;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
