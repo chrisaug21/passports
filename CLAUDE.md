@@ -26,7 +26,7 @@ src/
 
 ## Three Modes
 - **Planning mode** — private; full edit access; idea/shortlisted items visible
-- **Active mode** — phone-first; shows today's plan based on base timezone
+- **Traveling mode** — phone-first; shows today's plan based on trip dates
 - **Diary/share mode** — public read-only via `/trip/:id`; confirmed/reserved/done items only
 
 ## Data Hierarchy
@@ -110,7 +110,7 @@ Always open new PRs as drafts (`--draft` flag with `gh pr create`). Only mark re
 - **User-uploaded photos**: Supabase Storage for post-trip memento photos (Phase 2)
 - **Smart timezone prompt**: on active travel days, detect device timezone mismatch with base timezone; one-tap banner to update
 - **Traveler reactions**: Must Do / Skip / No Preference per item (Phase 2)
-- **Memento/diary mode**: beautiful archive view when status = Done; designed share experience
+- **Memento/diary mode**: beautiful archive view for past trips; designed share experience
 - **Homeboard integration**: trip countdowns and todos surfaced on Homeboard
 - **Public share slug**: replace UUID-based public URLs with revocable slugs
 - **Full email invite flow**: currently MVP is manual add only (user must already have account)

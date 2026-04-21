@@ -18,19 +18,19 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
     <section class="days-view">
       ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers)).join("")}
 
-      ${sortedUnassignedItems.length > 0 ? `
-        <section class="panel days-view__pool">
-          <div class="days-view__panel-header">
-            <div>
-              <p class="eyebrow">Unassigned Ideas</p>
-            </div>
-            <p class="muted">Ideas and stops not yet added to a day.</p>
+      <section class="panel days-view__pool">
+        <div class="days-view__panel-header">
+          <div>
+            <p class="eyebrow">Unassigned Ideas</p>
           </div>
-          <div class="days-view__list days-view__pool-list">
-            ${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}
-          </div>
-        </section>
-      ` : ""}
+          <button class="button button--secondary" data-add-item-to-trip type="button">Add to trip</button>
+        </div>
+        ${
+          sortedUnassignedItems.length > 0
+            ? `<div class="days-view__list days-view__pool-list">${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}</div>`
+            : `<div class="day-card__empty"><p class="muted">Nothing unassigned.</p></div>`
+        }
+      </section>
     </section>
   `;
 }
@@ -46,6 +46,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
             <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
+          ${row.kind === "base" ? `<button class="button button--secondary" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button">Add to ${escapeHtml(row.label)}</button>` : ""}
         </div>
       ` : `
         <div class="days-view__panel-header">
@@ -53,6 +54,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
             <p class="eyebrow">Base</p>
             <h3>${escapeHtml(row.label)}</h3>
           </div>
+          ${row.kind === "base" ? `<button class="button button--secondary" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button">Add to ${escapeHtml(row.label)}</button>` : ""}
         </div>
       `}
       <div class="day-card-grid">
@@ -99,7 +101,7 @@ export function renderDayCard(day, items, helpers) {
       </div>
       ${
         combinedItems.length === 0
-          ? `<div class="day-card__empty"><p class="muted">No items assigned yet.</p></div>`
+          ? `<div class="day-card__empty"><p class="muted">Nothing assigned yet.</p></div>`
           : `<div class="days-view__list">${combinedItems.map((item, index) => renderDayItem(item, {
               dayId: day.id,
               canMoveUp: index > 0,

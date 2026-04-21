@@ -50,7 +50,7 @@ export function renderMasterListRow(item, days, bases) {
         <div class="master-list-row__title-line">
           ${renderItemTypeIcon(item, "master-list-row__type-icon")}
           ${item.is_anchor ? renderAnchorIndicator() : ""}
-          <h4 title="${escapeHtml(item.title || "Untitled item")}">${escapeHtml(item.title || "Untitled item")}</h4>
+          <h4 title="${escapeHtml(item.title || "Untitled stop")}">${escapeHtml(item.title || "Untitled stop")}</h4>
         </div>
         ${renderItemStatusMeta(item.status)}
         <p class="muted master-list-row__meta">${metaParts.join(" · ")}</p>
@@ -78,20 +78,20 @@ export function renderDayItem(item, options = {}) {
           <div class="day-item__title-line">
             ${item.is_anchor ? renderAnchorIndicator() : ""}
             ${renderItemTypeIcon(item)}
-            <h5 title="${escapeHtml(item.title || "Untitled item")}">${escapeHtml(item.title || "Untitled item")}</h5>
+            <h5 title="${escapeHtml(item.title || "Untitled stop")}">${escapeHtml(item.title || "Untitled stop")}</h5>
           </div>
           <div class="day-item__header-actions">
             ${renderItemActionsMenu(item)}
             ${
               !item.is_anchor && dayId
                 ? `
-                  <div class="day-item__reorder-controls" aria-label="Reorder item">
+                  <div class="day-item__reorder-controls" aria-label="Reorder stop">
                     <button
                       class="day-item__reorder-button"
                       data-reorder-item-up="${escapeHtml(item.id)}"
                       data-reorder-day-id="${escapeHtml(dayId)}"
                       type="button"
-                      aria-label="Move item up"
+                      aria-label="Move stop up"
                       ${canMoveUp ? "" : "disabled"}
                     >
                       <i data-lucide="chevron-up"></i>
@@ -101,7 +101,7 @@ export function renderDayItem(item, options = {}) {
                       data-reorder-item-down="${escapeHtml(item.id)}"
                       data-reorder-day-id="${escapeHtml(dayId)}"
                       type="button"
-                      aria-label="Move item down"
+                      aria-label="Move stop down"
                       ${canMoveDown ? "" : "disabled"}
                     >
                       <i data-lucide="chevron-down"></i>
@@ -137,7 +137,7 @@ export function renderItemBaseLine(item) {
 export function renderItemActionsMenu(item) {
   return `
     <details class="item-actions-menu">
-      <summary class="item-actions-menu__trigger" aria-label="Open item actions">⋮</summary>
+      <summary class="item-actions-menu__trigger" aria-label="Open stop actions">⋮</summary>
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
         <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
@@ -355,7 +355,7 @@ async function moveItemToDestination(itemId, destinationDayId) {
   }
 
   if (item.is_anchor && !String(item.time_start || "").trim()) {
-    showToast("Anchor items require a start time.", "error");
+    showToast("Anchor stops require a start time.", "error");
     return false;
   }
 
@@ -535,7 +535,7 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
       const itemType = String(formData.get("itemType") || "").trim();
 
       if (!title || !itemType) {
-        showToast("Add a title and item type first.", "error");
+        showToast("Add a title and type first.", "error");
         return;
       }
 
@@ -560,7 +560,7 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
           isCreatingItem: false,
         });
         rerenderTripDetail();
-        showToast("Item added.", "success");
+        showToast("Stop added.", "success");
       } catch (error) {
         console.error(error);
         appStore.updateTripDetail({
@@ -623,7 +623,7 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
           movingOperationId: null,
         });
         rerenderTripDetail();
-        showToast(`${getDisplayTitleForToast(item.title, "Item")} moved to ${getMoveDestinationLabel(destinationDayId, tripStore.getCurrentDays())}`, "success");
+        showToast(`${getDisplayTitleForToast(item.title, "Stop")} moved to ${getMoveDestinationLabel(destinationDayId, tripStore.getCurrentDays())}`, "success");
       } catch (error) {
         console.error(error);
         const currentTripDetail = appStore.getState().tripDetail;

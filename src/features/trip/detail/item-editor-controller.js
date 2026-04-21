@@ -2,8 +2,10 @@ import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
   batchUpdateTripItems,
+  createDetailedTripItem,
   softDeleteTripItem,
 } from "../../../services/trips-service.js";
+import { sessionStore } from "../../../state/session-store.js";
 import {
   formatDayDateLabel,
   formatItemTypeLabel,
@@ -28,8 +30,10 @@ import {
 } from "./items-controller.js";
 import { normalizeNullableId } from "./base-allocation-controller.js";
 
-export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting }) {
-  if (!item) {
+export function renderItemEditorModal({ item, bases, days, mode = "edit", context = null, isSaving, isDeleting }) {
+  const isAddMode = mode === "add";
+
+  if (!item && !isAddMode) {
     return `
       <div class="modal-shell is-hidden" id="item-editor-modal" aria-hidden="true">
         <div class="modal-backdrop" data-close-item-editor></div>
@@ -37,7 +41,8 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
     `;
   }
 
-  const draft = tripDetailState.itemEditorDraft || buildItemEditorDraft(item);
+  const draft = tripDetailState.itemEditorDraft || (isAddMode ? buildAddItemEditorDraft(context) : buildItemEditorDraft(item));
+  const modalTitle = isAddMode ? getAddItemModalTitle(context, bases) : draft.title || "Untitled stop";
 
   return `
     <div class="modal-shell" id="item-editor-modal" aria-hidden="false">
@@ -45,9 +50,9 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
       <section class="panel modal-card modal-card--editor">
         <div class="modal-card__header">
           <div>
-            <h3>${escapeHtml(draft.title || "Untitled item")}</h3>
+            <h3>${escapeHtml(modalTitle)}</h3>
           </div>
-          <button class="icon-button" id="close-item-editor" type="button" aria-label="Close item editor">×</button>
+          <button class="icon-button" id="close-item-editor" type="button" aria-label="Close editor">×</button>
         </div>
 
         <form class="item-editor-form" id="item-editor-form">
@@ -97,20 +102,22 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
             <p class="item-editor-section__title">Timing</p>
             <div class="item-editor-form__grid">
               <label class="field">
-                <span>Start Time</span>
-                <input name="timeStart" type="time" value="${escapeHtml(draft.timeStart || "")}" />
+              <span>Start Time</span>
+                <input name="timeStart" type="text" inputmode="numeric" list="time-picker-options" value="${escapeHtml(draft.timeStart || "")}" placeholder="3:00 PM" />
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input name="timeEnd" type="time" value="${escapeHtml(draft.timeEnd || "")}" />
+                <input name="timeEnd" type="text" inputmode="numeric" list="time-picker-options" value="${escapeHtml(draft.timeEnd || "")}" placeholder="4:00 PM" />
               </label>
             </div>
+            <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
+            ${renderTimeOptionsDatalist()}
             <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
               <input class="anchor-checkbox-input" id="item-anchor-checkbox" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
               <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor && draft.timeStart ? "true" : "false"}" aria-disabled="${draft.timeStart ? "false" : "true"}" tabindex="${draft.timeStart ? "0" : "-1"}">
                 ${draft.isAnchor && draft.timeStart ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}
               </span>
-              <span>Anchor item</span>
+              <span>Anchor stop</span>
             </label>
           </div>
 
@@ -144,8 +151,8 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
-            <button class="button-link button-link--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Remove from trip</button>
-            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
+            ${isAddMode ? "<span></span>" : `<button class="button-link button-link--danger" id="delete-item-button" type="button" ${isSaving || isDeleting ? "disabled" : ""}>Remove from trip</button>`}
+            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : isAddMode ? "Save" : "Save Changes"}</button>
           </div>
         </form>
       </section>
@@ -155,9 +162,9 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
 
 export function getTripItemErrorMessage(action = "update") {
   const messages = {
-    create: "Could not create that item right now. Please try again.",
+    create: "Could not create that stop right now. Please try again.",
     update: "Could not save those changes right now. Please try again.",
-    delete: "Could not delete that item right now. Please try again.",
+    delete: "Could not delete that stop right now. Please try again.",
     baseDelete: "Could not delete that base right now. Please try again.",
     tripDelete: "Could not delete that trip right now. Please try again.",
     tripUpdate: "Could not update that trip right now. Please try again.",
@@ -170,6 +177,8 @@ function closeItemEditor() {
   requestCloseItemEditor(() => {
     appStore.updateTripDetail({
       editingItemId: null,
+      itemEditorMode: "edit",
+      itemEditorContext: null,
       isSavingItem: false,
       showDiscardConfirm: false,
     });
@@ -196,7 +205,7 @@ export function renderDiscardConfirmModal(isOpen) {
             <h3>Discard your edits?</h3>
           </div>
         </div>
-        <p class="muted">You have unsaved changes in this item. If you close now, they will be lost.</p>
+        <p class="muted">You have unsaved changes. If you close now, they will be lost.</p>
         <div class="modal-card__actions">
           <button class="button button--secondary" id="keep-editing-button" type="button">Keep Editing</button>
           <button class="button" id="discard-changes-button" type="button">Discard Changes</button>
@@ -250,8 +259,8 @@ export function renderMoveItemModal({ trip, item, bases, days, isOpen, isMoving 
       <section class="panel modal-card">
         <div class="modal-card__header">
           <div>
-            <p class="eyebrow">Move Item</p>
-            <h3>Move ${escapeHtml(item.title || "this item")} to...</h3>
+            <p class="eyebrow">Move Stop</p>
+            <h3>Move ${escapeHtml(item.title || "this stop")} to...</h3>
           </div>
           <button class="icon-button" id="close-move-item" type="button" aria-label="Close move dialog">×</button>
         </div>
@@ -374,9 +383,9 @@ function syncItemEditorAssignmentHint() {
 }
 
 function requestCloseItemEditor(onDiscard) {
-  const editingItemId = appStore.getState().tripDetail.editingItemId;
+  const { editingItemId, itemEditorMode } = appStore.getState().tripDetail;
 
-  if (!editingItemId) {
+  if (!editingItemId && itemEditorMode !== "add") {
     onDiscard();
     return;
   }
@@ -395,7 +404,14 @@ function requestCloseItemEditor(onDiscard) {
 
 function captureItemEditorInitialSnapshot() {
   if (!tripDetailState.itemEditorDraft) {
-    const editingItemId = appStore.getState().tripDetail.editingItemId;
+    const { editingItemId, itemEditorMode, itemEditorContext } = appStore.getState().tripDetail;
+
+    if (itemEditorMode === "add") {
+      tripDetailState.itemEditorDraft = buildAddItemEditorDraft(itemEditorContext);
+      tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+      return;
+    }
+
     const item = tripStore.getCurrentItems().find((entry) => entry.id === editingItemId);
 
     if (!item) {
@@ -483,6 +499,37 @@ function buildItemEditorDraft(item) {
   };
 }
 
+function buildAddItemEditorDraft(context = null) {
+  return {
+    title: "",
+    itemType: "activity",
+    status: "idea",
+    baseId: context?.baseId || "",
+    dayId: context?.dayId || "",
+    isAnchor: false,
+    timeStart: "",
+    timeEnd: "",
+    mealSlot: "",
+    activityType: "",
+    transportMode: "",
+    transportOrigin: "",
+    transportDestination: "",
+    costLow: "",
+    costHigh: "",
+    url: "",
+    notes: "",
+  };
+}
+
+function getAddItemModalTitle(context, bases) {
+  if (context?.baseId) {
+    const base = bases.find((entry) => entry.id === context.baseId);
+    return `Add to ${base?.name || "base"}`;
+  }
+
+  return "Add to trip";
+}
+
 function getItemEditorAssignmentHint(baseId, dayId, bases, days) {
   if (!baseId || !dayId) {
     return "";
@@ -560,6 +607,94 @@ function wireAnchorCheckbox() {
   sync();
 }
 
+function getNearestUpcomingHour() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() === 0 ? 0 : 60, 0, 0);
+  return `${String(now.getHours()).padStart(2, "0")}:00`;
+}
+
+function renderTimeOptionsDatalist() {
+  const options = [];
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      options.push(`${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+    }
+  }
+
+  return `<datalist id="time-picker-options">${options.map((value) => `<option value="${value}"></option>`).join("")}</datalist>`;
+}
+
+function normalizeTimeInput(value) {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  const twentyFourHourMatch = normalizedValue.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (twentyFourHourMatch) {
+    return `${String(Number(twentyFourHourMatch[1])).padStart(2, "0")}:${twentyFourHourMatch[2]}`;
+  }
+
+  const twelveHourMatch = normalizedValue.match(/^(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?m?\.?$/i);
+  if (!twelveHourMatch) {
+    return null;
+  }
+
+  let hour = Number(twelveHourMatch[1]);
+  const minute = twelveHourMatch[2] || "00";
+  const meridiem = twelveHourMatch[3].toLowerCase();
+
+  if (hour < 1 || hour > 12) {
+    return null;
+  }
+
+  if (meridiem === "p" && hour !== 12) {
+    hour += 12;
+  }
+
+  if (meridiem === "a" && hour === 12) {
+    hour = 0;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${minute}`;
+}
+
+function syncTimeWarning() {
+  const startInput = document.querySelector('[name="timeStart"]');
+  const endInput = document.querySelector('[name="timeEnd"]');
+  const warning = document.querySelector("#item-editor-time-warning");
+
+  if (!startInput || !endInput || !warning) {
+    return;
+  }
+
+  const startTime = normalizeTimeInput(startInput.value);
+  const endTime = normalizeTimeInput(endInput.value);
+  const shouldWarn = Boolean(startTime && endTime && endTime <= startTime);
+
+  warning.classList.toggle("is-hidden", !shouldWarn);
+}
+
+function wireTimeInputs() {
+  const defaultTime = getNearestUpcomingHour();
+
+  document.querySelectorAll('[name="timeStart"], [name="timeEnd"]').forEach((input) => {
+    input.addEventListener("focus", () => {
+      if (!input.value && input.getAttribute("data-defaulted-empty-time") !== "true") {
+        input.value = defaultTime;
+        input.setAttribute("data-defaulted-empty-time", "true");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    input.addEventListener("input", syncTimeWarning);
+    input.addEventListener("change", syncTimeWarning);
+  });
+
+  syncTimeWarning();
+}
+
 function keepEditing() {
   tripDetailState.pendingDiscardAction = null;
   appStore.updateTripDetail({
@@ -608,6 +743,8 @@ export function createItemEditorHandlers() {
 
         appStore.updateTripDetail({
           editingItemId: itemId,
+          itemEditorMode: "edit",
+          itemEditorContext: null,
           showDiscardConfirm: false,
         });
         tripDetailState.persistedEditorItemId = itemId;
@@ -622,10 +759,47 @@ export function createItemEditorHandlers() {
     onCloseItemEditor: closeItemEditor,
     onAfterItemEditorOpen: () => {
       wireAnchorCheckbox();
+      wireTimeInputs();
       syncItemEditorTypeFields();
       syncItemEditorAssignmentHint();
       ensureItemEditorInitialSnapshot();
       wireDiscardConfirmModal();
+    },
+    onAddItemToBase: (baseId) => {
+      if (!baseId) {
+        return;
+      }
+
+      requestCloseItemEditor(() => {
+        const context = { baseId, dayId: "" };
+        appStore.updateTripDetail({
+          editingItemId: null,
+          itemEditorMode: "add",
+          itemEditorContext: context,
+          showDiscardConfirm: false,
+        });
+        tripDetailState.persistedEditorItemId = null;
+        tripDetailState.itemEditorDraft = buildAddItemEditorDraft(context);
+        tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+        tripDetailState.pendingDiscardAction = null;
+        rerenderTripDetail();
+      });
+    },
+    onAddItemToTrip: () => {
+      requestCloseItemEditor(() => {
+        const context = { baseId: "", dayId: "" };
+        appStore.updateTripDetail({
+          editingItemId: null,
+          itemEditorMode: "add",
+          itemEditorContext: context,
+          showDiscardConfirm: false,
+        });
+        tripDetailState.persistedEditorItemId = null;
+        tripDetailState.itemEditorDraft = buildAddItemEditorDraft(context);
+        tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+        tripDetailState.pendingDiscardAction = null;
+        rerenderTripDetail();
+      });
     },
     onItemEditorTypeChange: syncItemEditorTypeFields,
     onItemEditorAssignmentChange: syncItemEditorAssignmentHint,
@@ -633,26 +807,25 @@ export function createItemEditorHandlers() {
     onItemEditorSubmit: async (event) => {
       event.preventDefault();
 
-      const currentItemId = appStore.getState().tripDetail.editingItemId;
-      if (!currentItemId) {
-        return;
-      }
+      const { editingItemId: currentItemId, itemEditorMode } = appStore.getState().tripDetail;
 
       const items = tripStore.getCurrentItems();
       const currentItem = items.find((item) => item.id === currentItemId);
-
-      if (!currentItem) {
-        return;
-      }
 
       const form = event.currentTarget;
       const formData = new FormData(form);
       const nextBaseId = normalizeNullableId(formData.get("baseId"));
       const nextDayId = normalizeNullableId(formData.get("dayId"));
       const isAnchor = formData.get("isAnchor") === "on";
-      const timeStart = String(formData.get("timeStart") || "").trim();
+      const timeStart = normalizeTimeInput(formData.get("timeStart"));
+      const timeEnd = normalizeTimeInput(formData.get("timeEnd"));
 
-      const nextItem = buildUpdatedItem(currentItem, {
+      if (timeStart === null || timeEnd === null) {
+        showToast("Use a valid time.", "error");
+        return;
+      }
+
+      const itemPayload = {
         title: String(formData.get("title") || "").trim(),
         item_type: String(formData.get("itemType") || "").trim(),
         status: String(formData.get("status") || "").trim(),
@@ -665,11 +838,81 @@ export function createItemEditorHandlers() {
         transport_origin: String(formData.get("transportOrigin") || "").trim() || null,
         transport_destination: String(formData.get("transportDestination") || "").trim() || null,
         time_start: timeStart || null,
-        time_end: String(formData.get("timeEnd") || "").trim() || null,
+        time_end: timeEnd || null,
         cost_low: String(formData.get("costLow") || "").trim() || null,
         cost_high: String(formData.get("costHigh") || "").trim() || null,
         url: String(formData.get("url") || "").trim() || null,
         notes: String(formData.get("notes") || "").trim() || null,
+      };
+
+      if (itemEditorMode === "add") {
+        const trip = tripStore.getCurrentTrip();
+        const { session } = sessionStore.getState();
+
+        if (!trip?.id || !session?.user?.id || !itemPayload.title || !itemPayload.item_type) {
+          showToast("Add a title and type first.", "error");
+          return;
+        }
+
+        appStore.updateTripDetail({
+          isSavingItem: true,
+        });
+        rerenderTripDetail();
+
+        try {
+          const savedItem = await createDetailedTripItem({
+            tripId: trip.id,
+            createdBy: session.user.id,
+            title: itemPayload.title,
+            itemType: itemPayload.item_type,
+            status: itemPayload.status,
+            isAnchor: itemPayload.is_anchor,
+            baseId: itemPayload.base_id,
+            dayId: itemPayload.day_id,
+            mealSlot: itemPayload.meal_slot,
+            activityType: itemPayload.activity_type,
+            transportMode: itemPayload.transport_mode,
+            transportOrigin: itemPayload.transport_origin,
+            transportDestination: itemPayload.transport_destination,
+            timeStart: itemPayload.time_start,
+            timeEnd: itemPayload.time_end,
+            costLow: itemPayload.cost_low,
+            costHigh: itemPayload.cost_high,
+            url: itemPayload.url,
+            notes: itemPayload.notes,
+            sortOrder: items.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1,
+          });
+
+          tripStore.appendCurrentItem(savedItem);
+          appStore.updateTripDetail({
+            isSavingItem: false,
+            editingItemId: null,
+            itemEditorMode: "edit",
+            itemEditorContext: null,
+            showDiscardConfirm: false,
+          });
+          tripDetailState.itemEditorInitialSnapshot = "";
+          tripDetailState.itemEditorDraft = null;
+          tripDetailState.pendingDiscardAction = null;
+          rerenderTripDetail();
+          showToast("Stop added.", "success");
+        } catch (error) {
+          console.error(error);
+          appStore.updateTripDetail({
+            isSavingItem: false,
+          });
+          rerenderTripDetail();
+          showToast(getTripItemErrorMessage("create"), "error");
+        }
+        return;
+      }
+
+      if (!currentItem) {
+        return;
+      }
+
+      const nextItem = buildUpdatedItem(currentItem, {
+        ...itemPayload,
       });
       const updatedItems = buildItemSaveBatch(currentItem, nextItem, items);
 
@@ -686,6 +929,8 @@ export function createItemEditorHandlers() {
         appStore.updateTripDetail({
           isSavingItem: false,
           editingItemId: null,
+          itemEditorMode: "edit",
+          itemEditorContext: null,
           showDiscardConfirm: false,
         });
         tripDetailState.persistedEditorItemId = null;
@@ -693,7 +938,7 @@ export function createItemEditorHandlers() {
         tripDetailState.itemEditorDraft = null;
         tripDetailState.pendingDiscardAction = null;
         rerenderTripDetail();
-        showToast("Item updated.", "success");
+        showToast("Stop updated.", "success");
       } catch (error) {
         console.error(error);
         appStore.updateTripDetail({
@@ -734,7 +979,7 @@ export function createItemEditorHandlers() {
         tripDetailState.itemEditorInitialSnapshot = "";
         tripDetailState.pendingDiscardAction = null;
         rerenderTripDetail();
-        showToast(`${deletedItem?.title || "Item"} deleted`, "success");
+        showToast(`${deletedItem?.title || "Stop"} deleted`, "success");
       } catch (error) {
         console.error(error);
         appStore.updateTripDetail({

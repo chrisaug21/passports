@@ -214,23 +214,6 @@
   gap: 0.35rem;
 }
 
-.trip-lifecycle {
-  border-top: 1px solid var(--color-border);
-  padding-top: 1rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.trip-lifecycle--danger {
-  margin-top: 0.5rem;
-}
-
-.trip-lifecycle__actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
 .base-card {
   border: 1px solid var(--color-border);
   border-radius: 18px;
@@ -395,10 +378,10 @@
 }
 
 .base-form {
-  border-top: 1px solid var(--color-border);
-  padding-top: 1rem;
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .master-list-panel {
@@ -757,6 +740,10 @@
   display: none;
 }
 
+.field-hint--warning {
+  color: var(--color-danger-strong);
+}
+
 .timezone-picker {
   position: relative;
   display: block;
@@ -819,6 +806,22 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.trip-settings-form__date-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.trip-settings-form__date-grid input[readonly] {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.trip-settings-form__danger {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
 }
 
 .anchor-checkbox-label {
@@ -1045,6 +1048,10 @@
   flex-direction: row;
 }
 
+.modal-card__actions--end {
+  justify-content: flex-end;
+}
+
 .modal-card__header {
   flex-shrink: 0;
   padding: 16px 24px 0;
@@ -1078,7 +1085,8 @@
     flex-direction: column;
   }
 
-  .item-editor-form__grid {
+  .item-editor-form__grid,
+  .trip-settings-form__date-grid {
     grid-template-columns: 1fr;
   }
 

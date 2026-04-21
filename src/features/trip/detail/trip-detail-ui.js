@@ -14,7 +14,7 @@ export function escapeHtml(value) {
 
 export function renderAnchorIndicator() {
   return `
-    <span class="anchor-indicator" aria-label="Anchor item" title="Anchor item">
+    <span class="anchor-indicator" aria-label="Anchor stop" title="Anchor stop">
       <i data-lucide="lock" aria-hidden="true"></i>
     </span>
   `;

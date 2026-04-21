@@ -1,6 +1,8 @@
-export const APP_VERSION = "v0.1.42";
+export const APP_VERSION = "v0.1.43";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
+
+export const DERIVED_TRIP_STATUSES = ["planning", "traveling", "past"];
 
 export const DEFAULT_BASE_TIMEZONE = "America/New_York";
 

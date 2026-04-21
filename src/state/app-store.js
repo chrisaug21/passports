@@ -8,6 +8,8 @@ function createInitialTripDetail() {
     isSavingTrip: false,
     isCreatingItem: false,
     isSavingItem: false,
+    itemEditorMode: "edit",
+    itemEditorContext: null,
     editingItemId: null,
     showDiscardConfirm: false,
     showDeleteItemConfirm: false,
@@ -24,9 +26,6 @@ function createInitialTripDetail() {
     showDeleteBaseConfirm: false,
     isDeletingBase: false,
     deletingBaseId: null,
-    showTripStatusConfirm: false,
-    pendingTripStatus: null,
-    isUpdatingTripStatus: false,
     showDeleteTripConfirm: false,
     isDeletingTrip: false,
   };

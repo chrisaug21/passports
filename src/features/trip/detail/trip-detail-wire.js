@@ -36,12 +36,14 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
   bindClick("#cancel-trip-settings", handlers.onCancelTripSettings);
-  bindClick("#mark-trip-done", handlers.onMarkTripDone);
-  bindClick("#reopen-trip", handlers.onReopenTrip);
+  bindClick("[data-close-trip-settings]", handlers.onCancelTripSettings);
   bindClick("#open-delete-trip-confirm", handlers.onOpenDeleteTripConfirm);
+  bindClick("#open-delete-trip-confirm-footer", handlers.onOpenDeleteTripConfirm);
   bindSubmit("#trip-settings-form", handlers.onTripSettingsSubmit);
+  handlers.onAfterTripSettingsOpen?.();
   bindClick("#show-add-base-form", handlers.onShowAddBaseForm);
   bindClick("#cancel-add-base", handlers.onCancelAddBase);
+  bindClick("[data-close-add-base]", handlers.onCancelAddBase);
   bindAll("[data-edit-base]", "click", (button) => {
     handlers.onEditBase?.(button.getAttribute("data-edit-base"));
   });
@@ -79,6 +81,10 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-open-move-item]", "click", (button) => {
     handlers.onOpenMoveItem?.(button.getAttribute("data-open-move-item"));
   });
+  bindAll("[data-add-item-to-base]", "click", (button) => {
+    handlers.onAddItemToBase?.(button.getAttribute("data-add-item-to-base"));
+  });
+  bindClick("[data-add-item-to-trip]", handlers.onAddItemToTrip);
   bindClick("#close-item-editor", handlers.onCloseItemEditor);
   bindClick("#cancel-item-editor", handlers.onCloseItemEditor);
   bindClick("[data-close-item-editor]", handlers.onCloseItemEditor);
@@ -125,9 +131,6 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-base", handlers.onCancelDeleteBase);
   bindClick("[data-cancel-delete-base]", handlers.onCancelDeleteBase);
   bindClick("#confirm-delete-base", handlers.onConfirmDeleteBase);
-  bindClick("#cancel-trip-status-confirm", handlers.onCancelTripStatusConfirm);
-  bindClick("[data-cancel-trip-status-confirm]", handlers.onCancelTripStatusConfirm);
-  bindClick("#confirm-trip-status-change", handlers.onConfirmTripStatusChange);
   bindClick("#cancel-delete-trip", handlers.onCancelDeleteTrip);
   bindClick("[data-cancel-delete-trip]", handlers.onCancelDeleteTrip);
   bindClick("#confirm-delete-trip", handlers.onConfirmDeleteTrip);

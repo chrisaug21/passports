@@ -85,10 +85,9 @@
   font-weight: 600;
 }
 
-.trip-card__status--active,
-.trip-card__status--done,
 .trip-card__status--planning,
-.trip-card__status--upcoming {
+.trip-card__status--traveling,
+.trip-card__status--past {
   color: var(--color-text);
 }
 

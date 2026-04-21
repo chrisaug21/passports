@@ -16,7 +16,6 @@ import {
   renderDeleteTripConfirmModal,
   renderTripSettingsForm,
   renderTripSettingsSummary,
-  renderTripStatusConfirmModal,
 } from "./trip-settings-controller.js";
 import {
   buildAllocationRows,
@@ -24,6 +23,7 @@ import {
   getAllocationSummary,
   hasAllocationDraftChanges,
   renderAddBaseForm,
+  renderEditBaseForm,
   renderAllocationConfirmModal,
   renderAllocationRow,
   renderDeleteBaseConfirmModal,
@@ -43,6 +43,7 @@ import {
   renderItemEditorModal,
   renderMoveItemModal,
 } from "./item-editor-controller.js";
+import { deriveTripStatus } from "../../../lib/derive.js";
 
 export function renderTripDetailPageView() {
   const { tripDetail } = appStore.getState();
@@ -51,6 +52,7 @@ export function renderTripDetailPageView() {
   const days = tripStore.getCurrentDays();
   const items = tripStore.getCurrentItems();
   const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
+  const selectedEditBase = bases.find((base) => base.id === tripDetail.editingBaseId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
 
@@ -110,19 +112,15 @@ export function renderTripDetailPageView() {
               <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
               <div class="trip-header__summary-line">
                 <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
-                <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
+                <span class="trip-pill">${formatStatusLabel(deriveTripStatus(trip))}</span>
               </div>
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
             <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
-              ${tripDetail.isShowingTripSettings ? "Hide editor" : "Edit Trip"}
+              Edit Trip
             </button>
           </div>
-          ${
-            tripDetail.isShowingTripSettings
-              ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
-              : renderTripSettingsSummary(trip)
-          }
+          ${renderTripSettingsSummary(trip)}
         </div>
       </section>
 
@@ -161,7 +159,6 @@ export function renderTripDetailPageView() {
             : ""
         }
 
-        ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length) : ""}
       </section>
 
       <section class="trip-view-tabs" aria-label="Trip views">
@@ -206,8 +203,8 @@ export function renderTripDetailPageView() {
           items.length === 0
             ? `
               <div class="master-list-empty">
-                <h4>No items yet</h4>
-                <p class="muted">This trip exists, its base and day structure are loaded, and the app is ready for the next checkpoint: adding items into the master list.</p>
+                <h4>No stops yet</h4>
+                <p class="muted">Add restaurants, museums, hotels, or transport ideas to start planning.</p>
               </div>
             `
             : `
@@ -229,9 +226,14 @@ export function renderTripDetailPageView() {
         item: editingItem,
         bases,
         days,
+        mode: tripDetail.itemEditorMode,
+        context: tripDetail.itemEditorContext,
         isSaving: tripDetail.isSavingItem,
         isDeleting: tripDetail.isDeletingItem && tripDetail.deletingItemId === editingItem?.id,
       })}
+      ${tripDetail.isShowingTripSettings ? renderTripSettingsForm(trip, tripDetail.isSavingTrip) : ""}
+      ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length, tripDetail.isSavingBase) : ""}
+      ${selectedEditBase ? renderEditBaseForm(selectedEditBase, tripDetail.isSavingBase) : ""}
       ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
       ${renderDeleteItemConfirmModal({
         item: items.find((entry) => entry.id === tripDetail.deletingItemId) || null,
@@ -252,12 +254,6 @@ export function renderTripDetailPageView() {
         base: bases.find((entry) => entry.id === tripDetail.deletingBaseId) || null,
         isOpen: tripDetail.showDeleteBaseConfirm,
         isDeleting: tripDetail.isDeletingBase,
-      })}
-      ${renderTripStatusConfirmModal({
-        trip,
-        isOpen: tripDetail.showTripStatusConfirm,
-        pendingStatus: tripDetail.pendingTripStatus,
-        isSaving: tripDetail.isUpdatingTripStatus,
       })}
       ${renderDeleteTripConfirmModal({
         trip,
