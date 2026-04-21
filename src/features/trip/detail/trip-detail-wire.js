@@ -79,11 +79,17 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-item-editor", handlers.onCloseItemEditor);
   bindClick("[data-close-item-editor]", handlers.onCloseItemEditor);
   handlers.onAfterItemEditorOpen?.();
-  document.querySelector("#item-type-select")?.addEventListener("change", handlers.onItemEditorTypeChange);
-  document.querySelector('[name="baseId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
-  document.querySelector('[name="dayId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
-  document.querySelector("#item-editor-form")?.addEventListener("input", handlers.onItemEditorDraftChange);
-  document.querySelector("#item-editor-form")?.addEventListener("change", handlers.onItemEditorDraftChange);
+  if (handlers.onItemEditorTypeChange) {
+    document.querySelector("#item-type-select")?.addEventListener("change", handlers.onItemEditorTypeChange);
+  }
+  if (handlers.onItemEditorAssignmentChange) {
+    document.querySelector('[name="baseId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
+    document.querySelector('[name="dayId"]')?.addEventListener("change", handlers.onItemEditorAssignmentChange);
+  }
+  if (handlers.onItemEditorDraftChange) {
+    document.querySelector("#item-editor-form")?.addEventListener("input", handlers.onItemEditorDraftChange);
+    document.querySelector("#item-editor-form")?.addEventListener("change", handlers.onItemEditorDraftChange);
+  }
   bindSubmit("#item-editor-form", handlers.onItemEditorSubmit);
   bindClick("#close-move-item", handlers.onCloseMoveItem);
   bindClick("[data-close-move-item]", handlers.onCloseMoveItem);
@@ -129,6 +135,10 @@ export function wireTripDetailPageEvents(handlers) {
   dayTitleInput.addEventListener("input", (event) => {
     handlers.onDayTitleInput?.(event.currentTarget.value);
   });
-  dayTitleInput.addEventListener("blur", handlers.onDayTitleBlur);
-  dayTitleInput.addEventListener("keydown", handlers.onDayTitleKeydown);
+  if (handlers.onDayTitleBlur) {
+    dayTitleInput.addEventListener("blur", handlers.onDayTitleBlur);
+  }
+  if (handlers.onDayTitleKeydown) {
+    dayTitleInput.addEventListener("keydown", handlers.onDayTitleKeydown);
+  }
 }

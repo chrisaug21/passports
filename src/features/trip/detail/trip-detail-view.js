@@ -72,7 +72,7 @@ export function renderTripDetailPageView() {
         <section class="panel trip-detail__state">
           <p class="eyebrow">Trip</p>
           <h2>Could not load trip</h2>
-          <p class="muted">${tripDetail.error || "Try going back to the dashboard and opening the trip again."}</p>
+          <p class="muted">${escapeHtml(tripDetail.error || "Try going back to the dashboard and opening the trip again.")}</p>
           <div class="trip-detail__state-actions">
             <button class="button button--secondary" id="trip-back-to-dashboard" type="button">Back to Dashboard</button>
             <button class="button" id="retry-trip-load" type="button">Try Again</button>

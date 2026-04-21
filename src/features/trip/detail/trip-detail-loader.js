@@ -6,7 +6,13 @@ import {
   rerenderTripDetail,
 } from "./trip-detail-state.js";
 
+let latestRequestedTripId = null;
+let latestRequestToken = 0;
+
 export async function loadTripDetail(tripId) {
+  latestRequestedTripId = tripId;
+  const requestToken = latestRequestToken + 1;
+  latestRequestToken = requestToken;
   const previousTripDetail = appStore.getState().tripDetail;
   const currentTrip = tripStore.getCurrentTrip();
   const isSameTrip = currentTrip?.id === tripId;
@@ -20,6 +26,10 @@ export async function loadTripDetail(tripId) {
 
   try {
     const bundle = await fetchTripDetailBundle(tripId);
+    if (latestRequestedTripId !== tripId || latestRequestToken !== requestToken) {
+      return;
+    }
+
     tripStore.setCurrentTripBundle(bundle);
     const persistedItemStillExists = tripDetailState.persistedEditorItemId
       ? bundle.items.find((item) => item.id === tripDetailState.persistedEditorItemId)
@@ -60,6 +70,10 @@ export async function loadTripDetail(tripId) {
     tripDetailState.editingDayTitleValue = "";
     rerenderTripDetail();
   } catch (error) {
+    if (latestRequestedTripId !== tripId || latestRequestToken !== requestToken) {
+      return;
+    }
+
     console.error(error);
     tripStore.resetCurrentTrip();
     appStore.updateTripDetail({

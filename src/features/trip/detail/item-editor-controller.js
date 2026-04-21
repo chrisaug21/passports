@@ -106,11 +106,11 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
             <div class="item-editor-form__grid">
               <label class="field">
                 <span>Start Time</span>
-                <input name="timeStart" type="time" value="${draft.timeStart || ""}" />
+                <input name="timeStart" type="time" value="${escapeHtml(draft.timeStart || "")}" />
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input name="timeEnd" type="time" value="${draft.timeEnd || ""}" />
+                <input name="timeEnd" type="time" value="${escapeHtml(draft.timeEnd || "")}" />
               </label>
             </div>
           </div>
@@ -122,11 +122,11 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
             <div class="item-editor-form__grid">
               <label class="field">
                 <span>Low / Exact</span>
-                <input name="costLow" type="number" step="0.01" min="0" value="${draft.costLow ?? ""}" />
+                <input name="costLow" type="number" step="0.01" min="0" value="${escapeHtml(draft.costLow ?? "")}" />
               </label>
               <label class="field">
                 <span>High</span>
-                <input name="costHigh" type="number" step="0.01" min="0" value="${draft.costHigh ?? ""}" />
+                <input name="costHigh" type="number" step="0.01" min="0" value="${escapeHtml(draft.costHigh ?? "")}" />
               </label>
             </div>
           </div>

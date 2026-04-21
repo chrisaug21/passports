@@ -28,6 +28,7 @@ function getTripShrinkSummary(nextTripLength, days, items) {
 
   return {
     itemCount: affectedItems.length,
+    removedDays: removedDays.length,
     message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels}. ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
   };
 }
@@ -297,7 +298,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       const title = String(formData.get("title") || "").trim();
       const tripLength = Number(formData.get("tripLength"));
 
-      if (!trip?.id || !title || !Number.isFinite(tripLength) || tripLength < 1) {
+      if (!trip?.id || !title || !Number.isInteger(tripLength) || tripLength < 1) {
         showToast("Add a title and a valid trip length first.", "error");
         return;
       }
@@ -311,7 +312,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       };
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 
-      if (tripLength < Number(trip.trip_length) && shrinkSummary.itemCount > 0) {
+      if (tripLength < Number(trip.trip_length) && (shrinkSummary.itemCount > 0 || shrinkSummary.removedDays > 0)) {
         tripDetailState.pendingTripSettingsDraft = nextSettings;
         tripDetailState.tripLengthConfirmState = shrinkSummary;
         rerenderTripDetail();

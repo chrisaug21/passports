@@ -348,7 +348,6 @@ function getMoveDestinationLabel(destinationDayId, days) {
 
 async function moveItemToDestination(itemId, destinationDayId) {
   const items = tripStore.getCurrentItems();
-  const days = tripStore.getCurrentDays();
   const item = items.find((entry) => entry.id === itemId);
 
   if (!item) {
@@ -360,8 +359,6 @@ async function moveItemToDestination(itemId, destinationDayId) {
     return false;
   }
 
-  const destinationDay = destinationDayId ? days.find((day) => day.id === destinationDayId) || null : null;
-  const nextBaseId = destinationDay?.base_id || null;
   const sourceDayId = item.day_id ?? null;
   const updates = [];
 
@@ -374,7 +371,7 @@ async function moveItemToDestination(itemId, destinationDayId) {
       ...getFlexItemsForDay(items, destinationDayId, item.id),
       buildUpdatedItem(item, {
         day_id: destinationDayId,
-        base_id: nextBaseId,
+        base_id: item.base_id,
         time_start: null,
       }),
     ]);
@@ -383,7 +380,7 @@ async function moveItemToDestination(itemId, destinationDayId) {
   } else {
     updates.push(buildUpdatedItem(item, {
       day_id: destinationDayId,
-      base_id: nextBaseId,
+      base_id: item.base_id,
       sort_order: getAnchorDestinationSortOrder(items, destinationDayId, item.id),
     }));
   }
