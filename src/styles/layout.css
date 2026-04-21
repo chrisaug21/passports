@@ -10,8 +10,8 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.25rem;
-  min-height: 66px;
-  padding: 0.65rem 1.35rem;
+  height: 66px;
+  padding: 0 1.35rem;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-surface-strong);
@@ -22,6 +22,7 @@
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  height: 100%;
   min-width: 0;
 }
 
@@ -33,7 +34,7 @@
 
 .topbar__wordmark-wrap {
   display: inline-flex;
-  align-items: end;
+  align-items: baseline;
   gap: 0.4rem;
 }
 
@@ -55,6 +56,7 @@
   color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.4rem;
   padding: 0 0 0 0.9rem;
   font-family: var(--font-body);
@@ -78,6 +80,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  height: 100%;
 }
 
 .topbar__new-trip {
@@ -158,6 +161,16 @@
   .topbar {
     margin-bottom: 1rem;
     padding-inline: 1rem;
+  }
+
+  .topbar__left {
+    gap: 0.65rem;
+  }
+
+  .topbar__dashboard-link {
+    gap: 0;
+    padding-left: 0.65rem;
+    width: auto;
   }
 
   .topbar__dashboard-link span {

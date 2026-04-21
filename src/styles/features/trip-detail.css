@@ -244,7 +244,7 @@
   border: 1px solid var(--color-border);
   border-radius: 18px;
   background: #f8fafb;
-  padding: 0.65rem 0.85rem 0.85rem;
+  padding: 8px 0.85rem 0.85rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -275,9 +275,11 @@
 }
 
 .allocation-row__copy h4 {
-  font-size: 1rem;
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
   font-family: var(--font-body);
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -286,7 +288,9 @@
 
 .allocation-row__copy .muted {
   margin-top: 0.55rem;
-  font-size: 0.78rem;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
 }
 
 .allocation-row__timezone strong {
@@ -295,8 +299,8 @@
 
 .allocation-row__summary {
   margin-top: 0.45rem;
-  font-size: 0.88rem;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -325,6 +329,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--color-text);
+  font-size: 13px;
 }
 
 .allocation-row__adjust:disabled {
@@ -335,6 +340,7 @@
 .allocation-row__count {
   min-width: 1.2rem;
   text-align: center;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -749,6 +755,47 @@
 
 .field-hint.is-hidden {
   display: none;
+}
+
+.timezone-picker {
+  position: relative;
+  display: block;
+}
+
+.timezone-picker__list {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 55;
+  max-height: 220px;
+  overflow-y: auto;
+  display: none;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.timezone-picker:focus-within .timezone-picker__list {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.timezone-picker__option {
+  border-radius: 10px;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 0.55rem 0.65rem;
+}
+
+.timezone-picker__option:hover,
+.timezone-picker__option:focus-visible {
+  background: rgba(43, 91, 224, 0.08);
+  outline: none;
 }
 
 .item-editor-form {

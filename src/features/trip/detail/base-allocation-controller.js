@@ -506,34 +506,43 @@ export function getSupportedTimezones() {
 
 export function renderTimezonePicker(inputId, selectedTimezone) {
   const normalizedTimezone = getSupportedTimezones().includes(selectedTimezone) ? selectedTimezone : DEFAULT_BASE_TIMEZONE;
-  const displayLabel = getTimezoneDisplayValue(normalizedTimezone);
+  const displayLabel = getTimezoneSelectedLabel(normalizedTimezone);
+  const options = getTimezonePickerOptions();
 
   return `
-    <input
-      name="localTimezone"
-      type="hidden"
-      value="${escapeHtml(normalizedTimezone)}"
-      data-timezone-value
-    />
-    <input
-      id="${escapeHtml(inputId)}"
-      type="text"
-      list="timezone-options"
-      value="${escapeHtml(displayLabel)}"
-      placeholder="Start typing a timezone"
-      autocomplete="off"
-      required
-      data-timezone-display
-    />
+    <span class="timezone-picker">
+      <input
+        name="localTimezone"
+        type="hidden"
+        value="${escapeHtml(normalizedTimezone)}"
+        data-timezone-value
+      />
+      <input
+        id="${escapeHtml(inputId)}"
+        type="text"
+        value="${escapeHtml(displayLabel)}"
+        placeholder="Start typing a timezone"
+        autocomplete="off"
+        required
+        data-timezone-display
+      />
+      <span class="timezone-picker__list" role="listbox" aria-label="Timezone options">
+        ${options.map((option) => `
+          <span
+            class="timezone-picker__option"
+            role="option"
+            tabindex="0"
+            data-timezone-option="${escapeHtml(option.timezone)}"
+            data-timezone-search="${escapeHtml(option.searchText)}"
+          >${escapeHtml(option.optionLabel)}</span>
+        `).join("")}
+      </span>
+    </span>
   `;
 }
 
 export function renderTimezoneOptionsDatalist() {
-  return `
-    <datalist id="timezone-options">
-      ${getSupportedTimezones().map((timezone) => `<option value="${escapeHtml(getTimezoneDisplayValue(timezone))}" label="${escapeHtml(timezone)}"></option>`).join("")}
-    </datalist>
-  `;
+  return "";
 }
 
 export function getValidatedTimezone(rawValue) {
@@ -555,13 +564,35 @@ export function getValidatedTimezone(rawValue) {
 }
 
 export function wireTimezonePickers() {
-  document.querySelectorAll("[data-timezone-display]").forEach((input) => {
-    const wrapper = input.closest(".field");
-    const hiddenInput = wrapper?.querySelector("[data-timezone-value]");
+  document.querySelectorAll(".timezone-picker").forEach((picker) => {
+    const input = picker.querySelector("[data-timezone-display]");
+    const hiddenInput = picker.querySelector("[data-timezone-value]");
+    const options = [...picker.querySelectorAll("[data-timezone-option]")];
 
-    if (!hiddenInput) {
+    if (!input || !hiddenInput) {
       return;
     }
+
+    const filterOptions = () => {
+      const query = String(input.value || "").trim().toLowerCase();
+
+      options.forEach((option) => {
+        const searchText = option.getAttribute("data-timezone-search") || "";
+        option.hidden = Boolean(query) && !searchText.includes(query);
+      });
+    };
+
+    const selectOption = (option) => {
+      const timezone = option.getAttribute("data-timezone-option") || "";
+
+      if (!timezone) {
+        return;
+      }
+
+      hiddenInput.value = timezone;
+      input.value = getTimezoneSelectedLabel(timezone);
+      filterOptions();
+    };
 
     input.addEventListener("input", () => {
       const matchedTimezone = getTimezoneFromPickerValue(input.value);
@@ -569,19 +600,61 @@ export function wireTimezonePickers() {
       if (matchedTimezone) {
         hiddenInput.value = matchedTimezone;
       }
+
+      filterOptions();
     });
+
+    input.addEventListener("focus", filterOptions);
 
     input.addEventListener("blur", () => {
       const matchedTimezone = getTimezoneFromPickerValue(input.value) || hiddenInput.value || DEFAULT_BASE_TIMEZONE;
       hiddenInput.value = matchedTimezone;
-      input.value = getTimezoneDisplayValue(matchedTimezone);
+      input.value = getTimezoneSelectedLabel(matchedTimezone);
+      window.setTimeout(filterOptions, 120);
     });
+
+    options.forEach((option) => {
+      option.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      });
+      option.addEventListener("click", () => selectOption(option));
+      option.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectOption(option);
+        }
+      });
+    });
+
+    filterOptions();
   });
 }
 
-function getTimezoneDisplayValue(timezone) {
+function getTimezoneSelectedLabel(timezone) {
+  return formatTimezone(timezone);
+}
+
+function getTimezoneOptionLabel(timezone) {
   const offset = formatTimezoneOffset(timezone);
-  return `${formatTimezone(timezone)}${offset ? ` — ${offset}` : ""}`;
+  return `${getTimezoneSelectedLabel(timezone)}${offset ? ` · ${offset}` : ""}`;
+}
+
+function getTimezonePickerOptions() {
+  return getSupportedTimezones().map((timezone) => {
+    const selectedLabel = getTimezoneSelectedLabel(timezone);
+    const abbreviation = selectedLabel.match(/\(([^)]+)\)$/)?.[1] || "";
+    const cityAliases = timezone
+      .split("/")
+      .slice(1)
+      .join(" ")
+      .replaceAll("_", " ");
+
+    return {
+      timezone,
+      optionLabel: getTimezoneOptionLabel(timezone),
+      searchText: [selectedLabel, abbreviation, cityAliases, timezone].join(" ").toLowerCase(),
+    };
+  });
 }
 
 function getTimezoneFromPickerValue(value) {
@@ -596,7 +669,13 @@ function getTimezoneFromPickerValue(value) {
     return exactTimezone;
   }
 
-  return getSupportedTimezones().find((timezone) => getTimezoneDisplayValue(timezone) === normalizedValue) || "";
+  return getSupportedTimezones().find((timezone) => {
+    const label = getTimezoneSelectedLabel(timezone);
+    const optionLabel = getTimezoneOptionLabel(timezone);
+    const abbreviation = label.match(/\(([^)]+)\)$/)?.[1] || "";
+
+    return [label, optionLabel, abbreviation].includes(normalizedValue);
+  }) || "";
 }
 
 export function normalizeNullableId(value) {

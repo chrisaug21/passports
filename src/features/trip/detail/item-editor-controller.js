@@ -105,8 +105,8 @@ export function renderItemEditorModal({ item, bases, days, isSaving, isDeleting 
                 <input name="timeEnd" type="time" value="${escapeHtml(draft.timeEnd || "")}" />
               </label>
             </div>
-            <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
-              <input class="anchor-checkbox-input" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
+            <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
+              <input class="anchor-checkbox-input" id="item-anchor-checkbox" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
               <span class="anchor-checkbox" role="checkbox" aria-checked="${draft.isAnchor && draft.timeStart ? "true" : "false"}" aria-disabled="${draft.timeStart ? "false" : "true"}" tabindex="${draft.timeStart ? "0" : "-1"}">
                 ${draft.isAnchor && draft.timeStart ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}
               </span>
@@ -538,7 +538,12 @@ function wireAnchorCheckbox() {
     sync();
   };
 
-  visualBox.addEventListener("click", (event) => {
+  label?.addEventListener("click", (event) => {
+    if (event.target === input) {
+      sync();
+      return;
+    }
+
     event.preventDefault();
     toggle();
   });
