@@ -13,6 +13,8 @@ import { rerenderTripDetail } from "./trip-detail-state.js";
 import { normalizeNullableId } from "./base-allocation-controller.js";
 import { buildUpdatedItem, compareFlexItems } from "./item-ordering.js";
 
+const MASTER_LIST_SORT_KEYS = ["title", "status", "base", "day", "itemType", "subtype"];
+
 export function getSubtypeOptions(itemType) {
   if (itemType === "meal") {
     return MEAL_SLOTS;
