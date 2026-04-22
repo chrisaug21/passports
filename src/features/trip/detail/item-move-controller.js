@@ -103,6 +103,8 @@ export async function moveItemToDestination(itemId, destinationDayId) {
   }
 
   await persistItemBatchUpdates(dedupeItemsById(updates));
+  return true;
+}
 
 export function openDeleteItemConfirm(itemId) {
   appStore.updateTripDetail({
