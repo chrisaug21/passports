@@ -84,19 +84,27 @@ export function renderMasterListRow(item, days, bases) {
 export function renderMasterListPlanningTable({ items, days, bases, tripDetail }) {
   const filters = tripDetail.masterListFilters || {};
   const sort = tripDetail.masterListSort || { key: "default", direction: "asc" };
+  const subtypeOptions = getSubtypeFilterOptions(filters.type || "all");
   const filteredItems = getFilteredMasterListItems(items, filters);
   const sortedItems = getSortedMasterListItems(filteredItems, days, bases, sort);
   const hasActiveFilters = isMasterListFiltered(filters);
 
   return `
     ${tripDetail.isShowingMasterListFilters ? renderMobileFilterSheet(filters, bases) : ""}
+    <div class="master-list-mobile-search">
+      ${renderMasterListSearch(filters.search || "")}
+    </div>
     ${renderMasterListQuickAdd(tripDetail)}
     <div class="master-list-action-row">
       <div class="master-list-filter-bar">
+        ${renderMasterListSearch(filters.search || "")}
         ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
           ["all", "All"],
           ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
         ])}
+        ${renderMasterListFilterSelect("subtype", "Subtype", filters.subtype || "all", subtypeOptions, {
+          disabled: subtypeOptions.length <= 1,
+        })}
         ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
           ["all", "All"],
           ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
@@ -111,7 +119,13 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
           Filters${hasActiveFilters ? `<span class="master-list-filter-badge">${getActiveFilterCount(filters)}</span>` : ""}
         </button>
       </div>
-      <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
+      <button class="button button--secondary section-action-button master-list-add-trip-button" data-add-item-to-trip type="button" aria-label="Add to trip">
+        <i data-lucide="plus" aria-hidden="true"></i>
+        <span>Add to trip</span>
+      </button>
+      <button class="button master-list-quick-add-mobile-submit" form="master-list-quick-add-form" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""} aria-label="Quick add">
+        <i data-lucide="zap" aria-hidden="true"></i>
+      </button>
     </div>
 
     ${
@@ -157,13 +171,17 @@ function renderMasterListQuickAdd(tripDetail) {
         />
       </label>
       <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
-        ${tripDetail.isCreatingItem ? "Saving..." : "Add"}
+        <i data-lucide="zap" aria-hidden="true"></i>
+        <span class="master-list-quick-add__label-full">${tripDetail.isCreatingItem ? "Saving..." : "Quick Add"}</span>
+        <span class="master-list-quick-add__label-short">${tripDetail.isCreatingItem ? "Saving..." : "Add"}</span>
       </button>
     </form>
   `;
 }
 
 function renderMobileFilterSheet(filters, bases) {
+  const subtypeOptions = getSubtypeFilterOptions(filters.type || "all");
+
   return `
     <div class="master-list-filter-sheet" role="dialog" aria-modal="true" aria-label="List filters">
       <button class="master-list-filter-sheet__backdrop" data-close-master-list-filters type="button" aria-label="Close filters"></button>
@@ -173,10 +191,15 @@ function renderMobileFilterSheet(filters, bases) {
           <button class="icon-button" data-close-master-list-filters type="button" aria-label="Close filters">×</button>
         </div>
         <div class="master-list-filter-sheet__controls">
+          ${renderMasterListSearch(filters.search || "", { mobile: true })}
           ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
             ["all", "All"],
             ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
           ], { mobile: true })}
+          ${renderMasterListFilterSelect("subtype", "Subtype", filters.subtype || "all", subtypeOptions, {
+            mobile: true,
+            disabled: subtypeOptions.length <= 1,
+          })}
           ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
             ["all", "All"],
             ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
@@ -196,13 +219,29 @@ function renderMobileFilterSheet(filters, bases) {
   `;
 }
 
+function renderMasterListSearch(value, config = {}) {
+  const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
+
+  return `
+    <label class="field master-list-filter master-list-filter--search">
+      <span>Search</span>
+      <input
+        ${dataAttribute}="search"
+        type="search"
+        value="${escapeHtml(value)}"
+        placeholder="Search..."
+      />
+    </label>
+  `;
+}
+
 function renderMasterListFilterSelect(name, label, value, options, config = {}) {
   const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
 
   return `
     <label class="field master-list-filter">
       <span>${escapeHtml(label)}</span>
-      <select ${dataAttribute}="${escapeHtml(name)}">
+      <select ${dataAttribute}="${escapeHtml(name)}" ${config.disabled ? "disabled" : ""}>
         ${options.map(([optionValue, optionLabel]) => (
           `<option value="${escapeHtml(optionValue)}" ${value === optionValue ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`
         )).join("")}
@@ -304,12 +343,10 @@ function renderBaseSelect(item, bases) {
 }
 
 function renderDaySelect(item, days) {
-  const filteredDays = item.base_id ? days.filter((day) => day.base_id === item.base_id) : days;
-
   return `
     <select class="master-list-inline-select" data-master-list-inline-save="${escapeHtml(item.id)}" data-master-list-field="day">
       <option value="">Unassigned</option>
-      ${filteredDays.map((day) => `<option value="${escapeHtml(day.id)}" ${item.day_id === day.id ? "selected" : ""}>Day ${day.day_number}</option>`).join("")}
+      ${days.map((day) => `<option value="${escapeHtml(day.id)}" ${item.day_id === day.id ? "selected" : ""}>Day ${day.day_number}</option>`).join("")}
     </select>
   `;
 }
@@ -342,6 +379,42 @@ function getSubtypeOptions(itemType) {
   return [];
 }
 
+function getSubtypeFilterOptions(itemType) {
+  const normalizedType = String(itemType || "all");
+
+  if (normalizedType === "lodging") {
+    return [["all", "All"]];
+  }
+
+  if (normalizedType === "meal") {
+    const mealOptions = MEAL_SLOTS.includes("snack") ? MEAL_SLOTS : [...MEAL_SLOTS, "snack"];
+    return [["all", "All"], ...mealOptions.map((value) => [value, formatItemTypeLabel(value)])];
+  }
+
+  if (normalizedType === "activity") {
+    return [["all", "All"], ...ACTIVITY_TYPES.map((value) => [value, formatItemTypeLabel(value)])];
+  }
+
+  if (normalizedType === "transport") {
+    return [["all", "All"], ...TRANSPORT_MODES.map((value) => [value, formatItemTypeLabel(value)])];
+  }
+
+  const mealOptions = MEAL_SLOTS.includes("snack") ? MEAL_SLOTS : [...MEAL_SLOTS, "snack"];
+  const combinedValues = [...mealOptions, ...ACTIVITY_TYPES, ...TRANSPORT_MODES];
+  const seenValues = new Set();
+  const options = combinedValues
+    .filter((value) => {
+      if (seenValues.has(value)) {
+        return false;
+      }
+      seenValues.add(value);
+      return true;
+    })
+    .map((value) => [value, formatItemTypeLabel(value)]);
+
+  return [["all", "All"], ...options];
+}
+
 function getSubtypeValue(item) {
   if (item.item_type === "meal") {
     return item.meal_slot || "";
@@ -365,14 +438,17 @@ function getBaseLabel(item, bases) {
 }
 
 function getFilteredMasterListItems(items, filters) {
+  const searchQuery = String(filters.search || "").trim().toLowerCase();
   return items.filter((item) => {
+    const searchMatches = !searchQuery || String(item.title || "").toLowerCase().includes(searchQuery);
     const typeMatches = !filters.type || filters.type === "all" || item.item_type === filters.type;
+    const subtypeMatches = !filters.subtype || filters.subtype === "all" || getSubtypeValue(item) === filters.subtype;
     const statusMatches = !filters.status || filters.status === "all" || item.status === filters.status;
     const baseMatches = !filters.baseId
       || filters.baseId === "all"
       || (filters.baseId === "unassigned" ? !item.base_id : item.base_id === filters.baseId);
 
-    return typeMatches && statusMatches && baseMatches;
+    return searchMatches && typeMatches && subtypeMatches && statusMatches && baseMatches;
   });
 }
 
@@ -454,11 +530,13 @@ function getDaySortIndex(item, days) {
 }
 
 function isMasterListFiltered(filters = {}) {
-  return ["type", "status", "baseId"].some((key) => filters[key] && filters[key] !== "all");
+  return Boolean(String(filters.search || "").trim())
+    || ["type", "subtype", "status", "baseId"].some((key) => filters[key] && filters[key] !== "all");
 }
 
 function getActiveFilterCount(filters = {}) {
-  return ["type", "status", "baseId"].filter((key) => filters[key] && filters[key] !== "all").length;
+  return (String(filters.search || "").trim() ? 1 : 0)
+    + ["type", "subtype", "status", "baseId"].filter((key) => filters[key] && filters[key] !== "all").length;
 }
 
 export function renderDayItem(item, options = {}) {
@@ -928,11 +1006,17 @@ function closeMasterListInlineEdit() {
 
 function updateMasterListFilters(name, value) {
   const { masterListFilters } = appStore.getState().tripDetail;
+  const nextFilters = {
+    ...(masterListFilters || {}),
+    [name]: value || (name === "search" ? "" : "all"),
+  };
+
+  if (name === "type") {
+    nextFilters.subtype = "all";
+  }
+
   appStore.updateTripDetail({
-    masterListFilters: {
-      ...(masterListFilters || {}),
-      [name]: value || "all",
-    },
+    masterListFilters: nextFilters,
   });
   rerenderTripDetail();
 }
@@ -978,12 +1062,6 @@ async function saveMasterListField(itemId, field, value) {
 
   if (field === "base") {
     overrides.base_id = normalizedValue;
-    if (normalizedValue) {
-      const selectedDay = days.find((day) => day.id === item.day_id);
-      if (selectedDay && selectedDay.base_id !== normalizedValue) {
-        overrides.day_id = null;
-      }
-    }
   }
 
   if (field === "day") {
@@ -1090,9 +1168,25 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
     onMasterListFilterChange: (select) => {
       updateMasterListFilters(select.getAttribute("data-master-list-filter"), select.value);
     },
+    onMasterListSheetTypeFilterChange: (select) => {
+      const subtypeSelect = document.querySelector('[data-master-list-sheet-filter="subtype"]');
+
+      if (!subtypeSelect) {
+        return;
+      }
+
+      const subtypeOptions = getSubtypeFilterOptions(select.value || "all");
+      subtypeSelect.innerHTML = subtypeOptions.map(([optionValue, optionLabel]) => (
+        `<option value="${escapeHtml(optionValue)}">${escapeHtml(optionLabel)}</option>`
+      )).join("");
+      subtypeSelect.value = "all";
+      subtypeSelect.disabled = subtypeOptions.length <= 1;
+    },
     onApplyMasterListFilters: () => {
       const nextFilters = {
+        search: "",
         type: "all",
+        subtype: "all",
         status: "all",
         baseId: "all",
       };
@@ -1118,7 +1212,9 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
     onClearMasterListFilters: () => {
       appStore.updateTripDetail({
         masterListFilters: {
+          search: "",
           type: "all",
+          subtype: "all",
           status: "all",
           baseId: "all",
         },

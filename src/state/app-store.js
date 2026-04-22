@@ -21,7 +21,9 @@ function createInitialTripDetail() {
     movingOperationId: null,
     viewMode: "days",
     masterListFilters: {
+      search: "",
       type: "all",
+      subtype: "all",
       status: "all",
       baseId: "all",
     },

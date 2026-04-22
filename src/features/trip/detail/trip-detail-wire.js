@@ -101,6 +101,12 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-master-list-filter]", "change", (select) => {
     handlers.onMasterListFilterChange?.(select);
   });
+  bindAll('[data-master-list-filter="search"]', "input", (input) => {
+    handlers.onMasterListFilterChange?.(input);
+  });
+  bindAll('[data-master-list-sheet-filter="type"]', "change", (select) => {
+    handlers.onMasterListSheetTypeFilterChange?.(select);
+  });
   bindClick("[data-open-master-list-filters]", handlers.onOpenMasterListFilters);
   bindClick("[data-close-master-list-filters]", handlers.onCloseMasterListFilters);
   bindClick("[data-apply-master-list-filters]", handlers.onApplyMasterListFilters);

@@ -487,7 +487,7 @@ function getCurrentItemEditorDraft({ item, isAddMode, context }) {
     return tripDetailState.itemEditorDraft;
   }
 
-  if (item && tripDetailState.persistedEditorItemId !== item.id) {
+  if (item && (!tripDetailState.itemEditorDraft || tripDetailState.persistedEditorItemId !== item.id)) {
     tripDetailState.persistedEditorItemId = item.id;
     tripDetailState.itemEditorDraft = buildItemEditorDraft(item);
     tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
@@ -757,6 +757,7 @@ export function createItemEditorHandlers() {
 
       requestCloseItemEditor(() => {
         const nextItem = tripStore.getCurrentItems().find((entry) => entry.id === itemId) || null;
+        const nextDraft = nextItem ? buildItemEditorDraft(nextItem) : null;
 
         appStore.updateTripDetail({
           editingItemId: itemId,
@@ -765,9 +766,9 @@ export function createItemEditorHandlers() {
           showDiscardConfirm: false,
         });
         tripDetailState.persistedEditorItemId = itemId;
-        tripDetailState.itemEditorDraft = nextItem ? buildItemEditorDraft(nextItem) : null;
-        tripDetailState.itemEditorInitialSnapshot = tripDetailState.itemEditorDraft
-          ? serializeItemEditorDraft(tripDetailState.itemEditorDraft)
+        tripDetailState.itemEditorDraft = nextDraft;
+        tripDetailState.itemEditorInitialSnapshot = nextDraft
+          ? serializeItemEditorDraft(nextDraft)
           : "";
         tripDetailState.pendingDiscardAction = null;
         rerenderTripDetail();
