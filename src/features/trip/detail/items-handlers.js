@@ -91,7 +91,13 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
       openDeleteItemConfirm(itemId);
     },
     onMasterListFilterChange: (select) => {
-      updateMasterListFilters(select.getAttribute("data-master-list-filter"), select.value);
+      const name = select.getAttribute("data-master-list-filter");
+      updateMasterListFilters(name, select.value, {
+        restoreFocus: name === "search",
+        isMobileSearch: Boolean(select.closest(".master-list-mobile-search")),
+        selectionStart: select.selectionStart,
+        selectionEnd: select.selectionEnd,
+      });
     },
     onMasterListSheetTypeFilterChange: (select) => {
       const subtypeSelect = document.querySelector('[data-master-list-sheet-filter="subtype"]');

@@ -116,7 +116,6 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
       </div>
       <button class="button button--secondary section-action-button master-list-add-trip-button" data-add-item-to-trip type="button" aria-label="Add to trip">
         <i data-lucide="plus" aria-hidden="true"></i>
-        <span>Add to trip</span>
       </button>
       <button class="button master-list-quick-add-mobile-submit" form="master-list-quick-add-form" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""} aria-label="Quick add">
         <i data-lucide="zap" aria-hidden="true"></i>
@@ -234,7 +233,7 @@ function renderMasterListFilterSelect(name, label, value, options, config = {}) 
   const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
 
   return `
-    <label class="field master-list-filter">
+    <label class="field master-list-filter master-list-filter--${escapeHtml(name)}">
       <span>${escapeHtml(label)}</span>
       <select ${dataAttribute}="${escapeHtml(name)}" ${config.disabled ? "disabled" : ""}>
         ${options.map(([optionValue, optionLabel]) => (
@@ -272,26 +271,26 @@ function renderMasterListPlanningRow(item, days, bases, tripDetail) {
       <button class="master-list-plan-row__cell master-list-plan-row__cell--icon" data-edit-item="${escapeHtml(item.id)}" type="button" aria-label="Edit ${escapeHtml(item.title || "stop")}">
         ${renderItemTypeIcon(item, "master-list-plan-row__type-icon")}
       </button>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--title">
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--title" data-master-list-edit-cell="title" data-master-list-item-id="${escapeHtml(item.id)}">
         ${
           isEditingTitle
             ? `<input class="master-list-inline-input" data-master-list-title-input="${escapeHtml(item.id)}" type="text" maxlength="120" value="${escapeHtml(item.title || "")}" />`
             : `<button class="master-list-inline-trigger master-list-inline-trigger--title" data-master-list-edit-cell="title" data-master-list-item-id="${escapeHtml(item.id)}" type="button" title="${escapeHtml(item.title || "Untitled stop")}">${escapeHtml(item.title || "Untitled stop")}</button>`
         }
       </div>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--status">
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--status" data-master-list-edit-cell="status" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingStatus ? renderStatusSelect(item) : renderInlineTrigger(item, "status", `${renderStatusDot(item.status)}<span>${escapeHtml(formatStatusLabel(item.status || "idea"))}</span>`)}
       </div>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--base">
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--base" data-master-list-edit-cell="base" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingBase ? renderBaseSelect(item, bases) : renderInlineTrigger(item, "base", escapeHtml(getBaseLabel(item, bases)))}
       </div>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--day">
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--day" data-master-list-edit-cell="day" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingDay ? renderDaySelect(item, days) : renderInlineTrigger(item, "day", escapeHtml(day ? `Day ${day.day_number}` : "Unassigned"))}
       </div>
       <div class="master-list-plan-row__cell master-list-plan-row__cell--item-type">
         <span class="master-list-text-cell">${escapeHtml(itemTypeLabel)}</span>
       </div>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--subtype">
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--subtype" data-master-list-edit-cell="subtype" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingSubtype ? renderSubtypeSelect(item) : renderInlineTrigger(item, "subtype", escapeHtml(getSubtypeLabel(item)))}
       </div>
       <div class="master-list-plan-row__cell master-list-plan-row__cell--actions">

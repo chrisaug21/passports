@@ -24,19 +24,31 @@ function bindAll(selector, eventName, handler) {
   }
 
   document.querySelectorAll(selector).forEach((element) => {
-    element.addEventListener(eventName, () => handler(element));
+    element.addEventListener(eventName, (event) => handler(element, event));
   });
 }
 
+let masterListInlineOutsideClickCleanup = null;
+let masterListInlineOutsideClickToken = 0;
+
 function wireMasterListInlineOutsideClick(handlers) {
+  masterListInlineOutsideClickCleanup?.();
+  masterListInlineOutsideClickCleanup = null;
+
   const select = document.querySelector("[data-master-list-inline-save]");
   const cell = select?.closest(".master-list-plan-row__cell");
+  const listenerToken = masterListInlineOutsideClickToken + 1;
+  masterListInlineOutsideClickToken = listenerToken;
 
   if (!select || !cell || !handlers.onMasterListInlineSave) {
     return;
   }
 
   window.setTimeout(() => {
+    if (masterListInlineOutsideClickToken !== listenerToken) {
+      return;
+    }
+
     const handleOutsideClick = (event) => {
       const target = event.target instanceof Element ? event.target : null;
 
@@ -44,13 +56,17 @@ function wireMasterListInlineOutsideClick(handlers) {
         return;
       }
 
-      document.removeEventListener("click", handleOutsideClick, true);
+      masterListInlineOutsideClickCleanup?.();
+      masterListInlineOutsideClickCleanup = null;
       window.setTimeout(() => {
         handlers.onMasterListInlineSave(select);
       }, 0);
     };
 
     document.addEventListener("click", handleOutsideClick, true);
+    masterListInlineOutsideClickCleanup = () => {
+      document.removeEventListener("click", handleOutsideClick, true);
+    };
   }, 0);
 }
 
@@ -98,10 +114,12 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onRequestDeleteBase?.(button.getAttribute("data-delete-base"));
   });
   bindSubmit("#master-list-quick-add-form", handlers.onQuickAddSubmit);
-  bindAll("[data-master-list-filter]", "change", (select) => {
+  bindAll("[data-master-list-filter]", "change", (select, event) => {
+    event.stopPropagation();
     handlers.onMasterListFilterChange?.(select);
   });
-  bindAll('[data-master-list-filter="search"]', "input", (input) => {
+  bindAll('[data-master-list-filter="search"]', "input", (input, event) => {
+    event.stopPropagation();
     handlers.onMasterListFilterChange?.(input);
   });
   bindAll('[data-master-list-sheet-filter="type"]', "change", (select) => {
@@ -114,19 +132,32 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-master-list-sort]", "click", (button) => {
     handlers.onMasterListSort?.(button);
   });
-  bindAll("[data-master-list-edit-cell]", "click", (button) => {
+  bindAll("[data-master-list-edit-cell]", "click", (button, event) => {
+    const target = event.target instanceof Element ? event.target : null;
+
+    if (target?.closest("input, select")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
     handlers.onMasterListEditCell?.(button);
   });
   document.querySelectorAll("[data-master-list-row]").forEach((row) => {
     row.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
-      if (!target || target.closest("button, input, select, details, summary, .item-actions-menu")) {
+      if (
+        !target
+        || target.closest("button, input, select, details, summary, .item-actions-menu")
+        || target.closest("[data-master-list-edit-cell], .master-list-inline-trigger, .master-list-inline-select, .master-list-inline-input")
+      ) {
         return;
       }
       handlers.onEditItem?.(row.getAttribute("data-master-list-row"));
     });
   });
-  bindAll("[data-master-list-inline-save]", "change", (select) => {
+  bindAll("[data-master-list-inline-save]", "change", (select, event) => {
+    event.stopPropagation();
     handlers.onMasterListInlineSave?.(select);
   });
   document.querySelectorAll("[data-master-list-inline-save]").forEach((select) => {

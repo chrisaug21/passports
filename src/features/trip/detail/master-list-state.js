@@ -205,7 +205,7 @@ export function closeMasterListInlineEdit() {
   });
 }
 
-export function updateMasterListFilters(name, value) {
+export function updateMasterListFilters(name, value, options = {}) {
   const { masterListFilters } = appStore.getState().tripDetail;
   const nextFilters = {
     ...(masterListFilters || {}),
@@ -220,6 +220,30 @@ export function updateMasterListFilters(name, value) {
     masterListFilters: nextFilters,
   });
   rerenderTripDetail();
+
+  if (name === "search" && options.restoreFocus) {
+    window.requestAnimationFrame(() => {
+      const searchInput = document.querySelector(
+        options.isMobileSearch
+          ? '.master-list-mobile-search [data-master-list-filter="search"]'
+          : '.master-list-filter-bar [data-master-list-filter="search"]'
+      );
+
+      if (!searchInput) {
+        return;
+      }
+
+      searchInput.focus();
+
+      if (
+        typeof options.selectionStart === "number"
+        && typeof options.selectionEnd === "number"
+        && typeof searchInput.setSelectionRange === "function"
+      ) {
+        searchInput.setSelectionRange(options.selectionStart, options.selectionEnd);
+      }
+    });
+  }
 }
 
 export function updateMasterListSort(key) {
