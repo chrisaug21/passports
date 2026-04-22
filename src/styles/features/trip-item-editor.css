@@ -1,3 +1,11 @@
+.field-hint.is-hidden {
+  display: none;
+}
+
+.field-hint--warning {
+  color: var(--color-danger-strong);
+}
+
 .timezone-picker {
   position: relative;
   display: block;
@@ -61,6 +69,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
+
 .trip-settings-form input,
 .trip-settings-form select,
 .trip-settings-form textarea,
@@ -70,6 +79,7 @@
   max-width: 100%;
   box-sizing: border-box;
 }
+
 .anchor-checkbox-label {
   display: inline-flex;
   align-items: center;
@@ -151,6 +161,7 @@
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
+
 .modal-card--editor {
   display: flex;
   flex-direction: column;
@@ -189,8 +200,15 @@
   overscroll-behavior: contain;
   padding-top: 0;
 }
-    opacity: 1;
-    pointer-events: auto;
-  }
 
-  .day-card {
+@media (max-width: 840px) {
+    .item-editor-form__grid,
+    .trip-settings-form__date-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .modal-card__actions--sticky {
+      flex-direction: row;
+      align-items: center;
+    }
+}

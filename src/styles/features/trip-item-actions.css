@@ -73,7 +73,6 @@
   color: var(--color-danger-strong);
 }
 
-.field-hint.is-hidden {
 .item-type-icon,
 .status-dot,
 .anchor-indicator {
