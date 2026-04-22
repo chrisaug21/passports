@@ -1,0 +1,226 @@
+.base-manager-panel,
+.days-view__pool,
+.days-base-section {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  background: #fff;
+}
+.base-manager-panel__header,
+.days-view__panel-header,
+.base-card__header,
+.base-card__actions,
+.base-form__header,
+.base-form__actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.base-manager-panel__header,
+.days-view__panel-header,
+.base-card__header,
+.base-form__header,
+.base-form__actions {
+  justify-content: space-between;
+  align-items: start;
+}
+.allocation-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
+  gap: var(--trip-detail-grid-gap);
+  justify-content: start;
+  align-items: stretch;
+}
+.base-card {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.95rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.allocation-row {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #f8fafb;
+  padding: 8px 0.85rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+  min-height: 184px;
+  height: 100%;
+}
+
+.allocation-row--unassigned {
+  background: var(--surface-allocation-unassigned);
+}
+
+.allocation-row__header,
+.allocation-row__toolbar,
+.allocation-row__controls {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.allocation-row__header {
+  justify-content: space-between;
+  align-items: start;
+}
+
+.allocation-row__copy {
+  min-width: 0;
+}
+
+.allocation-row__copy h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.allocation-row__copy .muted {
+  margin-top: 0.55rem;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.allocation-row__timezone strong {
+  color: var(--color-text);
+}
+
+.allocation-row__summary {
+  margin-top: 0.45rem;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.allocation-row__separator {
+  display: inline-block;
+  margin: 0 0.55rem;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.allocation-row__toolbar {
+  align-items: center;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.allocation-row__controls {
+  justify-content: start;
+  align-items: center;
+}
+
+.allocation-row__adjust {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.allocation-row__adjust:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.allocation-row__count {
+  min-width: 1.2rem;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.allocation-row__edit,
+.allocation-row__delete {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.allocation-row__edit svg,
+.allocation-row__delete svg {
+  width: 16px;
+  height: 16px;
+}
+
+.allocation-row__delete {
+  color: var(--color-danger-strong);
+}
+
+.allocation-row__delete:hover,
+.allocation-row__delete:focus-visible {
+  background: var(--color-danger-soft);
+}
+
+.allocation-summary--complete {
+  color: var(--color-action-strong);
+}
+
+.allocation-summary--warning {
+  color: var(--color-text);
+}
+
+.allocation-row__hint {
+  margin: 0;
+}
+
+.base-card__header h4,
+.day-item__title-line h5 {
+  margin: 0;
+}
+
+.base-card__actions {
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.base-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+    justify-content: end;
+  }
+  }
+
+  .modal-card__actions--sticky {
+    flex-direction: row;
+@media (pointer: fine) {
+  .allocation-row__adjust,
+  .allocation-row__edit,
+  .allocation-row__delete {
+    width: 32px;
+    height: 32px;
+  }
+}
+@media (max-width: 1023px) {
+  .trip-detail {
+    --trip-detail-grid-card-width: calc((100% - var(--trip-detail-grid-gap)) / 2);
+  }
+
+  .allocation-list {
+    grid-template-columns: repeat(2, minmax(0, var(--trip-detail-grid-card-width)));
+  }
+
+  .day-card-grid {

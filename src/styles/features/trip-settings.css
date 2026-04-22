@@ -1,0 +1,41 @@
+.trip-settings-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.trip-settings-summary {
+  display: grid;
+  gap: 0.35rem;
+}
+.trip-settings-form__date-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.trip-settings-form input,
+.trip-settings-form select,
+.trip-settings-form textarea,
+.item-editor-form input,
+.item-editor-form select,
+.item-editor-form textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.trip-settings-form input[name="startDate"] {
+  text-align: left;
+}
+
+.trip-settings-form__date-grid input[readonly] {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.trip-settings-form__danger {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+  .allocation-row__meta {
+    justify-content: start;
+  }
