@@ -1,4 +1,3 @@
-import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { updateTripDayTitle } from "../../../services/days-service.js";
 import { formatDayDateLabel } from "../../../lib/format.js";
@@ -11,7 +10,7 @@ import { escapeHtml } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
-  const { getSortedUnassignedItems, renderDayItem, renderUnassignedQuickAdd } = helpers;
+  const { getSortedUnassignedItems, renderDayItem } = helpers;
   const sortedUnassignedItems = getSortedUnassignedItems(unassignedItems);
   const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
 
@@ -26,7 +25,6 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
           </div>
           <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
         </div>
-        ${renderUnassignedQuickAdd ? renderUnassignedQuickAdd(tripStore.getCurrentTrip() ? appStore.getState().tripDetail : {}) : ""}
         ${
           sortedUnassignedItems.length > 0
             ? `<div class="days-view__list days-view__pool-list">${sortedUnassignedItems.map((item) => renderDayItem(item)).join("")}</div>`

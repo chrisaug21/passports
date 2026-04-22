@@ -34,7 +34,6 @@ import {
   getSortedUnassignedItems,
   renderDayItem,
   renderMasterListPlanningTable,
-  renderUnassignedQuickAdd,
 } from "./items-controller.js";
 import {
   renderDeleteItemConfirmModal,
@@ -161,8 +160,8 @@ export function renderTripDetailPageView() {
       </section>
 
       <section class="trip-view-tabs" aria-label="Trip views">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
         <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
       </section>
 
       ${
@@ -172,9 +171,7 @@ export function renderTripDetailPageView() {
         <div class="master-list-panel__header">
           <div>
             <p class="eyebrow">List View</p>
-            <h3>List View</h3>
           </div>
-          <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
         </div>
 
         ${renderMasterListPlanningTable({ items, days, bases, tripDetail })}
@@ -184,7 +181,6 @@ export function renderTripDetailPageView() {
               getInterleavedDayItems,
               getSortedUnassignedItems,
               renderDayItem,
-              renderUnassignedQuickAdd,
             })
       }
 

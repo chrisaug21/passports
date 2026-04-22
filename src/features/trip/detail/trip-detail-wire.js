@@ -28,6 +28,32 @@ function bindAll(selector, eventName, handler) {
   });
 }
 
+function wireMasterListInlineOutsideClick(handlers) {
+  const select = document.querySelector("[data-master-list-inline-save]");
+  const cell = select?.closest(".master-list-plan-row__cell");
+
+  if (!select || !cell || !handlers.onMasterListInlineSave) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    const handleOutsideClick = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target || cell.contains(target)) {
+        return;
+      }
+
+      document.removeEventListener("click", handleOutsideClick, true);
+      window.setTimeout(() => {
+        handlers.onMasterListInlineSave(select);
+      }, 0);
+    };
+
+    document.addEventListener("click", handleOutsideClick, true);
+  }, 0);
+}
+
 export function wireTripDetailPageEvents(handlers) {
   bindClick("#trip-back-to-dashboard", handlers.onBackToDashboard);
   bindClick("#retry-trip-load", handlers.onRetryTripLoad);
@@ -77,6 +103,7 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindClick("[data-open-master-list-filters]", handlers.onOpenMasterListFilters);
   bindClick("[data-close-master-list-filters]", handlers.onCloseMasterListFilters);
+  bindClick("[data-apply-master-list-filters]", handlers.onApplyMasterListFilters);
   bindClick("[data-clear-master-list-filters]", handlers.onClearMasterListFilters);
   bindAll("[data-master-list-sort]", "click", (button) => {
     handlers.onMasterListSort?.(button);
@@ -101,6 +128,7 @@ export function wireTripDetailPageEvents(handlers) {
       handlers.onMasterListInlineKeydown?.(event);
     });
   });
+  wireMasterListInlineOutsideClick(handlers);
   document.querySelectorAll("[data-master-list-title-input]").forEach((input) => {
     handlers.onMasterListTitleInputReady?.(input);
     input.addEventListener("blur", handlers.onMasterListTitleBlur);

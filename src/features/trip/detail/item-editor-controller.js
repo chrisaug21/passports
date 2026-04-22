@@ -41,7 +41,7 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
     `;
   }
 
-  const draft = tripDetailState.itemEditorDraft || (isAddMode ? buildAddItemEditorDraft(context) : buildItemEditorDraft(item));
+  const draft = getCurrentItemEditorDraft({ item, isAddMode, context });
   const modalTitle = isAddMode ? getAddItemModalTitle(context, bases) : draft.title || "Untitled stop";
 
   return `
@@ -66,6 +66,7 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             <label class="field">
               <span>Type</span>
               <select id="item-type-select" name="itemType" required>
+                <option value="" ${draft.itemType ? "" : "selected"}>Choose type</option>
                 ${ITEM_TYPES.map((type) => `<option value="${type}" ${draft.itemType === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
               </select>
             </label>
@@ -103,11 +104,11 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             <div class="item-editor-form__grid">
               <label class="field">
               <span>Start Time</span>
-                <input class="item-time-input" name="timeStart" type="text" inputmode="numeric" value="${escapeHtml(draft.timeStart || "")}" placeholder="— : — AM" data-storage-time="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" />
+                <input class="item-time-input" name="timeStart" type="time" step="900" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input class="item-time-input" name="timeEnd" type="text" inputmode="numeric" value="${escapeHtml(draft.timeEnd || "")}" placeholder="— : — AM" data-storage-time="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" />
+                <input class="item-time-input" name="timeEnd" type="time" step="900" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
               </label>
             </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
@@ -476,6 +477,25 @@ function serializeItemEditorDraft(draft) {
   return JSON.stringify(draft);
 }
 
+function getCurrentItemEditorDraft({ item, isAddMode, context }) {
+  if (isAddMode) {
+    if (!tripDetailState.itemEditorDraft || tripDetailState.persistedEditorItemId !== "add") {
+      tripDetailState.persistedEditorItemId = "add";
+      tripDetailState.itemEditorDraft = buildAddItemEditorDraft(context);
+    }
+
+    return tripDetailState.itemEditorDraft;
+  }
+
+  if (item && tripDetailState.persistedEditorItemId !== item.id) {
+    tripDetailState.persistedEditorItemId = item.id;
+    tripDetailState.itemEditorDraft = buildItemEditorDraft(item);
+    tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+  }
+
+  return tripDetailState.itemEditorDraft || buildItemEditorDraft(item);
+}
+
 function buildItemEditorDraft(item) {
   return {
     title: item.title || "",
@@ -484,8 +504,8 @@ function buildItemEditorDraft(item) {
     baseId: item.base_id || "",
     dayId: item.day_id || "",
     isAnchor: Boolean(item.is_anchor),
-    timeStart: formatEditableTime(item.time_start),
-    timeEnd: formatEditableTime(item.time_end),
+    timeStart: item.time_start || "",
+    timeEnd: item.time_end || "",
     mealSlot: item.meal_slot || "",
     activityType: item.activity_type || "",
     transportMode: item.transport_mode || "",
@@ -501,7 +521,7 @@ function buildItemEditorDraft(item) {
 function buildAddItemEditorDraft(context = null) {
   return {
     title: "",
-    itemType: "activity",
+    itemType: "",
     status: "idea",
     baseId: context?.baseId || "",
     dayId: context?.dayId || "",
@@ -648,19 +668,6 @@ function parseEditableTimeToStorage(value) {
   return `${String(hour).padStart(2, "0")}:${minute}`;
 }
 
-function formatEditableTime(value) {
-  const storageValue = parseEditableTimeToStorage(value);
-
-  if (!storageValue) {
-    return "";
-  }
-
-  const [rawHour, minutes] = storageValue.split(":").map(Number);
-  const meridiem = rawHour >= 12 ? "PM" : "AM";
-  const hour = rawHour % 12 || 12;
-  return `${hour}:${String(minutes).padStart(2, "0")} ${meridiem}`;
-}
-
 function normalizeTimeInput(value) {
   return parseEditableTimeToStorage(value);
 }
@@ -686,24 +693,14 @@ function wireTimeInputs() {
   const defaultTime = getNearestUpcomingHour();
 
   document.querySelectorAll('[name="timeStart"], [name="timeEnd"]').forEach((input) => {
+    input.step = "900";
+
     if (isMobile) {
-      input.type = "time";
-      input.step = "900";
-      input.value = input.getAttribute("data-storage-time") || "";
       input.addEventListener("focus", () => {
         if (!input.value && input.getAttribute("data-defaulted-empty-time") !== "true") {
           input.value = defaultTime;
           input.setAttribute("data-defaulted-empty-time", "true");
           input.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-      });
-    }
-
-    if (!isMobile) {
-      input.addEventListener("blur", () => {
-        const normalizedTime = normalizeTimeInput(input.value);
-        if (normalizedTime) {
-          input.value = formatEditableTime(normalizedTime);
         }
       });
     }

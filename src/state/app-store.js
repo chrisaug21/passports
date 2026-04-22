@@ -19,7 +19,7 @@ function createInitialTripDetail() {
     movingItemId: null,
     isMovingItem: false,
     movingOperationId: null,
-    viewMode: "master-list",
+    viewMode: "days",
     masterListFilters: {
       type: "all",
       status: "all",

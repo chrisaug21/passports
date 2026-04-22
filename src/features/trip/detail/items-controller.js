@@ -34,15 +34,16 @@ import {
 import { normalizeNullableId } from "./base-allocation-controller.js";
 
 const MASTER_LIST_COLUMN_LABELS = {
-  type: "Type",
+  icon: "",
   title: "Name",
   status: "Status",
   base: "Base",
   day: "Day",
+  itemType: "Type",
   subtype: "Subtype",
 };
 
-const MASTER_LIST_SORT_KEYS = ["type", "title", "status", "base", "day", "subtype"];
+const MASTER_LIST_SORT_KEYS = ["title", "status", "base", "day", "itemType", "subtype"];
 
 export function renderMasterListRow(item, days, bases) {
   const day = days.find((entry) => entry.id === item.day_id);
@@ -88,26 +89,30 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
   const hasActiveFilters = isMasterListFiltered(filters);
 
   return `
-    <div class="master-list-filter-bar">
-      ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
-        ["all", "All"],
-        ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
-      ])}
-      ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
-        ["all", "All"],
-        ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
-      ])}
-      ${renderMasterListFilterSelect("baseId", "Base", filters.baseId || "all", [
-        ["all", "All"],
-        ...bases.map((base) => [base.id, base.name || "Untitled base"]),
-        ["unassigned", "Unassigned"],
-      ])}
-      ${hasActiveFilters ? `<button class="button-link master-list-filter-bar__clear" data-clear-master-list-filters type="button">Clear</button>` : ""}
-      <button class="button button--secondary master-list-filter-bar__mobile" data-open-master-list-filters type="button">Filters</button>
-    </div>
-
     ${tripDetail.isShowingMasterListFilters ? renderMobileFilterSheet(filters, bases) : ""}
     ${renderMasterListQuickAdd(tripDetail)}
+    <div class="master-list-action-row">
+      <div class="master-list-filter-bar">
+        ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
+          ["all", "All"],
+          ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
+        ])}
+        ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
+          ["all", "All"],
+          ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
+        ])}
+        ${renderMasterListFilterSelect("baseId", "Base", filters.baseId || "all", [
+          ["all", "All"],
+          ...bases.map((base) => [base.id, base.name || "Untitled base"]),
+          ["unassigned", "Unassigned"],
+        ])}
+        ${hasActiveFilters ? `<button class="button-link master-list-filter-bar__clear" data-clear-master-list-filters type="button">Clear</button>` : ""}
+        <button class="button button--secondary master-list-filter-bar__mobile" data-open-master-list-filters type="button">
+          Filters${hasActiveFilters ? `<span class="master-list-filter-badge">${getActiveFilterCount(filters)}</span>` : ""}
+        </button>
+      </div>
+      <button class="button button--secondary section-action-button" data-add-item-to-trip type="button">Add to trip</button>
+    </div>
 
     ${
       sortedItems.length === 0
@@ -120,11 +125,12 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
         : `
           <div class="master-list-table" role="table" aria-label="Planning list">
             <div class="master-list-table__header" role="row">
-              ${renderMasterListHeaderCell("type", sort)}
+              <span class="master-list-table__header-cell master-list-table__header-cell--icon"></span>
               ${renderMasterListHeaderCell("title", sort)}
               ${renderMasterListHeaderCell("status", sort)}
               ${renderMasterListHeaderCell("base", sort)}
               ${renderMasterListHeaderCell("day", sort)}
+              ${renderMasterListHeaderCell("itemType", sort)}
               ${renderMasterListHeaderCell("subtype", sort)}
               <span class="master-list-table__header-cell master-list-table__header-cell--actions"></span>
             </div>
@@ -150,21 +156,11 @@ function renderMasterListQuickAdd(tripDetail) {
           required
         />
       </label>
-      <label class="field master-list-quick-add__field">
-        <span>Type</span>
-        <select name="itemType" required>
-          ${ITEM_TYPES.map((type) => `<option value="${type}">${formatItemTypeLabel(type)}</option>`).join("")}
-        </select>
-      </label>
       <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
         ${tripDetail.isCreatingItem ? "Saving..." : "Add"}
       </button>
     </form>
   `;
-}
-
-export function renderUnassignedQuickAdd(tripDetail) {
-  return renderMasterListQuickAdd(tripDetail);
 }
 
 function renderMobileFilterSheet(filters, bases) {
@@ -180,27 +176,33 @@ function renderMobileFilterSheet(filters, bases) {
           ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
             ["all", "All"],
             ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
-          ])}
+          ], { mobile: true })}
           ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
             ["all", "All"],
             ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
-          ])}
+          ], { mobile: true })}
           ${renderMasterListFilterSelect("baseId", "Base", filters.baseId || "all", [
             ["all", "All"],
             ...bases.map((base) => [base.id, base.name || "Untitled base"]),
             ["unassigned", "Unassigned"],
-          ])}
+          ], { mobile: true })}
+        </div>
+        <div class="master-list-filter-sheet__actions">
+          <button class="button button--secondary" data-close-master-list-filters type="button">Cancel</button>
+          <button class="button" data-apply-master-list-filters type="button">Apply</button>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderMasterListFilterSelect(name, label, value, options) {
+function renderMasterListFilterSelect(name, label, value, options, config = {}) {
+  const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
+
   return `
     <label class="field master-list-filter">
       <span>${escapeHtml(label)}</span>
-      <select data-master-list-filter="${escapeHtml(name)}">
+      <select ${dataAttribute}="${escapeHtml(name)}">
         ${options.map(([optionValue, optionLabel]) => (
           `<option value="${escapeHtml(optionValue)}" ${value === optionValue ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`
         )).join("")}
@@ -212,7 +214,7 @@ function renderMasterListFilterSelect(name, label, value, options) {
 function renderMasterListHeaderCell(key, sort) {
   const isActive = sort.key === key;
   const chevron = isActive ? (sort.direction === "desc" ? "↓" : "↑") : "";
-  const label = key === "type" ? "" : MASTER_LIST_COLUMN_LABELS[key];
+  const label = MASTER_LIST_COLUMN_LABELS[key] || "";
 
   return `
     <button class="master-list-table__header-cell master-list-table__header-cell--${escapeHtml(key)} ${isActive ? "is-active" : ""}" data-master-list-sort="${escapeHtml(key)}" type="button">
@@ -229,6 +231,7 @@ function renderMasterListPlanningRow(item, days, bases, tripDetail) {
   const isEditingBase = isEditingMasterListCell(tripDetail, item.id, "base");
   const isEditingDay = isEditingMasterListCell(tripDetail, item.id, "day");
   const isEditingSubtype = isEditingMasterListCell(tripDetail, item.id, "subtype");
+  const itemTypeLabel = item.item_type ? formatItemTypeLabel(item.item_type) : "";
 
   return `
     <article class="master-list-plan-row" data-master-list-row="${escapeHtml(item.id)}" role="row">
@@ -251,17 +254,19 @@ function renderMasterListPlanningRow(item, days, bases, tripDetail) {
       <div class="master-list-plan-row__cell master-list-plan-row__cell--day">
         ${isEditingDay ? renderDaySelect(item, days) : renderInlineTrigger(item, "day", escapeHtml(day ? `Day ${day.day_number}` : "Unassigned"))}
       </div>
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--item-type">
+        <span class="master-list-text-cell">${escapeHtml(itemTypeLabel)}</span>
+      </div>
       <div class="master-list-plan-row__cell master-list-plan-row__cell--subtype">
         ${isEditingSubtype ? renderSubtypeSelect(item) : renderInlineTrigger(item, "subtype", escapeHtml(getSubtypeLabel(item)))}
       </div>
       <div class="master-list-plan-row__cell master-list-plan-row__cell--actions">
-        ${renderItemActionsMenu(item)}
+        ${renderItemActionsMenu(item, { includeRemove: true })}
       </div>
       <button class="master-list-mobile-row" data-edit-item="${escapeHtml(item.id)}" type="button">
         ${renderItemTypeIcon(item, "master-list-mobile-row__type-icon")}
         <span class="master-list-mobile-row__title">${escapeHtml(item.title || "Untitled stop")}</span>
         ${renderStatusDot(item.status)}
-        <span class="master-list-mobile-row__day">${escapeHtml(day ? `Day ${day.day_number}` : "")}</span>
       </button>
     </article>
   `;
@@ -398,6 +403,9 @@ function getMasterListSortValue(item, key, days, bases) {
   if (key === "type") {
     return item.item_type || "";
   }
+  if (key === "itemType") {
+    return item.item_type ? formatItemTypeLabel(item.item_type) : "";
+  }
   if (key === "title") {
     return item.title || "";
   }
@@ -447,6 +455,10 @@ function getDaySortIndex(item, days) {
 
 function isMasterListFiltered(filters = {}) {
   return ["type", "status", "baseId"].some((key) => filters[key] && filters[key] !== "all");
+}
+
+function getActiveFilterCount(filters = {}) {
+  return ["type", "status", "baseId"].filter((key) => filters[key] && filters[key] !== "all").length;
 }
 
 export function renderDayItem(item, options = {}) {
@@ -522,14 +534,14 @@ export function renderItemBaseLine(item) {
   return `<p class="muted day-item__base">${escapeHtml(base.name)}</p>`;
 }
 
-export function renderItemActionsMenu(item) {
+export function renderItemActionsMenu(item, options = {}) {
   return `
     <details class="item-actions-menu">
       <summary class="item-actions-menu__trigger" aria-label="Open stop actions">⋮</summary>
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
         <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
-        <button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Remove from trip</button>
+        ${options.includeRemove ? `<button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Remove from trip</button>` : ""}
       </div>
     </details>
   `;
@@ -1024,10 +1036,9 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
       const form = event.currentTarget;
       const formData = new FormData(form);
       const title = String(formData.get("title") || "").trim();
-      const itemType = String(formData.get("itemType") || "").trim();
 
-      if (!title || !itemType) {
-        showToast("Add a title and type first.", "error");
+      if (!title) {
+        showToast("Add a title first.", "error");
         return;
       }
 
@@ -1043,7 +1054,7 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
           tripId: trip.id,
           createdBy: session.user.id,
           title,
-          itemType,
+          itemType: null,
           sortOrder: nextSortOrder,
         });
 
@@ -1078,6 +1089,23 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
     },
     onMasterListFilterChange: (select) => {
       updateMasterListFilters(select.getAttribute("data-master-list-filter"), select.value);
+    },
+    onApplyMasterListFilters: () => {
+      const nextFilters = {
+        type: "all",
+        status: "all",
+        baseId: "all",
+      };
+
+      document.querySelectorAll("[data-master-list-sheet-filter]").forEach((select) => {
+        nextFilters[select.getAttribute("data-master-list-sheet-filter")] = select.value || "all";
+      });
+
+      appStore.updateTripDetail({
+        masterListFilters: nextFilters,
+        isShowingMasterListFilters: false,
+      });
+      rerenderTripDetail();
     },
     onOpenMasterListFilters: () => {
       appStore.updateTripDetail({ isShowingMasterListFilters: true });
