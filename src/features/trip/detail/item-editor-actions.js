@@ -167,13 +167,12 @@ export function createItemEditorHandlers() {
       const items = tripStore.getCurrentItems();
       const currentItem = items.find((item) => item.id === currentItemId);
 
-      const form = event.currentTarget;
-      const formData = new FormData(form);
-      const nextBaseId = normalizeNullableId(formData.get("baseId"));
-      const nextDayId = normalizeNullableId(formData.get("dayId"));
-      const isAnchor = formData.get("isAnchor") === "on";
-      const timeStart = normalizeTimeInput(formData.get("timeStart"));
-      const timeEnd = normalizeTimeInput(formData.get("timeEnd"));
+      syncItemEditorDraftFromForm();
+      const draft = tripDetailState.itemEditorDraft || (currentItem ? buildItemEditorDraft(currentItem) : buildAddItemEditorDraft());
+      const nextBaseId = normalizeNullableId(draft.baseId);
+      const nextDayId = normalizeNullableId(draft.dayId);
+      const timeStart = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeStart", "time_start"));
+      const timeEnd = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeEnd", "time_end"));
 
       if (timeStart === null || timeEnd === null) {
         showToast("Use a valid time.", "error");
@@ -181,23 +180,23 @@ export function createItemEditorHandlers() {
       }
 
       const itemPayload = {
-        title: String(formData.get("title") || "").trim(),
-        item_type: String(formData.get("itemType") || "").trim(),
-        status: String(formData.get("status") || "").trim(),
-        is_anchor: isAnchor,
+        title: String(draft.title || "").trim(),
+        item_type: String(draft.itemType || "").trim(),
+        status: String(draft.status || "").trim(),
+        is_anchor: Boolean(draft.isAnchor),
         base_id: nextBaseId,
         day_id: nextDayId,
-        meal_slot: String(formData.get("mealSlot") || "").trim() || null,
-        activity_type: String(formData.get("activityType") || "").trim() || null,
-        transport_mode: String(formData.get("transportMode") || "").trim() || null,
-        transport_origin: String(formData.get("transportOrigin") || "").trim() || null,
-        transport_destination: String(formData.get("transportDestination") || "").trim() || null,
+        meal_slot: String(draft.mealSlot || "").trim() || null,
+        activity_type: String(draft.activityType || "").trim() || null,
+        transport_mode: String(draft.transportMode || "").trim() || null,
+        transport_origin: String(draft.transportOrigin || "").trim() || null,
+        transport_destination: String(draft.transportDestination || "").trim() || null,
         time_start: timeStart || null,
         time_end: timeEnd || null,
-        cost_low: String(formData.get("costLow") || "").trim() || null,
-        cost_high: String(formData.get("costHigh") || "").trim() || null,
-        url: String(formData.get("url") || "").trim() || null,
-        notes: String(formData.get("notes") || "").trim() || null,
+        cost_low: String(draft.costLow || "").trim() || null,
+        cost_high: String(draft.costHigh || "").trim() || null,
+        url: String(draft.url || "").trim() || null,
+        notes: String(draft.notes || "").trim() || null,
       };
 
       if (itemEditorMode === "add") {
@@ -345,4 +344,12 @@ export function createItemEditorHandlers() {
       }
     },
   };
+}
+
+function getDraftTimeValue(draft, item, draftKey, itemKey) {
+  if (draft && Object.prototype.hasOwnProperty.call(draft, draftKey)) {
+    return draft[draftKey];
+  }
+
+  return item?.[itemKey] || "";
 }

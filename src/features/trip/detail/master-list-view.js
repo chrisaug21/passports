@@ -86,9 +86,6 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
 
   return `
     ${tripDetail.isShowingMasterListFilters ? renderMobileFilterSheet(filters, bases) : ""}
-    <div class="master-list-mobile-search">
-      ${renderMasterListSearch(filters.search || "")}
-    </div>
     ${renderMasterListQuickAdd(tripDetail)}
     <div class="master-list-action-row">
       <div class="master-list-filter-bar">
@@ -116,9 +113,6 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
       </div>
       <button class="button button--secondary section-action-button master-list-add-trip-button" data-add-item-to-trip type="button" aria-label="Add to trip">
         <i data-lucide="plus" aria-hidden="true"></i>
-      </button>
-      <button class="button master-list-quick-add-mobile-submit" form="master-list-quick-add-form" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""} aria-label="Quick add">
-        <i data-lucide="zap" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -160,7 +154,7 @@ function renderMasterListQuickAdd(tripDetail) {
           name="title"
           type="text"
           maxlength="120"
-          placeholder="Add a restaurant, museum, hotel, or transport idea"
+          placeholder="Add a restaurant, hotel, activity..."
           required
         />
       </label>

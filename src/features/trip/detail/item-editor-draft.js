@@ -91,6 +91,8 @@ export function getCurrentItemEditorDraft({ item, isAddMode, context }) {
     tripDetailState.persistedEditorItemId = item.id;
     tripDetailState.itemEditorDraft = buildItemEditorDraft(item);
     tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+  } else if (item) {
+    tripDetailState.itemEditorDraft = normalizeItemEditorDraft(tripDetailState.itemEditorDraft, item);
   }
 
   return tripDetailState.itemEditorDraft || buildItemEditorDraft(item);
@@ -104,8 +106,8 @@ export function buildItemEditorDraft(item) {
     baseId: item.base_id || "",
     dayId: item.day_id || "",
     isAnchor: Boolean(item.is_anchor ?? item.isAnchor),
-    timeStart: item.time_start || item.timeStart || "",
-    timeEnd: item.time_end || item.timeEnd || "",
+    timeStart: getItemTimeValue(item, "time_start", "timeStart", "start_time", "startTime"),
+    timeEnd: getItemTimeValue(item, "time_end", "timeEnd", "end_time", "endTime"),
     mealSlot: item.meal_slot || "",
     activityType: item.activity_type || "",
     transportMode: item.transport_mode || "",
@@ -116,6 +118,32 @@ export function buildItemEditorDraft(item) {
     url: item.url || "",
     notes: item.notes || "",
   };
+}
+
+function normalizeItemEditorDraft(draft, item) {
+  if (!draft) {
+    return buildItemEditorDraft(item);
+  }
+
+  return {
+    ...buildItemEditorDraft(item),
+    ...draft,
+    timeStart: hasDraftField(draft, "timeStart")
+      ? draft.timeStart
+      : getItemTimeValue(item, "time_start", "timeStart", "start_time", "startTime"),
+    timeEnd: hasDraftField(draft, "timeEnd")
+      ? draft.timeEnd
+      : getItemTimeValue(item, "time_end", "timeEnd", "end_time", "endTime"),
+  };
+}
+
+function hasDraftField(draft, key) {
+  return Object.prototype.hasOwnProperty.call(draft, key);
+}
+
+function getItemTimeValue(item, ...keys) {
+  const key = keys.find((candidate) => item?.[candidate] != null && item[candidate] !== "");
+  return key ? String(item[key]) : "";
 }
 
 export function buildAddItemEditorDraft(context = null) {

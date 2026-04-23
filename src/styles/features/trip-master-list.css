@@ -2,7 +2,7 @@
   padding: 1.5rem;
   display: grid;
   gap: 1rem;
-  background: #fff;
+  background: var(--color-surface-strong);
 }
 
 .master-list-quick-add {
@@ -35,8 +35,7 @@
 }
 
 .master-list-quick-add__submit svg,
-.master-list-quick-add__label-short,
-.master-list-quick-add-mobile-submit {
+.master-list-quick-add__label-short {
   display: none;
 }
 
@@ -72,7 +71,7 @@
 .master-list-filter-bar {
   display: flex;
   gap: 0.75rem;
-  align-items: end;
+  align-items: center;
   flex: 1 1 auto;
   min-width: 0;
   flex-wrap: nowrap;
@@ -84,24 +83,25 @@
 }
 
 .master-list-filter--search {
-  flex: 1 1 auto;
-  min-width: 140px;
+  flex: 1 1 160px;
+  min-width: 120px;
+  max-width: 220px;
 }
 
 .master-list-filter--type {
-  width: 92px;
-}
-
-.master-list-filter--subtype {
-  width: 160px;
-}
-
-.master-list-filter--status {
   width: 110px;
 }
 
+.master-list-filter--subtype {
+  width: 180px;
+}
+
+.master-list-filter--status {
+  width: 130px;
+}
+
 .master-list-filter--baseId {
-  width: 120px;
+  width: 140px;
 }
 
 .master-list-filter--baseId select {
@@ -110,7 +110,6 @@
 }
 
 .master-list-filter-bar__clear {
-  align-self: end;
   min-height: 44px;
   padding-inline: 0;
   white-space: nowrap;
@@ -306,8 +305,7 @@
 }
 
 .master-list-mobile-row,
-.master-list-filter-sheet,
-.master-list-mobile-search {
+.master-list-filter-sheet {
   display: none;
 }
 
@@ -338,19 +336,11 @@
       display: block;
     }
 
-    .master-list-mobile-search {
-      display: block;
-    }
-
-    .master-list-mobile-search .master-list-filter {
-      display: grid;
-      min-width: 0;
-    }
-
     .master-list-action-row {
       align-items: center;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 44px 44px;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
     }
 
     .master-list-action-row > .section-action-button {
@@ -366,16 +356,17 @@
     }
 
     .master-list-add-trip-button svg,
-    .master-list-quick-add__label-short,
-    .master-list-quick-add-mobile-submit {
+    .master-list-quick-add__label-short {
       display: inline-flex;
     }
 
-    .master-list-quick-add__submit {
-      display: none;
+    .master-list-quick-add {
+      grid-template-columns: minmax(0, 1fr) 44px;
+      align-items: center;
     }
 
-    .master-list-quick-add-mobile-submit {
+    .master-list-quick-add__submit {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 44px;
@@ -384,7 +375,8 @@
       padding: 0;
     }
 
-    .master-list-quick-add-mobile-submit svg {
+    .master-list-quick-add__submit svg {
+      display: inline-flex;
       width: 20px;
       height: 20px;
     }
@@ -393,6 +385,7 @@
       display: flex;
       align-items: center;
       gap: 0.65rem;
+      flex: 0 1 auto;
     }
 
     .master-list-filter-bar .master-list-filter {
@@ -401,11 +394,13 @@
 
     .master-list-filter-bar__clear {
       display: inline-flex;
+      order: 2;
     }
 
     .master-list-filter-bar__mobile {
       display: inline-flex;
       min-height: 44px;
+      order: 1;
     }
 
     .master-list-table {

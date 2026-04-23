@@ -1,4 +1,4 @@
-export const APP_VERSION = "v0.1.51";
+export const APP_VERSION = "v0.1.52";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 

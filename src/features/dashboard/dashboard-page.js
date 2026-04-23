@@ -83,9 +83,7 @@ export function renderDashboardPage() {
                     <summary class="dashboard-past-trips__summary">
                       <div>
                         <p class="eyebrow">Past Trips</p>
-                        <h3>Past trips</h3>
                       </div>
-                      <p class="muted">${pastTrips.length} trip${pastTrips.length === 1 ? "" : "s"}</p>
                     </summary>
                     <div class="dashboard-past-trips__content">
                       <section class="dashboard-grid">
