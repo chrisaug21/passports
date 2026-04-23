@@ -43,7 +43,7 @@
 
 .timezone-picker__option:hover,
 .timezone-picker__option:focus-visible {
-  background: rgba(43, 91, 224, 0.08);
+  background: var(--color-structure-soft);
   outline: none;
 }
 
@@ -108,7 +108,7 @@
 .anchor-checkbox[aria-checked="true"] {
   background: var(--color-action);
   border-color: var(--color-action);
-  color: #fff;
+  color: var(--color-surface-strong);
 }
 
 .anchor-checkbox svg {
@@ -136,7 +136,7 @@
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--color-surface-control);
   color: var(--color-text);
   min-height: 44px;
   padding: 0.9rem 1rem;

@@ -123,7 +123,7 @@
   border: 1px dashed var(--color-border);
   border-radius: 8px;
   padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--color-translucent-surface);
 }
 
 .master-list-table {
