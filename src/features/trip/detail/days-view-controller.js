@@ -6,7 +6,11 @@ import {
   tripDetailState,
   rerenderTripDetail,
 } from "./trip-detail-state.js";
-import { escapeHtml } from "./trip-detail-ui.js";
+import {
+  escapeHtml,
+  getBaseHeroPhotoUrl,
+  renderHeroPhotoImage,
+} from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
@@ -37,9 +41,22 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
 
 export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
+  const baseHeroPhotoUrl = row.kind === "base" ? getBaseHeroPhotoUrl(row.base) : "";
 
   return `
     <section class="panel days-base-section">
+      ${
+        row.kind === "base"
+          ? `
+            <div class="days-base-section__hero photo-hero">
+              ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+              <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Change photo for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
+                <i data-lucide="camera" aria-hidden="true"></i>
+              </button>
+            </div>
+          `
+          : ""
+      }
       ${rowCount > 1 ? `
         <div class="days-view__panel-header">
           <div>

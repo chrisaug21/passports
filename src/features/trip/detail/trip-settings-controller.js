@@ -14,6 +14,8 @@ import {
 import {
   escapeHtml,
   getDisplayTitleForToast,
+  getTripHeroPhotoUrl,
+  renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 
 function getTripShrinkSummary(nextTripLength, days, items) {
@@ -133,6 +135,8 @@ export function renderTripSettingsForm(trip, isSaving) {
 
         <form class="trip-settings-form" id="trip-settings-form">
           <div class="item-editor-form__content">
+            ${renderTripSettingsPhotoField(trip)}
+
             <label class="field">
               <span>Title</span>
               <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
@@ -167,6 +171,21 @@ export function renderTripSettingsForm(trip, isSaving) {
           </div>
         </form>
       </section>
+    </div>
+  `;
+}
+
+function renderTripSettingsPhotoField(trip) {
+  const heroPhotoUrl = getTripHeroPhotoUrl(trip);
+
+  return `
+    <div class="photo-field">
+      <div class="photo-field__preview photo-hero">
+        ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+      </div>
+      <button class="button button--secondary" data-trip-hero-upload type="button">
+        ${heroPhotoUrl ? "Change photo" : "Add photo"}
+      </button>
     </div>
   `;
 }

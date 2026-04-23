@@ -22,7 +22,12 @@ import {
   tripDetailState,
   rerenderTripDetail,
 } from "./trip-detail-state.js";
-import { escapeHtml, getDisplayTitleForToast } from "./trip-detail-ui.js";
+import {
+  escapeHtml,
+  getBaseHeroPhotoUrl,
+  getDisplayTitleForToast,
+  renderHeroPhotoImage,
+} from "./trip-detail-ui.js";
 
 export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
@@ -103,6 +108,8 @@ export function renderEditBaseForm(base, isSaving) {
         </div>
         <form class="base-form" data-edit-base-form="${escapeHtml(base.id)}">
           <div class="item-editor-form__content">
+            ${renderBasePhotoField(base)}
+
             <label class="field">
               <span>Name</span>
               <input name="name" type="text" value="${escapeHtml(base.name)}" required />
@@ -121,6 +128,21 @@ export function renderEditBaseForm(base, isSaving) {
           </div>
         </form>
       </section>
+    </div>
+  `;
+}
+
+function renderBasePhotoField(base) {
+  const heroPhotoUrl = getBaseHeroPhotoUrl(base);
+
+  return `
+    <div class="photo-field">
+      <div class="photo-field__preview photo-hero">
+        ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+      </div>
+      <button class="button button--secondary" data-base-hero-upload="${escapeHtml(base.id)}" type="button">
+        ${heroPhotoUrl ? "Change photo" : "Add photo"}
+      </button>
     </div>
   `;
 }

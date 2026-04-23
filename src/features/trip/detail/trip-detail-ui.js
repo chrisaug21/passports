@@ -151,14 +151,17 @@ export function renderItemStatusMeta(status) {
   `;
 }
 
-export function getTripHeaderMediaStyle(trip) {
-  const safeCoverUrl = sanitizeCoverUrl(trip?.cover_photo_url);
+export function getTripHeroPhotoUrl(trip) {
+  return sanitizeCoverUrl(trip?.hero_photo_url || trip?.cover_photo_url);
+}
 
-  if (!safeCoverUrl) {
-    return "";
-  }
+export function getBaseHeroPhotoUrl(base) {
+  return sanitizeCoverUrl(base?.hero_photo_url);
+}
 
-  return ` style="background-image: linear-gradient(180deg, rgba(17, 27, 39, 0.04), rgba(17, 27, 39, 0.42)), url(&quot;${escapeHtml(safeCoverUrl)}&quot;);"`;
+export function renderHeroPhotoImage(photoUrl) {
+  const safePhotoUrl = sanitizeCoverUrl(photoUrl);
+  return safePhotoUrl ? `<img class="photo-hero__image" src="${escapeHtml(safePhotoUrl)}" alt="" />` : "";
 }
 
 export function sanitizeCoverUrl(value) {

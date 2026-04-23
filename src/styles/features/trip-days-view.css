@@ -8,6 +8,12 @@
   position: relative;
 }
 
+.days-base-section__hero {
+  min-height: 180px;
+  margin: -1.5rem -1.5rem 0;
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+
 .days-view:has(.item-actions-menu[open]),
 .days-view__pool:has(.item-actions-menu[open]),
 .days-base-section:has(.item-actions-menu[open]) {

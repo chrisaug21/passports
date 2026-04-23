@@ -5,17 +5,18 @@ import { deriveTripStatus } from "../../lib/derive.js";
 export function renderTripCard(trip, options = {}) {
   const derivedStatus = deriveTripStatus(trip);
   const safeStatus = DERIVED_TRIP_STATUSES.includes(derivedStatus) ? derivedStatus : "planning";
-  const safeCoverUrl = sanitizeCoverUrl(trip.cover_photo_url);
-  const coverStyle = safeCoverUrl
-    ? `style="background-image: linear-gradient(180deg, rgba(17, 27, 39, 0.04), rgba(17, 27, 39, 0.42)), url(&quot;${escapeHtml(safeCoverUrl)}&quot;);"`
-    : "";
+  const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_url || trip.cover_photo_url);
   const tripId = escapeHtml(String(trip.id ?? ""));
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
   const tripDescription = escapeHtml(trip.description || "Trip details coming next.");
   const statusLabel = escapeHtml(formatStatusLabel(safeStatus));
   return `
     <article class="trip-card" data-trip-card data-trip-id="${tripId}" role="button" tabindex="0" aria-label="Open ${tripTitle}">
-      <div class="trip-card__media" ${coverStyle}>
+      <div class="trip-card__media photo-hero">
+        ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" />` : `<span class="photo-hero__empty-label">Add photo</span>`}
+        <button class="photo-hero__action trip-card__photo-button" data-trip-card-photo-upload="${tripId}" type="button" aria-label="${safeCoverUrl ? `Change photo for ${tripTitle}` : `Add photo for ${tripTitle}`}">
+          <i data-lucide="camera" aria-hidden="true"></i>
+        </button>
         <span class="trip-card__status trip-card__status--${safeStatus}">${statusLabel}</span>
       </div>
       <div class="trip-card__body">

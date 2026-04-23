@@ -7,6 +7,11 @@ import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.
 import { showToast } from "../shared/toast.js";
 import { navigate } from "../../app/router.js";
 import { deriveTripStatus } from "../../lib/derive.js";
+import { openPhotoCropModal, selectImageFile } from "../../lib/photo-upload.js";
+import {
+  PHOTO_CONTEXTS,
+  saveUploadedPrimaryPhoto,
+} from "../../services/photos-service.js";
 
 let rerenderDashboard = () => {};
 
@@ -126,6 +131,13 @@ export function wireDashboardPage() {
       }
     });
   });
+  document.querySelectorAll("[data-trip-card-photo-upload]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await uploadDashboardTripHero(button.getAttribute("data-trip-card-photo-upload"));
+    });
+  });
 
   wireCreateTripModal({
     onSubmit: async (formValues) => {
@@ -160,6 +172,41 @@ export function wireDashboardPage() {
       }
     },
   });
+}
+
+async function uploadDashboardTripHero(tripId) {
+  const { session } = sessionStore.getState();
+
+  if (!session?.user?.id || !tripId) {
+    showToast("Your session expired. Sign in again.", "error");
+    return;
+  }
+
+  try {
+    const file = await selectImageFile();
+
+    if (!file) {
+      return;
+    }
+
+    const croppedBlob = await openPhotoCropModal(file, { aspectRatio: 16 / 9 });
+
+    if (!croppedBlob) {
+      return;
+    }
+
+    await saveUploadedPrimaryPhoto({
+      userId: session.user.id,
+      tripId,
+      context: PHOTO_CONTEXTS.tripHero,
+      blob: croppedBlob,
+    });
+    await loadDashboard();
+    showToast("Photo updated.", "success");
+  } catch (error) {
+    console.error(error);
+    showToast("Something went wrong saving. Please try again.", "error");
+  }
 }
 
 export async function loadDashboard() {

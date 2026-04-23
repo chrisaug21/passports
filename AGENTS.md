@@ -149,6 +149,9 @@ idea → shortlisted → confirmed → reserved → done
 ## Pull Request Drafts
 Always open new PRs as drafts (`--draft` flag with `gh pr create`). This prevents CodeRabbit from auto-triggering a review before the work is ready. Only mark a PR ready for review when explicitly instructed.
 
+## Verification
+Unless otherwise specified, do not plan on `netlify dev` or a local server for final verification. Open a draft PR when instructed, then the project owner will test on the Netlify preview URL. Non-server checks, static analysis, and code review are still appropriate before handing off.
+
 ## General Rules
 - Soft delete only — never hard delete. All main tables have `deleted_at`. Set it; never use DELETE.
 - Never reference Supabase in user-facing error messages. Use plain language: "Something went wrong saving. Please try again."

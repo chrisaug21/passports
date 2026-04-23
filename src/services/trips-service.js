@@ -4,6 +4,7 @@ import {
   ITEM_STATUSES,
 } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
+import { getPhotoPublicUrl } from "./photos-service.js";
 
 const TRIP_ITEM_SELECT = `
   id,
@@ -36,6 +37,43 @@ const TRIP_ITEM_SELECT = `
 function normalizeNullableId(value) {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue === "" ? null : normalizedValue;
+}
+
+async function attachPrimaryTripHeroPhotos(trips) {
+  if (!Array.isArray(trips) || trips.length === 0) {
+    return trips;
+  }
+
+  const tripIds = trips.map((trip) => trip.id).filter(Boolean);
+
+  if (tripIds.length === 0) {
+    return trips;
+  }
+
+  const { data, error } = await getSupabase()
+    .from("trip_photos")
+    .select("id, trip_id, base_id, storage_path, is_primary, sort_order")
+    .in("trip_id", tripIds)
+    .eq("is_primary", true)
+    .is("base_id", null)
+    .is("day_id", null)
+    .is("item_id", null);
+
+  if (error) {
+    throw error;
+  }
+
+  const photosByTripId = new Map((data || []).map((photo) => [photo.trip_id, photo]));
+
+  return trips.map((trip) => {
+    const photo = photosByTripId.get(trip.id) || null;
+
+    return {
+      ...trip,
+      hero_photo_url: photo ? getPhotoPublicUrl(photo.storage_path) : "",
+      hero_photo: photo,
+    };
+  });
 }
 
 function getValidatedTimezone(value) {
@@ -92,12 +130,14 @@ export async function listTripsForCurrentUser(userId) {
     throw error;
   }
 
-  return (data || [])
+  const trips = (data || [])
     .filter((row) => row?.trips?.id)
     .map((row) => ({
       ...row.trips,
       membership_role: row.role,
     }));
+
+  return attachPrimaryTripHeroPhotos(trips);
 }
 
 export async function createTripWithDefaults({ ownerId, title, description, tripLength, startDate }) {
@@ -196,7 +236,7 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 
-  const [tripResult, basesResult, daysResult, itemsResult] = await Promise.all([
+  const [tripResult, basesResult, daysResult, itemsResult, photosResult] = await Promise.all([
     supabase
       .from("trips")
       .select(
@@ -236,6 +276,13 @@ export async function fetchTripDetailBundle(tripId) {
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),
+    supabase
+      .from("trip_photos")
+      .select("id, trip_id, base_id, storage_path, is_primary, sort_order")
+      .eq("trip_id", tripId)
+      .eq("is_primary", true)
+      .is("day_id", null)
+      .is("item_id", null),
   ]);
 
   if (tripResult.error) {
@@ -254,9 +301,33 @@ export async function fetchTripDetailBundle(tripId) {
     throw itemsResult.error;
   }
 
+  if (photosResult.error) {
+    throw photosResult.error;
+  }
+
+  const photos = photosResult.data || [];
+  const tripHeroPhoto = photos.find((photo) => !photo.base_id) || null;
+  const baseHeroPhotoByBaseId = new Map(
+    photos
+      .filter((photo) => photo.base_id)
+      .map((photo) => [photo.base_id, photo])
+  );
+
   return {
-    trip: tripResult.data,
-    bases: basesResult.data || [],
+    trip: {
+      ...tripResult.data,
+      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path) : "",
+      hero_photo: tripHeroPhoto,
+    },
+    bases: (basesResult.data || []).map((base) => {
+      const photo = baseHeroPhotoByBaseId.get(base.id) || null;
+
+      return {
+        ...base,
+        hero_photo_url: photo ? getPhotoPublicUrl(photo.storage_path) : "",
+        hero_photo: photo,
+      };
+    }),
     days: daysResult.data || [],
     items: itemsResult.data || [],
   };

@@ -136,6 +136,120 @@
   line-height: 1.5;
 }
 
+.photo-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--trip-header-media-gradient);
+  background-position: center;
+  background-size: cover;
+}
+
+.photo-hero__empty-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.photo-hero__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.photo-hero__action {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-overlay);
+  color: var(--color-text);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: var(--shadow-soft);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.photo-hero:hover .photo-hero__action,
+.photo-hero:focus-within .photo-hero__action {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.photo-hero__action:hover,
+.photo-hero__action:focus-visible {
+  transform: translateY(-1px);
+}
+
+.photo-hero__action svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.photo-field {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.photo-field__preview {
+  min-height: 160px;
+  border-radius: 18px;
+}
+
+.photo-crop-modal__card {
+  width: min(760px, 100%);
+}
+
+.photo-crop-modal__stage {
+  width: 100%;
+  height: min(56vh, 440px);
+  min-height: 240px;
+  border-radius: 18px;
+  background: var(--color-surface-muted);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.photo-crop-modal__frame {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--color-surface-strong);
+  box-shadow: 0 0 0 999px color-mix(in srgb, var(--color-text) 52%, transparent);
+  cursor: grab;
+  touch-action: none;
+}
+
+.photo-crop-modal__frame.is-dragging {
+  cursor: grabbing;
+}
+
+.photo-crop-modal__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  transform-origin: top left;
+}
+
+.photo-crop-modal__zoom {
+  margin-top: -0.25rem;
+}
+
 #toast-root {
   position: fixed;
   right: 1rem;
@@ -169,4 +283,11 @@
 .toast.is-leaving {
   opacity: 0;
   transform: translateY(10px);
+}
+
+@media (hover: none), (max-width: 840px) {
+  .photo-hero__action {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }

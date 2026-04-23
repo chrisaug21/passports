@@ -6,7 +6,8 @@ import {
 } from "../../../lib/format.js";
 import {
   escapeHtml,
-  getTripHeaderMediaStyle,
+  getTripHeroPhotoUrl,
+  renderHeroPhotoImage,
   getTripStatTiles,
 } from "./trip-detail-ui.js";
 import { tripDetailState } from "./trip-detail-state.js";
@@ -99,11 +100,17 @@ export function renderTripDetailPageView() {
   const allocationRows = buildAllocationRows(bases, allocationState.days);
   const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
   const statTiles = getTripStatTiles(trip, bases, items);
+  const tripHeroPhotoUrl = getTripHeroPhotoUrl(trip);
 
   return `
     <section class="trip-detail">
       <section class="panel trip-header">
-        <div class="trip-header__media"${getTripHeaderMediaStyle(trip)}></div>
+        <div class="trip-header__media photo-hero">
+          ${tripHeroPhotoUrl ? renderHeroPhotoImage(tripHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+          <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Change trip photo" : "Add trip photo"}">
+            <i data-lucide="camera" aria-hidden="true"></i>
+          </button>
+        </div>
         <div class="trip-header__content">
           <div class="trip-header__top">
             <div class="trip-header__meta">

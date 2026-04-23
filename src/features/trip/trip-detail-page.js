@@ -18,6 +18,9 @@ import {
   createDaysViewHandlers,
 } from "./detail/days-view-controller.js";
 import {
+  createPhotoUploadHandlers,
+} from "./detail/photo-upload-controller.js";
+import {
   createItemsHandlers,
   wireItemActionsMenus,
 } from "./detail/items-controller.js";
@@ -68,6 +71,7 @@ function createTripDetailHandlers(tripId) {
     loadTripDetail,
   });
   const daysViewHandlers = createDaysViewHandlers();
+  const photoUploadHandlers = createPhotoUploadHandlers();
   const itemsHandlers = createItemsHandlers({
     getTripItemErrorMessage,
   });
@@ -87,6 +91,7 @@ function createTripDetailHandlers(tripId) {
     ...tripSettingsHandlers,
     ...baseAllocationHandlers,
     ...daysViewHandlers,
+    ...photoUploadHandlers,
     ...itemsHandlers,
     ...itemEditorHandlers,
   };
