@@ -225,6 +225,7 @@ function renderMasterListPlanningRow(item, days, bases, tripDetail) {
   const isEditingStatus = isEditingMasterListCell(tripDetail, item.id, "status");
   const isEditingBase = isEditingMasterListCell(tripDetail, item.id, "base");
   const isEditingDay = isEditingMasterListCell(tripDetail, item.id, "day");
+  const isEditingItemType = isEditingMasterListCell(tripDetail, item.id, "itemType");
   const isEditingSubtype = isEditingMasterListCell(tripDetail, item.id, "subtype");
   const itemTypeLabel = item.item_type ? formatItemTypeLabel(item.item_type) : "";
 
@@ -249,8 +250,8 @@ function renderMasterListPlanningRow(item, days, bases, tripDetail) {
       <div class="master-list-plan-row__cell master-list-plan-row__cell--day" data-master-list-edit-cell="day" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingDay ? renderDaySelect(item, days) : renderInlineTrigger(item, "day", escapeHtml(day ? `Day ${day.day_number}` : "Unassigned"))}
       </div>
-      <div class="master-list-plan-row__cell master-list-plan-row__cell--item-type">
-        <span class="master-list-text-cell">${escapeHtml(itemTypeLabel)}</span>
+      <div class="master-list-plan-row__cell master-list-plan-row__cell--item-type" data-master-list-edit-cell="itemType" data-master-list-item-id="${escapeHtml(item.id)}">
+        ${isEditingItemType ? renderItemTypeSelect(item) : renderInlineTrigger(item, "itemType", escapeHtml(itemTypeLabel))}
       </div>
       <div class="master-list-plan-row__cell master-list-plan-row__cell--subtype" data-master-list-edit-cell="subtype" data-master-list-item-id="${escapeHtml(item.id)}">
         ${isEditingSubtype ? renderSubtypeSelect(item) : renderInlineTrigger(item, "subtype", escapeHtml(getSubtypeLabel(item)))}
@@ -303,6 +304,14 @@ function renderDaySelect(item, days) {
     <select class="master-list-inline-select" data-master-list-inline-save="${escapeHtml(item.id)}" data-master-list-field="day">
       <option value="">Unassigned</option>
       ${days.map((day) => `<option value="${escapeHtml(day.id)}" ${item.day_id === day.id ? "selected" : ""}>Day ${day.day_number}</option>`).join("")}
+    </select>
+  `;
+}
+
+function renderItemTypeSelect(item) {
+  return `
+    <select class="master-list-inline-select" data-master-list-inline-save="${escapeHtml(item.id)}" data-master-list-field="itemType">
+      ${ITEM_TYPES.map((type) => `<option value="${type}" ${item.item_type === type ? "selected" : ""}>${formatItemTypeLabel(type)}</option>`).join("")}
     </select>
   `;
 }

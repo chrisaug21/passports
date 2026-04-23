@@ -288,6 +288,15 @@ export async function saveMasterListField(itemId, field, value) {
     overrides.day_id = normalizedValue;
   }
 
+  if (field === "itemType") {
+    overrides.item_type = String(value || "").trim();
+    overrides.meal_slot = null;
+    overrides.activity_type = null;
+    overrides.transport_mode = null;
+    overrides.transport_origin = null;
+    overrides.transport_destination = null;
+  }
+
   if (field === "subtype") {
     overrides.meal_slot = item.item_type === "meal" ? normalizedValue : null;
     overrides.activity_type = item.item_type === "activity" ? normalizedValue : null;
