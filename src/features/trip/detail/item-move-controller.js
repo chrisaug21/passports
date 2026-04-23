@@ -5,7 +5,7 @@ import { showToast } from "../../shared/toast.js";
 import { tripDetailState, rerenderTripDetail } from "./trip-detail-state.js";
 import { getDisplayTitleForToast } from "./trip-detail-ui.js";
 import {
-  assignFlexSortOrdersFromCombinedItems,
+  assignDaySortOrdersFromCombinedItems,
   buildUpdatedItem,
   dedupeItemsById,
   getAnchorDestinationSortOrder,
@@ -32,20 +32,12 @@ export async function reorderFlexItemsWithinDay(dayId, movedItemId, direction) {
   }
 
   const reorderedCombinedItems = moveCombinedItemByStep(combinedItems, movedItemId, direction);
-  const targetItem = combinedItems[targetIndex];
-  const assignedFlexItems = assignFlexSortOrdersFromCombinedItems(reorderedCombinedItems);
-  let reorderedItems = assignedFlexItems
+  const assignedDayItems = assignDaySortOrdersFromCombinedItems(reorderedCombinedItems);
+  const reorderedItems = assignedDayItems
     .filter((item) => {
       const currentItem = items.find((entry) => entry.id === item.id);
       return currentItem && Number(currentItem.sort_order) !== Number(item.sort_order);
     });
-
-  if (targetItem?.is_anchor && !reorderedItems.some((item) => item.id === movedItemId)) {
-    const movedItem = assignedFlexItems.find((item) => item.id === movedItemId);
-    if (movedItem) {
-      reorderedItems = [...reorderedItems, movedItem];
-    }
-  }
 
   if (reorderedItems.length === 0) {
     return;

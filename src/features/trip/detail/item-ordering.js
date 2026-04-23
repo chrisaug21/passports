@@ -70,19 +70,17 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
   updates.push(nextItem);
   return dedupeItemsById(updates);
 }
-export function assignFlexSortOrdersFromCombinedItems(combinedItems) {
-  const updatedFlexItems = [];
+export function assignDaySortOrdersFromCombinedItems(combinedItems) {
+  const updatedItems = [];
 
   combinedItems.forEach((item, index) => {
-    if (!item.is_anchor) {
-      updatedFlexItems.push({
-        ...item,
-        sort_order: index,
-      });
-    }
+    updatedItems.push({
+      ...item,
+      sort_order: index,
+    });
   });
 
-  return updatedFlexItems;
+  return updatedItems;
 }
 export function moveCombinedItemByStep(items, itemId, direction) {
   const currentIndex = items.findIndex((item) => item.id === itemId);
