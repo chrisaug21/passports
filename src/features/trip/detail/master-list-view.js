@@ -17,7 +17,6 @@ import {
 } from "./trip-detail-ui.js";
 import { renderItemActionsMenu } from "./day-item-view.js";
 import {
-  getActiveFilterCount,
   getBaseLabel,
   getFilteredMasterListItems,
   getSortedMasterListItems,
@@ -80,12 +79,12 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
   const filters = tripDetail.masterListFilters || {};
   const sort = tripDetail.masterListSort || { key: "default", direction: "asc" };
   const subtypeOptions = getSubtypeFilterOptions(filters.type || "all");
-  const filteredItems = getFilteredMasterListItems(items, filters);
+  const effectiveFilters = getEffectiveMasterListFilters(filters);
+  const filteredItems = getFilteredMasterListItems(items, effectiveFilters);
   const sortedItems = getSortedMasterListItems(filteredItems, days, bases, sort);
-  const hasActiveFilters = isMasterListFiltered(filters);
+  const hasActiveFilters = isMasterListFiltered(effectiveFilters);
 
   return `
-    ${tripDetail.isShowingMasterListFilters ? renderMobileFilterSheet(filters, bases) : ""}
     ${renderMasterListQuickAdd(tripDetail)}
     <div class="master-list-action-row">
       <div class="master-list-filter-bar">
@@ -107,9 +106,6 @@ export function renderMasterListPlanningTable({ items, days, bases, tripDetail }
           ["unassigned", "Unassigned"],
         ])}
         ${hasActiveFilters ? `<button class="button-link master-list-filter-bar__clear" data-clear-master-list-filters type="button">Clear</button>` : ""}
-        <button class="button button--secondary master-list-filter-bar__mobile" data-open-master-list-filters type="button">
-          Filters${hasActiveFilters ? `<span class="master-list-filter-badge">${getActiveFilterCount(filters)}</span>` : ""}
-        </button>
       </div>
       <button class="button button--secondary section-action-button master-list-add-trip-button" data-add-item-to-trip type="button" aria-label="Add to trip">
         <i data-lucide="plus" aria-hidden="true"></i>
@@ -167,54 +163,28 @@ function renderMasterListQuickAdd(tripDetail) {
   `;
 }
 
-function renderMobileFilterSheet(filters, bases) {
-  const subtypeOptions = getSubtypeFilterOptions(filters.type || "all");
+function getEffectiveMasterListFilters(filters) {
+  const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)")?.matches;
 
-  return `
-    <div class="master-list-filter-sheet" role="dialog" aria-modal="true" aria-label="List filters">
-      <button class="master-list-filter-sheet__backdrop" data-close-master-list-filters type="button" aria-label="Close filters"></button>
-      <div class="master-list-filter-sheet__panel">
-        <div class="master-list-filter-sheet__header">
-          <h3>Filters</h3>
-          <button class="icon-button" data-close-master-list-filters type="button" aria-label="Close filters">×</button>
-        </div>
-        <div class="master-list-filter-sheet__controls">
-          ${renderMasterListSearch(filters.search || "", { mobile: true })}
-          ${renderMasterListFilterSelect("type", "Type", filters.type || "all", [
-            ["all", "All"],
-            ...ITEM_TYPES.map((type) => [type, formatItemTypeLabel(type)]),
-          ], { mobile: true })}
-          ${renderMasterListFilterSelect("subtype", "Subtype", filters.subtype || "all", subtypeOptions, {
-            mobile: true,
-            disabled: subtypeOptions.length <= 1,
-          })}
-          ${renderMasterListFilterSelect("status", "Status", filters.status || "all", [
-            ["all", "All"],
-            ...ITEM_STATUSES.map((status) => [status, formatStatusLabel(status)]),
-          ], { mobile: true })}
-          ${renderMasterListFilterSelect("baseId", "Base", filters.baseId || "all", [
-            ["all", "All"],
-            ...bases.map((base) => [base.id, base.name || "Untitled base"]),
-            ["unassigned", "Unassigned"],
-          ], { mobile: true })}
-        </div>
-        <div class="master-list-filter-sheet__actions">
-          <button class="button button--secondary" data-close-master-list-filters type="button">Cancel</button>
-          <button class="button" data-apply-master-list-filters type="button">Apply</button>
-        </div>
-      </div>
-    </div>
-  `;
+  if (!isMobile) {
+    return filters;
+  }
+
+  return {
+    search: filters.search || "",
+    type: "all",
+    subtype: "all",
+    status: "all",
+    baseId: "all",
+  };
 }
 
-function renderMasterListSearch(value, config = {}) {
-  const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
-
+function renderMasterListSearch(value) {
   return `
     <label class="field master-list-filter master-list-filter--search">
       <span>Search</span>
       <input
-        ${dataAttribute}="search"
+        data-master-list-filter="search"
         type="search"
         value="${escapeHtml(value)}"
         placeholder="Search..."
@@ -224,12 +194,10 @@ function renderMasterListSearch(value, config = {}) {
 }
 
 function renderMasterListFilterSelect(name, label, value, options, config = {}) {
-  const dataAttribute = config.mobile ? "data-master-list-sheet-filter" : "data-master-list-filter";
-
   return `
     <label class="field master-list-filter master-list-filter--${escapeHtml(name)}">
       <span>${escapeHtml(label)}</span>
-      <select ${dataAttribute}="${escapeHtml(name)}" ${config.disabled ? "disabled" : ""}>
+      <select data-master-list-filter="${escapeHtml(name)}" ${config.disabled ? "disabled" : ""}>
         ${options.map(([optionValue, optionLabel]) => (
           `<option value="${escapeHtml(optionValue)}" ${value === optionValue ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`
         )).join("")}

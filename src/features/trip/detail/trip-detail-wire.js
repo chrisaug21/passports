@@ -122,12 +122,6 @@ export function wireTripDetailPageEvents(handlers) {
     event.stopPropagation();
     handlers.onMasterListFilterChange?.(input);
   });
-  bindAll('[data-master-list-sheet-filter="type"]', "change", (select) => {
-    handlers.onMasterListSheetTypeFilterChange?.(select);
-  });
-  bindClick("[data-open-master-list-filters]", handlers.onOpenMasterListFilters);
-  bindClick("[data-close-master-list-filters]", handlers.onCloseMasterListFilters);
-  bindClick("[data-apply-master-list-filters]", handlers.onApplyMasterListFilters);
   bindClick("[data-clear-master-list-filters]", handlers.onClearMasterListFilters);
   bindAll("[data-master-list-sort]", "click", (button) => {
     handlers.onMasterListSort?.(button);

@@ -28,7 +28,7 @@ import { normalizeTimeInput, wireTimeInputs } from "./item-editor-time.js";
 
 export function getTripItemErrorMessage(action = "update") {
   const messages = {
-    create: "Could not create that stop right now. Please try again.",
+    create: "Could not add to trip. Please try again.",
     update: "Could not save those changes right now. Please try again.",
     delete: "Could not delete that stop right now. Please try again.",
     baseDelete: "Could not delete that base right now. Please try again.",

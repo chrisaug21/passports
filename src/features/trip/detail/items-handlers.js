@@ -4,11 +4,9 @@ import { sessionStore } from "../../../state/session-store.js";
 import { createTripItem } from "../../../services/trips-service.js";
 import { showToast } from "../../shared/toast.js";
 import { rerenderTripDetail } from "./trip-detail-state.js";
-import { escapeHtml } from "./trip-detail-ui.js";
 import { normalizeNullableId } from "./base-allocation-controller.js";
 import {
   closeMasterListInlineEdit,
-  getSubtypeFilterOptions,
   saveMasterListField,
   updateMasterListFilters,
   updateMasterListSort,
@@ -57,7 +55,7 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
           tripId: trip.id,
           createdBy: session.user.id,
           title,
-          itemType: null,
+          itemType: "activity",
           sortOrder: nextSortOrder,
         });
 
@@ -98,47 +96,6 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
         selectionStart: select.selectionStart,
         selectionEnd: select.selectionEnd,
       });
-    },
-    onMasterListSheetTypeFilterChange: (select) => {
-      const subtypeSelect = document.querySelector('[data-master-list-sheet-filter="subtype"]');
-
-      if (!subtypeSelect) {
-        return;
-      }
-
-      const subtypeOptions = getSubtypeFilterOptions(select.value || "all");
-      subtypeSelect.innerHTML = subtypeOptions.map(([optionValue, optionLabel]) => (
-        `<option value="${escapeHtml(optionValue)}">${escapeHtml(optionLabel)}</option>`
-      )).join("");
-      subtypeSelect.value = "all";
-      subtypeSelect.disabled = subtypeOptions.length <= 1;
-    },
-    onApplyMasterListFilters: () => {
-      const nextFilters = {
-        search: "",
-        type: "all",
-        subtype: "all",
-        status: "all",
-        baseId: "all",
-      };
-
-      document.querySelectorAll("[data-master-list-sheet-filter]").forEach((select) => {
-        nextFilters[select.getAttribute("data-master-list-sheet-filter")] = select.value || "all";
-      });
-
-      appStore.updateTripDetail({
-        masterListFilters: nextFilters,
-        isShowingMasterListFilters: false,
-      });
-      rerenderTripDetail();
-    },
-    onOpenMasterListFilters: () => {
-      appStore.updateTripDetail({ isShowingMasterListFilters: true });
-      rerenderTripDetail();
-    },
-    onCloseMasterListFilters: () => {
-      appStore.updateTripDetail({ isShowingMasterListFilters: false });
-      rerenderTripDetail();
     },
     onClearMasterListFilters: () => {
       appStore.updateTripDetail({

@@ -119,25 +119,6 @@
   white-space: nowrap;
 }
 
-.master-list-filter-bar__mobile {
-  display: none;
-  position: relative;
-}
-
-.master-list-filter-badge {
-  min-width: 1.1rem;
-  height: 1.1rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-action);
-  color: var(--color-surface-strong);
-  display: inline-grid;
-  place-items: center;
-  margin-left: 0.35rem;
-  padding-inline: 0.25rem;
-  font-size: 0.7rem;
-  line-height: 1;
-}
-
 .master-list-empty {
   border: 1px dashed var(--color-border);
   border-radius: 8px;
@@ -308,8 +289,7 @@
   margin-top: 0.3rem;
 }
 
-.master-list-mobile-row,
-.master-list-filter-sheet {
+.master-list-mobile-row {
   display: none;
 }
 
@@ -389,22 +369,23 @@
       display: flex;
       align-items: center;
       gap: 0.65rem;
-      flex: 0 1 auto;
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .master-list-filter-bar .master-list-filter {
       display: none;
     }
 
-    .master-list-filter-bar__clear {
-      display: inline-flex;
-      order: 2;
+    .master-list-filter-bar .master-list-filter--search {
+      display: grid;
+      flex: 1 1 auto;
+      max-width: none;
+      min-width: 0;
     }
 
-    .master-list-filter-bar__mobile {
-      display: inline-flex;
-      min-height: 44px;
-      order: 1;
+    .master-list-filter-bar__clear {
+      display: none;
     }
 
     .master-list-table {
@@ -461,71 +442,6 @@
     .master-list-mobile-row__type-icon svg {
       width: 16px;
       height: 16px;
-    }
-
-    .master-list-filter-sheet {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      z-index: 80;
-      display: block;
-    }
-
-    .master-list-filter-sheet__backdrop {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      border: 0;
-      background: rgba(26, 35, 50, 0.48);
-      z-index: 81;
-    }
-
-    .master-list-filter-sheet__panel {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      max-height: 70vh;
-      border-radius: 16px 16px 0 0;
-      background: var(--color-surface-strong);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      z-index: 82;
-    }
-
-    .master-list-filter-sheet__header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem 1rem 0;
-    }
-
-    .master-list-filter-sheet__controls {
-      display: grid;
-      gap: 0.85rem;
-      padding: 1rem;
-    }
-
-    .master-list-filter-sheet__controls .master-list-filter {
-      display: grid;
-    }
-
-    .master-list-filter-sheet__controls .master-list-filter--search {
-      min-width: 0;
-    }
-
-    .master-list-filter-sheet__actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem 1rem;
-      background: var(--color-surface-strong);
     }
 }
 

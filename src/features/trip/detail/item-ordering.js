@@ -72,26 +72,14 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
 }
 export function assignFlexSortOrdersFromCombinedItems(combinedItems) {
   const updatedFlexItems = [];
-  let nextSortOrder = 0;
-  let previousAnchorBoundary = -1;
 
-  combinedItems.forEach((item) => {
-    if (item.is_anchor) {
-      const rawBoundary = Number(item.sort_order);
-      const anchorBoundary = Number.isFinite(rawBoundary)
-        ? Math.max(previousAnchorBoundary, rawBoundary)
-        : previousAnchorBoundary;
-
-      previousAnchorBoundary = anchorBoundary;
-      nextSortOrder = Math.max(nextSortOrder, anchorBoundary + 1);
-      return;
+  combinedItems.forEach((item, index) => {
+    if (!item.is_anchor) {
+      updatedFlexItems.push({
+        ...item,
+        sort_order: index,
+      });
     }
-
-    updatedFlexItems.push({
-      ...item,
-      sort_order: nextSortOrder,
-    });
-    nextSortOrder += 1;
   });
 
   return updatedFlexItems;

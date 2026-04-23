@@ -183,11 +183,6 @@ export function isMasterListFiltered(filters = {}) {
     || ["type", "subtype", "status", "baseId"].some((key) => filters[key] && filters[key] !== "all");
 }
 
-export function getActiveFilterCount(filters = {}) {
-  return (String(filters.search || "").trim() ? 1 : 0)
-    + ["type", "subtype", "status", "baseId"].filter((key) => filters[key] && filters[key] !== "all").length;
-}
-
 async function persistItemBatchUpdates(updatedItems) {
   const savedItems = await batchUpdateTripItems(updatedItems);
   tripStore.mergeCurrentItems(savedItems);
