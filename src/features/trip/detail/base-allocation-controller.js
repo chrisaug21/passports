@@ -59,7 +59,7 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
   `;
 }
 
-export function renderAddBaseForm(currentBaseCount, isSaving) {
+export function renderAddBaseForm(isSaving) {
   return `
     <div class="modal-shell" id="add-base-modal" aria-hidden="false">
       <div class="modal-backdrop" data-close-add-base></div>
@@ -82,7 +82,6 @@ export function renderAddBaseForm(currentBaseCount, isSaving) {
               <span>Timezone</span>
               ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
             </label>
-            <input name="sortOrder" type="hidden" value="${currentBaseCount + 1}" />
           </div>
           <div class="modal-card__actions modal-card__actions--sticky modal-card__actions--end">
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Base"}</button>

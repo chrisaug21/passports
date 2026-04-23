@@ -194,7 +194,7 @@ export function renderTripDetailPageView() {
         isDeleting: tripDetail.isDeletingItem && tripDetail.deletingItemId === editingItem?.id,
       })}
       ${tripDetail.isShowingTripSettings ? renderTripSettingsForm(trip, tripDetail.isSavingTrip) : ""}
-      ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length, tripDetail.isSavingBase) : ""}
+      ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(tripDetail.isSavingBase) : ""}
       ${selectedEditBase ? renderEditBaseForm(selectedEditBase, tripDetail.isSavingBase) : ""}
       ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
       ${renderDeleteItemConfirmModal({

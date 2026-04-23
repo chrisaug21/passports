@@ -33,7 +33,7 @@ src/
 ```
 Trip
 └── Bases (1–4, ordered)
-      ├── local_timezone (IANA string — determines "today" when Active)
+      ├── local_timezone (IANA string — determines "today" when Traveling)
       └── Days (belong to a base)
             └── Items (meal / activity / transport / lodging)
 ```
@@ -79,7 +79,7 @@ Trip
 
 ## Timezone Handling
 - `local_timezone` on `trip_bases` — IANA string only (e.g. `Europe/Madrid`)
-- Purpose: determine correct "today" when trip is Active — not for time conversion
+- Purpose: determine correct "today" when trip is Traveling — not for time conversion
 - All times stored as `HH:MM` local strings — no UTC, no timezone math
 - Transition days between bases: sort_order determines sequence
 

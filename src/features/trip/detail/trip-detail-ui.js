@@ -107,7 +107,7 @@ export function getItemIconName(item) {
     cafes_markets: "coffee",
     shopping: "shopping-bag",
     walking_exploring: "footprints",
-    wellness_spa: "sparkles",
+    wellness_spa: "flower",
     entertainment: "ticket",
     nightlife: "moon",
     other: "sparkles",

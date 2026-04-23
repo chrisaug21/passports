@@ -171,8 +171,12 @@ export function createItemEditorHandlers() {
       const draft = tripDetailState.itemEditorDraft || (currentItem ? buildItemEditorDraft(currentItem) : buildAddItemEditorDraft());
       const nextBaseId = normalizeNullableId(draft.baseId);
       const nextDayId = normalizeNullableId(draft.dayId);
-      const timeStart = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeStart", "time_start"));
-      const timeEnd = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeEnd", "time_end"));
+      const timeStart = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeStart", "time_start", {
+        hydrate: false,
+      }));
+      const timeEnd = normalizeTimeInput(getDraftTimeValue(draft, currentItem, "timeEnd", "time_end", {
+        hydrate: false,
+      }));
 
       if (timeStart === null || timeEnd === null) {
         showToast("Use a valid time.", "error");
@@ -346,9 +350,15 @@ export function createItemEditorHandlers() {
   };
 }
 
-function getDraftTimeValue(draft, item, draftKey, itemKey) {
-  if (draft && Object.prototype.hasOwnProperty.call(draft, draftKey) && draft[draftKey] !== "") {
+function getDraftTimeValue(draft, item, draftKey, itemKey, options = {}) {
+  const hydrate = options.hydrate !== false;
+
+  if (draft && Object.prototype.hasOwnProperty.call(draft, draftKey)) {
     return draft[draftKey];
+  }
+
+  if (!hydrate) {
+    return "";
   }
 
   return item?.[itemKey] || "";

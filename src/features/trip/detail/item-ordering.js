@@ -37,12 +37,14 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
   }
 
   if (changedDay) {
-    const movedFlexItem = buildUpdatedItem(nextItem, {
-      time_start: null,
-    });
+    if (nextItem.time_start) {
+      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
+      return dedupeItemsById(updates);
+    }
+
     const destinationItems = normalizeFlexItems([
       ...getFlexItemsForDay(items, nextDayId, currentItem.id),
-      movedFlexItem,
+      nextItem,
     ]);
 
     updates.push(...destinationItems);

@@ -1,4 +1,4 @@
-export const APP_VERSION = "v0.1.56";
+export const APP_VERSION = "v0.1.57";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -19,15 +19,15 @@ export const ACTIVITY_TYPES = [
   "cafes_markets",
   "entertainment",
   "live_music_shows",
-  "shopping",
   "nightlife",
-  "other",
   "outdoors_nature",
+  "shopping",
   "sightseeing",
   "sports",
   "tastings_drinks",
   "walking_exploring",
   "wellness_spa",
+  "other",
 ];
 
 export const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];

@@ -42,7 +42,7 @@ export function formatTripDateSummary(trip, options = {}) {
   endDate.setDate(startDate.getDate() + Math.max(trip.trip_length - 1, 0));
   const today = new Date();
   today.setHours(12, 0, 0, 0);
-  const includeYear = options.includeYear || endDate < today;
+  const includeYear = options.includeYear !== undefined ? options.includeYear : endDate < today;
 
   if (!includeYear) {
     const formatter = new Intl.DateTimeFormat("en-US", {

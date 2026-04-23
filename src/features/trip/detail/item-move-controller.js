@@ -11,6 +11,7 @@ import {
   getAnchorDestinationSortOrder,
   getFlexItemsForDay,
   getInterleavedDayItems,
+  insertFlexItemByTime,
   moveCombinedItemByStep,
   normalizeFlexItems,
 } from "./item-ordering.js";
@@ -76,16 +77,19 @@ export async function moveItemToDestination(itemId, destinationDayId) {
       updates.push(...normalizeFlexItems(getFlexItemsForDay(items, sourceDayId, item.id)));
     }
 
-    const destinationFlexItems = normalizeFlexItems([
-      ...getFlexItemsForDay(items, destinationDayId, item.id),
-      buildUpdatedItem(item, {
-        day_id: destinationDayId,
-        base_id: item.base_id,
-        time_start: null,
-      }),
-    ]);
+    const movedItem = buildUpdatedItem(item, {
+      day_id: destinationDayId,
+      base_id: item.base_id,
+    });
 
-    updates.push(...destinationFlexItems);
+    if (movedItem.time_start) {
+      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, destinationDayId, item.id), movedItem));
+    } else {
+      updates.push(...normalizeFlexItems([
+        ...getFlexItemsForDay(items, destinationDayId, item.id),
+        movedItem,
+      ]));
+    }
   } else {
     updates.push(buildUpdatedItem(item, {
       day_id: destinationDayId,

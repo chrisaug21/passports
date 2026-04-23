@@ -4,6 +4,7 @@ import { sessionStore } from "../../../state/session-store.js";
 import { createTripItem } from "../../../services/trips-service.js";
 import { showToast } from "../../shared/toast.js";
 import { rerenderTripDetail } from "./trip-detail-state.js";
+import { getDisplayTitleForToast } from "./trip-detail-ui.js";
 import { normalizeNullableId } from "./base-allocation-controller.js";
 import {
   closeMasterListInlineEdit,
