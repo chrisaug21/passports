@@ -77,6 +77,10 @@
   flex-wrap: nowrap;
 }
 
+.master-list-filter-bar .field > span {
+  display: none;
+}
+
 .master-list-filter {
   min-width: 0;
   flex: 0 0 auto;
@@ -351,12 +355,12 @@
     }
 
     .master-list-add-trip-button span,
-    .master-list-quick-add__label-full {
+    .master-list-quick-add__label-full,
+    .master-list-quick-add__label-short {
       display: none;
     }
 
-    .master-list-add-trip-button svg,
-    .master-list-quick-add__label-short {
+    .master-list-add-trip-button svg {
       display: inline-flex;
     }
 
@@ -477,6 +481,7 @@
       left: 0;
       border: 0;
       background: rgba(26, 35, 50, 0.48);
+      z-index: 81;
     }
 
     .master-list-filter-sheet__panel {
@@ -490,6 +495,7 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      z-index: 82;
     }
 
     .master-list-filter-sheet__header {

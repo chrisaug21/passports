@@ -45,7 +45,7 @@
 
 .allocation-row {
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 16px;
   background: #f8fafb;
   padding: 8px 0.85rem 0.85rem;
   display: flex;
@@ -158,6 +158,18 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
+}
+
+.allocation-row__edit {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.allocation-row:hover .allocation-row__edit,
+.allocation-row:focus-within .allocation-row__edit {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .allocation-row__edit svg,

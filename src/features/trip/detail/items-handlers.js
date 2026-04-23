@@ -135,19 +135,6 @@ export function createItemsHandlers({ getTripItemErrorMessage }) {
     onOpenMasterListFilters: () => {
       appStore.updateTripDetail({ isShowingMasterListFilters: true });
       rerenderTripDetail();
-      window.requestAnimationFrame(() => {
-        const sheet = document.querySelector(".master-list-filter-sheet");
-
-        if (!sheet) {
-          return;
-        }
-
-        sheet.style.position = "fixed";
-        sheet.style.bottom = "0";
-        sheet.style.left = "0";
-        sheet.style.right = "0";
-        sheet.style.top = "auto";
-      });
     },
     onCloseMasterListFilters: () => {
       appStore.updateTripDetail({ isShowingMasterListFilters: false });

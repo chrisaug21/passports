@@ -347,7 +347,7 @@ export function createItemEditorHandlers() {
 }
 
 function getDraftTimeValue(draft, item, draftKey, itemKey) {
-  if (draft && Object.prototype.hasOwnProperty.call(draft, draftKey)) {
+  if (draft && Object.prototype.hasOwnProperty.call(draft, draftKey) && draft[draftKey] !== "") {
     return draft[draftKey];
   }
 
