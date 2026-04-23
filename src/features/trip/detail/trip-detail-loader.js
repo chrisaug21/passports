@@ -48,11 +48,10 @@ export async function loadTripDetail(tripId) {
       showDeleteBaseConfirm: false,
       isDeletingBase: false,
       deletingBaseId: null,
-      showTripStatusConfirm: false,
-      pendingTripStatus: null,
-      isUpdatingTripStatus: false,
       showDeleteTripConfirm: false,
       isDeletingTrip: false,
+      itemEditorMode: "edit",
+      itemEditorContext: null,
       editingItemId: persistedItemStillExists ? tripDetailState.persistedEditorItemId : null,
     });
     if (!isSameTrip) {

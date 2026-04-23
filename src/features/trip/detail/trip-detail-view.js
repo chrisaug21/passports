@@ -1,11 +1,9 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
-  formatItemTypeLabel,
   formatStatusLabel,
   formatTripDateSummary,
 } from "../../../lib/format.js";
-import { ITEM_TYPES } from "../../../config/constants.js";
 import {
   escapeHtml,
   getTripHeaderMediaStyle,
@@ -16,7 +14,6 @@ import {
   renderDeleteTripConfirmModal,
   renderTripSettingsForm,
   renderTripSettingsSummary,
-  renderTripStatusConfirmModal,
 } from "./trip-settings-controller.js";
 import {
   buildAllocationRows,
@@ -24,6 +21,7 @@ import {
   getAllocationSummary,
   hasAllocationDraftChanges,
   renderAddBaseForm,
+  renderEditBaseForm,
   renderAllocationConfirmModal,
   renderAllocationRow,
   renderDeleteBaseConfirmModal,
@@ -35,7 +33,7 @@ import {
   getInterleavedDayItems,
   getSortedUnassignedItems,
   renderDayItem,
-  renderMasterListRow,
+  renderMasterListPlanningTable,
 } from "./items-controller.js";
 import {
   renderDeleteItemConfirmModal,
@@ -43,6 +41,7 @@ import {
   renderItemEditorModal,
   renderMoveItemModal,
 } from "./item-editor-controller.js";
+import { deriveTripStatus } from "../../../lib/derive.js";
 
 export function renderTripDetailPageView() {
   const { tripDetail } = appStore.getState();
@@ -51,6 +50,7 @@ export function renderTripDetailPageView() {
   const days = tripStore.getCurrentDays();
   const items = tripStore.getCurrentItems();
   const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
+  const selectedEditBase = bases.find((base) => base.id === tripDetail.editingBaseId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
 
@@ -110,19 +110,15 @@ export function renderTripDetailPageView() {
               <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
               <div class="trip-header__summary-line">
                 <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
-                <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
+                <span class="trip-pill">${formatStatusLabel(deriveTripStatus(trip))}</span>
               </div>
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
-            <button class="button button--secondary trip-header__edit-button" id="toggle-trip-settings" type="button">
-              ${tripDetail.isShowingTripSettings ? "Hide editor" : "Edit Trip"}
+            <button class="button button--secondary trip-header__edit-button section-action-button" id="toggle-trip-settings" type="button">
+              Edit Trip
             </button>
           </div>
-          ${
-            tripDetail.isShowingTripSettings
-              ? renderTripSettingsForm(trip, tripDetail.isSavingTrip)
-              : renderTripSettingsSummary(trip)
-          }
+          ${renderTripSettingsSummary(trip)}
         </div>
       </section>
 
@@ -141,7 +137,7 @@ export function renderTripDetailPageView() {
             <p class="eyebrow">Bases</p>
             <h3>Day Allocation</h3>
           </div>
-          <button class="button button--secondary" id="show-add-base-form" type="button">Add Base</button>
+          <button class="button button--secondary section-action-button" id="show-add-base-form" type="button">Add Base</button>
         </div>
 
         <div class="allocation-list">
@@ -161,12 +157,11 @@ export function renderTripDetailPageView() {
             : ""
         }
 
-        ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(bases.length) : ""}
       </section>
 
       <section class="trip-view-tabs" aria-label="Trip views">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
         <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
       </section>
 
       ${
@@ -176,46 +171,10 @@ export function renderTripDetailPageView() {
         <div class="master-list-panel__header">
           <div>
             <p class="eyebrow">List View</p>
-            <h3>List View</h3>
           </div>
         </div>
 
-        <form class="master-list-quick-add" id="master-list-quick-add-form">
-          <label class="field master-list-quick-add__field master-list-quick-add__field--title">
-            <span>Title</span>
-            <input
-              name="title"
-              type="text"
-              maxlength="120"
-              placeholder="Add a restaurant, museum, hotel, or transport idea"
-              required
-            />
-          </label>
-          <label class="field master-list-quick-add__field">
-            <span>Type</span>
-            <select name="itemType" required>
-              ${ITEM_TYPES.map((type) => `<option value="${type}">${formatItemTypeLabel(type)}</option>`).join("")}
-            </select>
-          </label>
-          <button class="button master-list-quick-add__submit" type="submit" ${tripDetail.isCreatingItem ? "disabled" : ""}>
-            ${tripDetail.isCreatingItem ? "Saving…" : "Add to trip"}
-          </button>
-        </form>
-
-        ${
-          items.length === 0
-            ? `
-              <div class="master-list-empty">
-                <h4>No items yet</h4>
-                <p class="muted">This trip exists, its base and day structure are loaded, and the app is ready for the next checkpoint: adding items into the master list.</p>
-              </div>
-            `
-            : `
-              <div class="master-list-table">
-                ${items.map((item) => renderMasterListRow(item, days, bases)).join("")}
-              </div>
-            `
-        }
+        ${renderMasterListPlanningTable({ items, days, bases, tripDetail })}
       </section>
       `
           : renderDaysView(bases, days, assignedItems, unassignedItems, {
@@ -229,9 +188,14 @@ export function renderTripDetailPageView() {
         item: editingItem,
         bases,
         days,
+        mode: tripDetail.itemEditorMode,
+        context: tripDetail.itemEditorContext,
         isSaving: tripDetail.isSavingItem,
         isDeleting: tripDetail.isDeletingItem && tripDetail.deletingItemId === editingItem?.id,
       })}
+      ${tripDetail.isShowingTripSettings ? renderTripSettingsForm(trip, tripDetail.isSavingTrip) : ""}
+      ${tripDetail.isShowingAddBaseForm ? renderAddBaseForm(tripDetail.isSavingBase) : ""}
+      ${selectedEditBase ? renderEditBaseForm(selectedEditBase, tripDetail.isSavingBase) : ""}
       ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
       ${renderDeleteItemConfirmModal({
         item: items.find((entry) => entry.id === tripDetail.deletingItemId) || null,
@@ -252,12 +216,6 @@ export function renderTripDetailPageView() {
         base: bases.find((entry) => entry.id === tripDetail.deletingBaseId) || null,
         isOpen: tripDetail.showDeleteBaseConfirm,
         isDeleting: tripDetail.isDeletingBase,
-      })}
-      ${renderTripStatusConfirmModal({
-        trip,
-        isOpen: tripDetail.showTripStatusConfirm,
-        pendingStatus: tripDetail.pendingTripStatus,
-        isSaving: tripDetail.isUpdatingTripStatus,
       })}
       ${renderDeleteTripConfirmModal({
         trip,

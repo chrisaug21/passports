@@ -2,7 +2,6 @@ import {
   DEFAULT_BASE_NAME,
   DEFAULT_BASE_TIMEZONE,
   ITEM_STATUSES,
-  TRIP_STATUSES,
 } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 
@@ -282,6 +281,71 @@ export async function createTripItem({ tripId, createdBy, title, itemType, sortO
       sort_order: sortOrder,
       created_at: now,
       updated_at: now,
+    })
+    .select(TRIP_ITEM_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createDetailedTripItem({
+  tripId,
+  createdBy,
+  title,
+  itemType,
+  status,
+  isAnchor,
+  baseId,
+  dayId,
+  mealSlot,
+  activityType,
+  transportMode,
+  transportOrigin,
+  transportDestination,
+  timeStart,
+  timeEnd,
+  costLow,
+  costHigh,
+  url,
+  notes,
+  sortOrder,
+}) {
+  const normalizedStatus = String(status || "idea").trim();
+
+  if (!ITEM_STATUSES.includes(normalizedStatus)) {
+    throw new Error("Please choose a valid item status.");
+  }
+
+  const { data, error } = await getSupabase()
+    .from("trip_items")
+    .insert({
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      base_id: normalizeNullableId(baseId),
+      day_id: normalizeNullableId(dayId),
+      created_by: createdBy,
+      title,
+      item_type: itemType,
+      status: normalizedStatus,
+      is_anchor: Boolean(isAnchor),
+      meal_slot: mealSlot || null,
+      activity_type: activityType || null,
+      transport_mode: transportMode || null,
+      transport_origin: transportOrigin || null,
+      transport_destination: transportDestination || null,
+      time_start: timeStart || null,
+      time_end: timeEnd || null,
+      cost_low: costLow === "" ? null : costLow,
+      cost_high: costHigh === "" ? null : costHigh,
+      url: url || null,
+      notes: notes || null,
+      sort_order: sortOrder,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .select(TRIP_ITEM_SELECT)
     .single();
@@ -655,46 +719,6 @@ export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {
       },
     ],
   });
-}
-
-export async function updateTripStatus({ tripId, status }) {
-  const normalizedStatus = String(status || "").trim();
-
-  if (!TRIP_STATUSES.includes(normalizedStatus)) {
-    throw new Error("Please choose a valid trip status.");
-  }
-
-  const { data, error } = await getSupabase()
-    .from("trips")
-    .update({
-      status: normalizedStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", tripId)
-    .is("deleted_at", null)
-    .select(
-      `
-        id,
-        owner_id,
-        title,
-        description,
-        trip_length,
-        start_date,
-        status,
-        is_public,
-        cover_photo_url,
-        created_at,
-        updated_at,
-        deleted_at
-      `
-    )
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
 }
 
 export async function softDeleteTrip(tripId) {

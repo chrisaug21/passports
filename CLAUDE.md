@@ -26,14 +26,14 @@ src/
 
 ## Three Modes
 - **Planning mode** — private; full edit access; idea/shortlisted items visible
-- **Active mode** — phone-first; shows today's plan based on base timezone
+- **Traveling mode** — phone-first; shows today's plan based on trip dates
 - **Diary/share mode** — public read-only via `/trip/:id`; confirmed/reserved/done items only
 
 ## Data Hierarchy
 ```
 Trip
 └── Bases (1–4, ordered)
-      ├── local_timezone (IANA string — determines "today" when Active)
+      ├── local_timezone (IANA string — determines "today" when Traveling)
       └── Days (belong to a base)
             └── Items (meal / activity / transport / lodging)
 ```
@@ -79,7 +79,7 @@ Trip
 
 ## Timezone Handling
 - `local_timezone` on `trip_bases` — IANA string only (e.g. `Europe/Madrid`)
-- Purpose: determine correct "today" when trip is Active — not for time conversion
+- Purpose: determine correct "today" when trip is Traveling — not for time conversion
 - All times stored as `HH:MM` local strings — no UTC, no timezone math
 - Transition days between bases: sort_order determines sequence
 
@@ -110,7 +110,7 @@ Always open new PRs as drafts (`--draft` flag with `gh pr create`). Only mark re
 - **User-uploaded photos**: Supabase Storage for post-trip memento photos (Phase 2)
 - **Smart timezone prompt**: on active travel days, detect device timezone mismatch with base timezone; one-tap banner to update
 - **Traveler reactions**: Must Do / Skip / No Preference per item (Phase 2)
-- **Memento/diary mode**: beautiful archive view when status = Done; designed share experience
+- **Memento/diary mode**: beautiful archive view for past trips; designed share experience
 - **Homeboard integration**: trip countdowns and todos surfaced on Homeboard
 - **Public share slug**: replace UUID-based public URLs with revocable slugs
 - **Full email invite flow**: currently MVP is manual add only (user must already have account)

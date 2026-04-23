@@ -4,12 +4,8 @@ import { tripStore } from "../../../state/trip-store.js";
 import {
   softDeleteTrip,
   updateTripSettings,
-  updateTripStatus,
 } from "../../../services/trips-service.js";
-import {
-  formatShortDateRange,
-  formatStatusLabel,
-} from "../../../lib/format.js";
+import { getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -29,8 +25,47 @@ function getTripShrinkSummary(nextTripLength, days, items) {
   return {
     itemCount: affectedItems.length,
     removedDays: removedDays.length,
-    message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels}. ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
+    message: `Reducing to ${nextTripLength} day${nextTripLength === 1 ? "" : "s"} will remove ${removedLabels}. ${affectedItems.length} stop${affectedItems.length === 1 ? "" : "s"} will move to unassigned. Continue?`,
   };
+}
+
+function formatTripSettingsEndDate(startDateValue, tripLengthValue) {
+  const tripLength = Number(tripLengthValue);
+
+  if (!startDateValue) {
+    return "Set start date";
+  }
+
+  if (!isValidDateInput(startDateValue) || !Number.isInteger(tripLength) || tripLength < 1) {
+    return "Choose a valid date";
+  }
+
+  const endDate = getTripEndDate({
+    start_date: startDateValue,
+    trip_length: tripLength,
+  });
+
+  return endDate
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(endDate)
+    : "Set start date";
+}
+
+function wireTripSettingsDatePreview() {
+  const form = document.querySelector("#trip-settings-form");
+  const endDateInput = form?.querySelector("[data-trip-end-date]");
+
+  if (!form || !endDateInput) {
+    return;
+  }
+
+  const updatePreview = () => {
+    const formData = new FormData(form);
+    endDateInput.value = formatTripSettingsEndDate(formData.get("startDate"), formData.get("tripLength"));
+  };
+
+  form.querySelector('[name="startDate"]')?.addEventListener("input", updatePreview);
+  form.querySelector('[name="tripLength"]')?.addEventListener("input", updatePreview);
+  updatePreview();
 }
 
 function formatRemovedDayLabels(dayNumbers) {
@@ -82,106 +117,62 @@ function formatRemovedDayRange(startDayNumber, endDayNumber) {
 }
 
 export function renderTripSettingsForm(trip, isSaving) {
-  const endDateLabel = trip.start_date ? formatShortDateRange(trip.start_date, 1, trip.trip_length) : "";
+  const endDate = getTripEndDate(trip);
+  const endDateLabel = endDate
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(endDate)
+    : "Set start date";
 
   return `
-    <form class="trip-settings-form" id="trip-settings-form">
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Title</span>
-          <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
-        </label>
-        <label class="field">
-          <span>Trip Length</span>
-          <input name="tripLength" type="number" min="1" step="1" value="${trip.trip_length}" required />
-        </label>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Start Date</span>
-          <input name="startDate" type="date" value="${trip.start_date || ""}" />
-        </label>
-        <label class="field">
-          <span>End Date</span>
-          <input type="text" value="${endDateLabel ? `Ends ${endDateLabel}` : "Set a start date to derive this"}" disabled />
-        </label>
-      </div>
-      <label class="field">
-        <span>Description</span>
-        <textarea name="description" rows="3" placeholder="What kind of trip is this?">${escapeHtml(trip.description || "")}</textarea>
-      </label>
-      <p class="muted">Trip end date is always derived from start date plus trip length.</p>
-      ${renderTripLifecycleSection(trip)}
-      <div class="base-form__actions">
-        <button class="button button--secondary" id="cancel-trip-settings" type="button">Cancel</button>
-        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Trip"}</button>
-      </div>
-    </form>
+    <div class="modal-shell" id="trip-settings-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-trip-settings></div>
+      <section class="panel modal-card modal-card--editor trip-settings-modal">
+        <div class="modal-card__header">
+          <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
+          <button class="icon-button" id="cancel-trip-settings" type="button" aria-label="Close trip settings">×</button>
+        </div>
+
+        <form class="trip-settings-form" id="trip-settings-form">
+          <div class="item-editor-form__content">
+            <label class="field">
+              <span>Title</span>
+              <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
+            </label>
+
+            <div class="trip-settings-form__date-grid">
+              <label class="field">
+                <span>Trip Length</span>
+                <input name="tripLength" type="number" min="1" step="1" value="${trip.trip_length}" required />
+              </label>
+              <label class="field">
+                <span>Start Date</span>
+                <input name="startDate" type="date" value="${trip.start_date || ""}" />
+              </label>
+              <label class="field">
+                <span>End Date</span>
+                <input data-trip-end-date type="text" value="${escapeHtml(endDateLabel)}" readonly />
+              </label>
+            </div>
+            <p class="field-hint">End date is always derived from start date and trip length</p>
+
+            <label class="field">
+              <span>Description</span>
+              <textarea name="description" rows="4">${escapeHtml(trip.description || "")}</textarea>
+            </label>
+
+          </div>
+
+          <div class="modal-card__actions modal-card__actions--sticky">
+            <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
+            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
   `;
 }
 
 export function renderTripSettingsSummary(_trip) {
   return "";
-}
-
-export function renderTripLifecycleSection(trip) {
-  const { isUpdatingTripStatus } = appStore.getState().tripDetail;
-  const isDone = trip.status === "done";
-
-  return `
-    <section class="trip-lifecycle">
-      <div>
-        <p class="eyebrow">Lifecycle</p>
-        <h4>${isDone ? "Past Trip" : "Active Trip"}</h4>
-      </div>
-      <p class="muted">${isDone ? "Done trips stay visible in Past Trips on the dashboard." : "Mark this trip as done when it becomes a memory you still want to keep."}</p>
-      <div class="trip-lifecycle__actions">
-        ${
-          isDone
-            ? `<button class="button button--secondary" id="reopen-trip" type="button" ${isUpdatingTripStatus ? "disabled" : ""}>${isUpdatingTripStatus ? "Saving…" : "Reopen Trip"}</button>`
-            : `<button class="button button--secondary" id="mark-trip-done" type="button" ${isUpdatingTripStatus ? "disabled" : ""}>${isUpdatingTripStatus ? "Saving…" : "Mark as Done"}</button>`
-        }
-      </div>
-      <div class="trip-lifecycle trip-lifecycle--danger">
-        <div>
-          <p class="eyebrow">Delete Trip</p>
-          <h4>Hide this trip everywhere</h4>
-        </div>
-        <p class="muted">This is different from marking a trip done. Deleted trips are hidden from the dashboard and trip pages.</p>
-        <div class="trip-lifecycle__actions">
-          <button class="button button--danger" id="open-delete-trip-confirm" type="button">Delete Trip</button>
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-export function renderTripStatusConfirmModal({ trip, isOpen, pendingStatus, isSaving }) {
-  if (!isOpen || !trip || !pendingStatus) {
-    return "";
-  }
-
-  const isMarkingDone = pendingStatus === "done";
-  const statusLabel = formatStatusLabel(pendingStatus).toLowerCase();
-
-  return `
-    <div class="modal-shell" aria-hidden="false">
-      <div class="modal-backdrop" data-cancel-trip-status-confirm></div>
-      <section class="panel modal-card modal-card--confirm">
-        <div class="modal-card__header">
-          <div>
-            <p class="eyebrow">${isMarkingDone ? "Mark Trip as Done" : "Reopen Trip"}</p>
-            <h3>${isMarkingDone ? `Mark ${escapeHtml(trip.title || "this trip")} as done?` : `Reopen ${escapeHtml(trip.title || "this trip")}?`}</h3>
-          </div>
-        </div>
-        <p class="muted">${isMarkingDone ? "You can still view and edit it." : `This will move the trip back to ${escapeHtml(statusLabel)}.`}</p>
-        <div class="modal-card__actions">
-          <button class="button button--secondary" id="cancel-trip-status-confirm" type="button">Cancel</button>
-          <button class="button" id="confirm-trip-status-change" type="button" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : isMarkingDone ? "Mark as Done" : "Reopen Trip"}</button>
-        </div>
-      </section>
-    </div>
-  `;
 }
 
 export function renderDeleteTripConfirmModal({ trip, isOpen, isDeleting }) {
@@ -239,9 +230,8 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
 export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDetail }) {
   return {
     onToggleTripSettings: () => {
-      const { isShowingTripSettings } = appStore.getState().tripDetail;
       appStore.updateTripDetail({
-        isShowingTripSettings: !isShowingTripSettings,
+        isShowingTripSettings: true,
       });
       rerenderTripDetail();
     },
@@ -254,36 +244,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       });
       rerenderTripDetail();
     },
-    onMarkTripDone: () => {
-      const trip = tripStore.getCurrentTrip();
-
-      if (!trip) {
-        return;
-      }
-
-      appStore.updateTripDetail({
-        showTripStatusConfirm: true,
-        pendingTripStatus: "done",
-      });
-      tripStore.updateCurrentTrip({
-        ...trip,
-        previous_status: trip.status === "done" ? trip.previous_status || "planning" : trip.status,
-      });
-      rerenderTripDetail();
-    },
-    onReopenTrip: () => {
-      const trip = tripStore.getCurrentTrip();
-
-      if (!trip?.id) {
-        return;
-      }
-
-      appStore.updateTripDetail({
-        showTripStatusConfirm: true,
-        pendingTripStatus: trip.previous_status || "planning",
-      });
-      rerenderTripDetail();
-    },
+    onAfterTripSettingsOpen: wireTripSettingsDatePreview,
     onOpenDeleteTripConfirm: () => {
       appStore.updateTripDetail({
         showDeleteTripConfirm: true,
@@ -297,9 +258,15 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       const formData = new FormData(event.currentTarget);
       const title = String(formData.get("title") || "").trim();
       const tripLength = Number(formData.get("tripLength"));
+      const startDate = String(formData.get("startDate") || "").trim();
 
       if (!trip?.id || !title || !Number.isInteger(tripLength) || tripLength < 1) {
         showToast("Add a title and a valid trip length first.", "error");
+        return;
+      }
+
+      if (startDate && !isValidDateInput(startDate)) {
+        showToast("Choose a valid start date.", "error");
         return;
       }
 
@@ -307,7 +274,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         tripId: trip.id,
         title,
         description: String(formData.get("description") || "").trim(),
-        startDate: String(formData.get("startDate") || "").trim(),
+        startDate,
         tripLength,
       };
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
@@ -341,54 +308,6 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       tripDetailState.pendingTripSettingsDraft = null;
       tripDetailState.tripLengthConfirmState = null;
       await saveTripSettings(pendingSettings, getTripItemErrorMessage, loadTripDetail);
-    },
-    onCancelTripStatusConfirm: () => {
-      appStore.updateTripDetail({
-        showTripStatusConfirm: false,
-        pendingTripStatus: null,
-        isUpdatingTripStatus: false,
-      });
-      rerenderTripDetail();
-    },
-    onConfirmTripStatusChange: async () => {
-      const trip = tripStore.getCurrentTrip();
-      const { pendingTripStatus } = appStore.getState().tripDetail;
-
-      if (!trip?.id || !pendingTripStatus) {
-        return;
-      }
-
-      appStore.updateTripDetail({
-        isUpdatingTripStatus: true,
-      });
-      rerenderTripDetail();
-
-      try {
-        const updatedTrip = await updateTripStatus({
-          tripId: trip.id,
-          status: pendingTripStatus,
-        });
-        tripStore.updateCurrentTrip({
-          ...updatedTrip,
-          previous_status: pendingTripStatus === "done"
-            ? trip.previous_status || trip.status
-            : pendingTripStatus,
-        });
-        appStore.updateTripDetail({
-          isUpdatingTripStatus: false,
-          showTripStatusConfirm: false,
-          pendingTripStatus: null,
-        });
-        rerenderTripDetail();
-        showToast(pendingTripStatus === "done" ? "Trip marked as done." : "Trip reopened.", "success");
-      } catch (error) {
-        console.error(error);
-        appStore.updateTripDetail({
-          isUpdatingTripStatus: false,
-        });
-        rerenderTripDetail();
-        showToast(getTripItemErrorMessage("tripUpdate"), "error");
-      }
     },
     onCancelDeleteTrip: () => {
       appStore.updateTripDetail({

@@ -10,9 +10,9 @@ The current foundation includes:
 - base management
 - days view
 - installable PWA shell with manifest and service worker
-- trip settings and trip lifecycle controls
-- item and base soft delete
-- dashboard Past Trips section for completed trips
+- trip settings
+- stop and base soft delete
+- dashboard Past Trips section based on trip dates
 
 ## Stack
 - Vanilla HTML, CSS, and JavaScript with ES modules
@@ -55,10 +55,10 @@ src/
   - trip settings
   - base management
   - master list
-  - item editing
-  - item soft delete
+  - stop editing
+  - stop soft delete
   - base soft delete
-  - trip mark-as-done and delete
+  - trip delete
   - days view
 
 ## Key Data Rules

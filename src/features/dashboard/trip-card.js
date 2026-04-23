@@ -1,8 +1,10 @@
 import { formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
-import { TRIP_STATUSES } from "../../config/constants.js";
+import { DERIVED_TRIP_STATUSES } from "../../config/constants.js";
+import { deriveTripStatus } from "../../lib/derive.js";
 
 export function renderTripCard(trip, options = {}) {
-  const safeStatus = TRIP_STATUSES.includes(trip.status) ? trip.status : "planning";
+  const derivedStatus = deriveTripStatus(trip);
+  const safeStatus = DERIVED_TRIP_STATUSES.includes(derivedStatus) ? derivedStatus : "planning";
   const safeCoverUrl = sanitizeCoverUrl(trip.cover_photo_url);
   const coverStyle = safeCoverUrl
     ? `style="background-image: linear-gradient(180deg, rgba(17, 27, 39, 0.04), rgba(17, 27, 39, 0.42)), url(&quot;${escapeHtml(safeCoverUrl)}&quot;);"`

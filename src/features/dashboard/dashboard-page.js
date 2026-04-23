@@ -6,6 +6,7 @@ import { renderTripCard } from "./trip-card.js";
 import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.js";
 import { showToast } from "../shared/toast.js";
 import { navigate } from "../../app/router.js";
+import { deriveTripStatus } from "../../lib/derive.js";
 
 let rerenderDashboard = () => {};
 
@@ -16,8 +17,8 @@ export function setDashboardRenderer(renderer) {
 export function renderDashboardPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
-  const activeTrips = sortTripsByStartDate(trips.filter((trip) => trip.status !== "done"), "asc");
-  const pastTrips = sortTripsByStartDate(trips.filter((trip) => trip.status === "done"), "desc");
+  const activeTrips = sortTripsByStartDate(trips.filter((trip) => deriveTripStatus(trip) !== "past"), "asc");
+  const pastTrips = sortTripsByStartDate(trips.filter((trip) => deriveTripStatus(trip) === "past"), "desc");
 
   return `
     <section class="dashboard">
@@ -70,7 +71,7 @@ export function renderDashboardPage() {
                 : `
                   <section class="panel dashboard-state">
                     <h3>No active trips right now</h3>
-                    <p class="muted">Your completed trips are waiting below in Past Trips.</p>
+                    <p class="muted">Past trips are waiting below.</p>
                   </section>
                 `
             }
@@ -82,9 +83,7 @@ export function renderDashboardPage() {
                     <summary class="dashboard-past-trips__summary">
                       <div>
                         <p class="eyebrow">Past Trips</p>
-                        <h3>Completed trips</h3>
                       </div>
-                      <p class="muted">${pastTrips.length} trip${pastTrips.length === 1 ? "" : "s"}</p>
                     </summary>
                     <div class="dashboard-past-trips__content">
                       <section class="dashboard-grid">

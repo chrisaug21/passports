@@ -20,7 +20,7 @@
 }
 
 .dashboard-past-trips {
-  padding: 1.5rem;
+  padding: 0.9rem 1rem 1rem;
 }
 
 .dashboard-past-trips__summary {
@@ -28,7 +28,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  align-items: start;
+  align-items: center;
   cursor: pointer;
 }
 
@@ -85,10 +85,9 @@
   font-weight: 600;
 }
 
-.trip-card__status--active,
-.trip-card__status--done,
 .trip-card__status--planning,
-.trip-card__status--upcoming {
+.trip-card__status--traveling,
+.trip-card__status--past {
   color: var(--color-text);
 }
 

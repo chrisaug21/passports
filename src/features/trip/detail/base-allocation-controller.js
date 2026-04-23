@@ -13,7 +13,10 @@ import {
   formatTimezone,
   formatTimezoneOffset,
 } from "../../../lib/format.js";
-import { DEFAULT_BASE_TIMEZONE } from "../../../config/constants.js";
+import {
+  CANONICAL_TIMEZONES,
+  DEFAULT_BASE_TIMEZONE,
+} from "../../../config/constants.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -22,7 +25,6 @@ import {
 import { escapeHtml, getDisplayTitleForToast } from "./trip-detail-ui.js";
 
 export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLength) {
-  const isEditing = row.kind === "base" && tripDetail.editingBaseId === row.base.id;
   const countLabel = row.dayCount === 1 ? "1 day" : `${row.dayCount} days`;
   const dateLabel = row.dayCount > 0 && trip.start_date ? formatShortDateRange(trip.start_date, row.startDay, row.endDay) : "";
   const summaryLabel = dateLabel ? `${countLabel}<span class="allocation-row__separator">·</span>${escapeHtml(dateLabel)}` : countLabel;
@@ -53,70 +55,73 @@ export function renderAllocationRow(row, trip, tripDetail, items, bases, tripLen
         <span class="allocation-row__count">${row.dayCount}</span>
         <button class="allocation-row__adjust" data-allocation-adjust="increase" data-slot-key="${escapeHtml(row.key)}" type="button">+</button>
       </div>
-      ${isEditing ? renderEditBaseForm(row.base, tripDetail.isSavingBase) : ""}
     </article>
   `;
 }
 
-export function renderAddBaseForm(currentBaseCount) {
+export function renderAddBaseForm(isSaving) {
   return `
-    <form class="base-form" id="add-base-form">
-      <div class="base-form__header">
-        <h4>Add Base</h4>
-        <button class="button button--secondary" id="cancel-add-base" type="button">Cancel</button>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Name</span>
-          <input name="name" type="text" maxlength="120" placeholder="Barcelona" required />
-        </label>
-        <label class="field">
-          <span>Location Name</span>
-          <input name="locationName" type="text" maxlength="120" placeholder="Barcelona, Spain" />
-        </label>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Timezone</span>
-          ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
-        </label>
-        <label class="field">
-          <span>Order</span>
-          <input type="text" value="${currentBaseCount + 1}" disabled />
-        </label>
-      </div>
-      <p class="muted">New bases start empty — use the +/− controls to assign days.</p>
-      <div class="base-form__actions">
-        <button class="button" type="submit">Save Base</button>
-      </div>
-    </form>
+    <div class="modal-shell" id="add-base-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-add-base></div>
+      <section class="panel modal-card modal-card--editor base-form-modal">
+        <div class="modal-card__header">
+          <h3>Add Base</h3>
+          <button class="icon-button" id="cancel-add-base" type="button" aria-label="Close add base">×</button>
+        </div>
+        <form class="base-form" id="add-base-form">
+          <div class="item-editor-form__content">
+            <label class="field">
+              <span>Name</span>
+              <input name="name" type="text" maxlength="120" placeholder="Barcelona" required />
+            </label>
+            <label class="field">
+              <span>Location</span>
+              <input name="locationName" type="text" maxlength="120" placeholder="Barcelona, Spain" />
+            </label>
+            <label class="field">
+              <span>Timezone</span>
+              ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
+            </label>
+          </div>
+          <div class="modal-card__actions modal-card__actions--sticky modal-card__actions--end">
+            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Base"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
   `;
 }
 
 export function renderEditBaseForm(base, isSaving) {
   return `
-    <form class="base-form" data-edit-base-form="${escapeHtml(base.id)}">
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Name</span>
-          <input name="name" type="text" value="${escapeHtml(base.name)}" required />
-        </label>
-        <label class="field">
-          <span>Location Name</span>
-          <input name="locationName" type="text" value="${escapeHtml(base.location_name || "")}" />
-        </label>
-      </div>
-      <div class="item-editor-form__grid">
-        <label class="field">
-          <span>Timezone</span>
-          ${renderTimezonePicker(`edit-base-timezone-${base.id}`, base.local_timezone || DEFAULT_BASE_TIMEZONE)}
-        </label>
-      </div>
-      <div class="base-form__actions">
-        <button class="button button--secondary" data-cancel-edit-base type="button">Cancel</button>
-        <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Base"}</button>
-      </div>
-    </form>
+    <div class="modal-shell" id="edit-base-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-edit-base></div>
+      <section class="panel modal-card modal-card--editor base-form-modal">
+        <div class="modal-card__header">
+          <h3>${escapeHtml(base.name || "Untitled base")}</h3>
+          <button class="icon-button" data-cancel-edit-base type="button" aria-label="Close edit base">×</button>
+        </div>
+        <form class="base-form" data-edit-base-form="${escapeHtml(base.id)}">
+          <div class="item-editor-form__content">
+            <label class="field">
+              <span>Name</span>
+              <input name="name" type="text" value="${escapeHtml(base.name)}" required />
+            </label>
+            <label class="field">
+              <span>Location</span>
+              <input name="locationName" type="text" value="${escapeHtml(base.location_name || "")}" />
+            </label>
+            <label class="field">
+              <span>Timezone</span>
+              ${renderTimezonePicker(`edit-base-timezone-${base.id}`, base.local_timezone || DEFAULT_BASE_TIMEZONE)}
+            </label>
+          </div>
+          <div class="modal-card__actions modal-card__actions--sticky modal-card__actions--end">
+            <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
   `;
 }
 
@@ -136,7 +141,7 @@ export function renderAllocationConfirmModal(state) {
           </div>
         </div>
         <p class="muted">${escapeHtml(state.message)}</p>
-        ${state.items.length > 0 ? `<p class="muted">${state.items.map((item) => item.title || "Untitled item").slice(0, 4).map(escapeHtml).join(", ")}</p>` : ""}
+        ${state.items.length > 0 ? `<p class="muted">${state.items.map((item) => item.title || "Untitled stop").slice(0, 4).map(escapeHtml).join(", ")}</p>` : ""}
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-allocation-confirm" type="button">Cancel</button>
           <button class="button" id="confirm-allocation-change" type="button">Continue</button>
@@ -158,7 +163,7 @@ export function renderTripLengthConfirmModal(state) {
         <div class="modal-card__header">
           <div>
             <p class="eyebrow">Reduce Trip Length</p>
-            <h3>Move items from removed days?</h3>
+            <h3>Move stops from removed days?</h3>
           </div>
         </div>
         <p class="muted">${escapeHtml(state.message)}</p>
@@ -364,8 +369,8 @@ function requestAllocationChange(slotKey, direction) {
   tripDetailState.allocationConfirmState = {
     title: direction === "increase" ? `Move Day ${affectedDayNumber}?` : `Remove Day ${affectedDayNumber}?`,
     message: nextRow
-      ? `Day ${affectedDayNumber} has ${importantItems.length} reserved/confirmed item${importantItems.length === 1 ? "" : "s"} and will move to ${nextRow.label}. Review after saving.`
-      : `Day ${affectedDayNumber} has ${affectedItems.length} item${affectedItems.length === 1 ? "" : "s"} and they will move to unassigned when this day is removed.`,
+      ? `Day ${affectedDayNumber} has ${importantItems.length} reserved/confirmed stop${importantItems.length === 1 ? "" : "s"} and will move to ${nextRow.label}. Review after saving.`
+      : `Day ${affectedDayNumber} has ${affectedItems.length} stop${affectedItems.length === 1 ? "" : "s"} and they will move to unassigned when this day is removed.`,
     items: importantItems.length > 0 ? importantItems : affectedItems,
     action: {
       slotKey,
@@ -491,16 +496,7 @@ export function getSupportedTimezones() {
     return tripDetailState.supportedTimezonesCache;
   }
 
-  if (typeof Intl?.supportedValuesOf === "function") {
-    try {
-      tripDetailState.supportedTimezonesCache = Intl.supportedValuesOf("timeZone").slice().sort((left, right) => left.localeCompare(right));
-      return tripDetailState.supportedTimezonesCache;
-    } catch (_error) {
-      // Ignore and fall back to the default timezone.
-    }
-  }
-
-  tripDetailState.supportedTimezonesCache = [DEFAULT_BASE_TIMEZONE];
+  tripDetailState.supportedTimezonesCache = CANONICAL_TIMEZONES.map(([timezone]) => timezone);
   return tripDetailState.supportedTimezonesCache;
 }
 
@@ -630,8 +626,12 @@ export function wireTimezonePickers() {
   });
 }
 
+function getTimezoneEntry(timezone) {
+  return CANONICAL_TIMEZONES.find(([entryTimezone]) => entryTimezone === timezone) || null;
+}
+
 function getTimezoneSelectedLabel(timezone) {
-  return formatTimezone(timezone);
+  return getTimezoneEntry(timezone)?.[1] || formatTimezone(timezone);
 }
 
 function getTimezoneOptionLabel(timezone) {
@@ -674,7 +674,7 @@ function getTimezoneFromPickerValue(value) {
     const optionLabel = getTimezoneOptionLabel(timezone);
     const abbreviation = label.match(/\(([^)]+)\)$/)?.[1] || "";
 
-    return [label, optionLabel, abbreviation].includes(normalizedValue);
+    return [label, optionLabel, abbreviation, timezone].includes(normalizedValue);
   }) || "";
 }
 
@@ -704,6 +704,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
     onCancelAddBase: () => {
       appStore.updateTripDetail({
         isShowingAddBaseForm: false,
+        isSavingBase: false,
       });
       rerenderTripDetail();
     },
@@ -717,6 +718,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
     onCancelEditBase: () => {
       appStore.updateTripDetail({
         editingBaseId: null,
+        isSavingBase: false,
       });
       rerenderTripDetail();
     },

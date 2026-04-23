@@ -3,6 +3,11 @@
   --color-surface: rgba(255, 255, 255, 0.8);
   --color-surface-strong: #ffffff;
   --color-surface-muted: #eef2f7;
+  --color-surface-subtle: #f8fafb;
+  --color-translucent-surface: rgba(255, 255, 255, 0.45);
+  --color-surface-control: rgba(255, 255, 255, 0.78);
+  --color-surface-elevated: rgba(255, 255, 255, 0.85);
+  --color-surface-overlay: rgba(255, 255, 255, 0.98);
   --surface-allocation: rgba(255, 255, 255, 0.55);
   --surface-allocation-unassigned: rgba(255, 255, 255, 0.75);
   --color-text: #1a2332;
@@ -15,6 +20,9 @@
   --color-action-strong: #0a8e67;
   --color-action-bright: #16b36a;
   --color-structure: #2b5be0;
+  --color-structure-soft: rgba(43, 91, 224, 0.08);
+  --color-structure-tint: rgba(43, 91, 224, 0.1);
+  --trip-header-media-gradient: linear-gradient(180deg, rgba(43, 91, 224, 0.12), rgba(14, 168, 122, 0.18)), linear-gradient(135deg, #f5f8fd, #dcebf4);
   --color-danger: #c05353;
   --color-danger-strong: #aa4040;
   --color-danger-soft: rgba(192, 83, 83, 0.12);

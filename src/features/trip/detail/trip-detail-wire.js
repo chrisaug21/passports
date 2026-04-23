@@ -24,8 +24,50 @@ function bindAll(selector, eventName, handler) {
   }
 
   document.querySelectorAll(selector).forEach((element) => {
-    element.addEventListener(eventName, () => handler(element));
+    element.addEventListener(eventName, (event) => handler(element, event));
   });
+}
+
+let masterListInlineOutsideClickCleanup = null;
+let masterListInlineOutsideClickToken = 0;
+
+function wireMasterListInlineOutsideClick(handlers) {
+  masterListInlineOutsideClickCleanup?.();
+  masterListInlineOutsideClickCleanup = null;
+
+  const select = document.querySelector("[data-master-list-inline-save]");
+  const cell = select?.closest(".master-list-plan-row__cell");
+  const listenerToken = masterListInlineOutsideClickToken + 1;
+  masterListInlineOutsideClickToken = listenerToken;
+
+  if (!select || !cell || !handlers.onMasterListInlineSave) {
+    return;
+  }
+
+  window.setTimeout(() => {
+    if (masterListInlineOutsideClickToken !== listenerToken) {
+      return;
+    }
+
+    const handleOutsideClick = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (!target || cell.contains(target)) {
+        return;
+      }
+
+      masterListInlineOutsideClickCleanup?.();
+      masterListInlineOutsideClickCleanup = null;
+      window.setTimeout(() => {
+        handlers.onMasterListInlineSave(select);
+      }, 0);
+    };
+
+    document.addEventListener("click", handleOutsideClick, true);
+    masterListInlineOutsideClickCleanup = () => {
+      document.removeEventListener("click", handleOutsideClick, true);
+    };
+  }, 0);
 }
 
 export function wireTripDetailPageEvents(handlers) {
@@ -36,12 +78,14 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
   bindClick("#cancel-trip-settings", handlers.onCancelTripSettings);
-  bindClick("#mark-trip-done", handlers.onMarkTripDone);
-  bindClick("#reopen-trip", handlers.onReopenTrip);
+  bindClick("[data-close-trip-settings]", handlers.onCancelTripSettings);
   bindClick("#open-delete-trip-confirm", handlers.onOpenDeleteTripConfirm);
+  bindClick("#open-delete-trip-confirm-footer", handlers.onOpenDeleteTripConfirm);
   bindSubmit("#trip-settings-form", handlers.onTripSettingsSubmit);
+  handlers.onAfterTripSettingsOpen?.();
   bindClick("#show-add-base-form", handlers.onShowAddBaseForm);
   bindClick("#cancel-add-base", handlers.onCancelAddBase);
+  bindClick("[data-close-add-base]", handlers.onCancelAddBase);
   bindAll("[data-edit-base]", "click", (button) => {
     handlers.onEditBase?.(button.getAttribute("data-edit-base"));
   });
@@ -70,6 +114,57 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onRequestDeleteBase?.(button.getAttribute("data-delete-base"));
   });
   bindSubmit("#master-list-quick-add-form", handlers.onQuickAddSubmit);
+  bindAll("[data-master-list-filter]", "change", (select, event) => {
+    event.stopPropagation();
+    handlers.onMasterListFilterChange?.(select);
+  });
+  bindAll('[data-master-list-filter="search"]', "input", (input, event) => {
+    event.stopPropagation();
+    handlers.onMasterListFilterChange?.(input);
+  });
+  bindClick("[data-clear-master-list-filters]", handlers.onClearMasterListFilters);
+  bindAll("[data-master-list-sort]", "click", (button) => {
+    handlers.onMasterListSort?.(button);
+  });
+  bindAll("[data-master-list-edit-cell]", "click", (button, event) => {
+    const target = event.target instanceof Element ? event.target : null;
+
+    if (target?.closest("input, select")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    handlers.onMasterListEditCell?.(button);
+  });
+  document.querySelectorAll("[data-master-list-row]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        !target
+        || target.closest("button, input, select, details, summary, .item-actions-menu")
+        || target.closest("[data-master-list-edit-cell], .master-list-inline-trigger, .master-list-inline-select, .master-list-inline-input")
+      ) {
+        return;
+      }
+      handlers.onEditItem?.(row.getAttribute("data-master-list-row"));
+    });
+  });
+  bindAll("[data-master-list-inline-save]", "change", (select, event) => {
+    event.stopPropagation();
+    handlers.onMasterListInlineSave?.(select);
+  });
+  document.querySelectorAll("[data-master-list-inline-save]").forEach((select) => {
+    select.addEventListener("keydown", (event) => {
+      handlers.onMasterListInlineKeydown?.(event);
+    });
+  });
+  wireMasterListInlineOutsideClick(handlers);
+  document.querySelectorAll("[data-master-list-title-input]").forEach((input) => {
+    handlers.onMasterListTitleInputReady?.(input);
+    input.addEventListener("blur", handlers.onMasterListTitleBlur);
+    input.addEventListener("keydown", handlers.onMasterListTitleKeydown);
+  });
   bindAll("[data-edit-item]", "click", (button) => {
     handlers.onEditItem?.(button.getAttribute("data-edit-item"));
   });
@@ -79,6 +174,10 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-open-move-item]", "click", (button) => {
     handlers.onOpenMoveItem?.(button.getAttribute("data-open-move-item"));
   });
+  bindAll("[data-add-item-to-base]", "click", (button) => {
+    handlers.onAddItemToBase?.(button.getAttribute("data-add-item-to-base"));
+  });
+  bindClick("[data-add-item-to-trip]", handlers.onAddItemToTrip);
   bindClick("#close-item-editor", handlers.onCloseItemEditor);
   bindClick("#cancel-item-editor", handlers.onCloseItemEditor);
   bindClick("[data-close-item-editor]", handlers.onCloseItemEditor);
@@ -125,9 +224,6 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-base", handlers.onCancelDeleteBase);
   bindClick("[data-cancel-delete-base]", handlers.onCancelDeleteBase);
   bindClick("#confirm-delete-base", handlers.onConfirmDeleteBase);
-  bindClick("#cancel-trip-status-confirm", handlers.onCancelTripStatusConfirm);
-  bindClick("[data-cancel-trip-status-confirm]", handlers.onCancelTripStatusConfirm);
-  bindClick("#confirm-trip-status-change", handlers.onConfirmTripStatusChange);
   bindClick("#cancel-delete-trip", handlers.onCancelDeleteTrip);
   bindClick("[data-cancel-delete-trip]", handlers.onCancelDeleteTrip);
   bindClick("#confirm-delete-trip", handlers.onConfirmDeleteTrip);

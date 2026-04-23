@@ -42,11 +42,15 @@ function syncTripDetailModalState(tripDetail) {
 
   const hasOpenModal = Boolean(
     tripDetail.editingItemId ||
+    tripDetail.itemEditorMode === "add" ||
+    tripDetail.isShowingTripSettings ||
+    tripDetail.isShowingAddBaseForm ||
+    tripDetail.editingBaseId ||
     tripDetail.showDiscardConfirm ||
     tripDetail.showDeleteItemConfirm ||
     tripDetail.showMoveItemModal ||
+    tripDetail.isShowingMasterListFilters ||
     tripDetail.showDeleteBaseConfirm ||
-    tripDetail.showTripStatusConfirm ||
     tripDetail.showDeleteTripConfirm ||
     tripDetailState.allocationConfirmState
   );
