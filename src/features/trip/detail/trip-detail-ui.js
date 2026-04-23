@@ -102,14 +102,15 @@ export function getItemIconName(item) {
     live_music_shows: "music",
     sightseeing: "camera",
     outdoors_nature: "trees",
-    sports: "disc",
+    sports: "trophy",
     tastings_drinks: "wine",
     cafes_markets: "coffee",
     shopping: "shopping-bag",
+    walking_exploring: "footprints",
     wellness_spa: "sparkles",
     entertainment: "ticket",
     nightlife: "moon",
-    other: "circle-dot",
+    other: "sparkles",
   }[item.activity_type] || "circle-dot";
 }
 

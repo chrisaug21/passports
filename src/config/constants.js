@@ -1,4 +1,4 @@
-export const APP_VERSION = "v0.1.55";
+export const APP_VERSION = "v0.1.56";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -16,17 +16,18 @@ export const MEAL_SLOTS = ["breakfast", "brunch", "lunch", "dinner"];
 
 export const ACTIVITY_TYPES = [
   "arts_culture",
-  "live_music_shows",
-  "sightseeing",
-  "outdoors_nature",
-  "sports",
-  "tastings_drinks",
   "cafes_markets",
-  "shopping",
-  "wellness_spa",
   "entertainment",
+  "live_music_shows",
+  "shopping",
   "nightlife",
   "other",
+  "outdoors_nature",
+  "sightseeing",
+  "sports",
+  "tastings_drinks",
+  "walking_exploring",
+  "wellness_spa",
 ];
 
 export const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
