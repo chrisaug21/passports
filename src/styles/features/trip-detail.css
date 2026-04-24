@@ -1,6 +1,7 @@
 @import "./trip-detail-shell.css";
 @import "./trip-base-allocation.css";
 @import "./trip-settings.css";
+@import "./trip-members.css";
 @import "./trip-item-actions.css";
 @import "./trip-item-editor.css";
 @import "./trip-days-view.css";

@@ -235,6 +235,18 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-trip", handlers.onCancelDeleteTrip);
   bindClick("[data-cancel-delete-trip]", handlers.onCancelDeleteTrip);
   bindClick("#confirm-delete-trip", handlers.onConfirmDeleteTrip);
+  bindClick("#open-members-modal", handlers.onOpenMembersModal);
+  bindClick("#close-members-modal", handlers.onCloseMembersModal);
+  bindClick("#close-members-modal-footer", handlers.onCloseMembersModal);
+  bindClick("[data-close-members-modal]", handlers.onCloseMembersModal);
+  bindSubmit("#members-add-form", handlers.onMembersAddSubmit);
+  bindAll("[data-remove-member]", "click", (button) => {
+    handlers.onRequestRemoveMember?.(button.getAttribute("data-remove-member"));
+  });
+  bindClick("[data-cancel-remove-member]", handlers.onCancelRemoveMember);
+  bindAll("[data-confirm-remove-member]", "click", (button) => {
+    handlers.onConfirmRemoveMember?.(button.getAttribute("data-confirm-remove-member"));
+  });
   bindAll("[data-edit-day-title]", "click", (button) => {
     handlers.onEditDayTitle?.(button.getAttribute("data-edit-day-title"));
   });

@@ -13,6 +13,7 @@ export const tripDetailState = {
   closeOpenItemActionsMenus: () => {},
   itemActionsGlobalListenersBound: false,
   persistedEditorItemId: null,
+  membersModalState: null,
 };
 
 export function setTripDetailRerenderer(renderer) {
@@ -34,4 +35,5 @@ export function resetTripDetailTransientState() {
   tripDetailState.editingDayTitleId = null;
   tripDetailState.editingDayTitleValue = "";
   tripDetailState.persistedEditorItemId = null;
+  tripDetailState.membersModalState = null;
 }

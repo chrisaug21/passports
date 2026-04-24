@@ -1,0 +1,254 @@
+.members-modal {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  max-height: min(calc(100dvh - 2rem), 640px);
+}
+
+.members-modal .modal-card__header {
+  padding: 1.25rem 1.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.members-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.75rem 0;
+}
+
+.members-modal__status {
+  padding: 1rem 1.5rem;
+}
+
+.members-modal__status--error {
+  color: var(--color-danger);
+}
+
+.members-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.members-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 1.5rem;
+  min-height: 56px;
+}
+
+.members-list__item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.members-list__item--confirm {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding-block: 0.85rem;
+}
+
+.members-list__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--color-structure-tint);
+  color: var(--color-structure);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.members-list__info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.members-list__email {
+  font-weight: 500;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.members-list__role {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.members-list__badges {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.members-badge {
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.members-badge--you {
+  background: var(--color-structure-tint);
+  color: var(--color-structure);
+}
+
+.members-badge--owner {
+  background: rgba(14, 168, 122, 0.12);
+  color: var(--color-action-strong);
+}
+
+.members-list__remove-btn {
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 140ms ease;
+}
+
+.members-list__remove-btn:hover,
+.members-list__remove-btn:focus-visible {
+  opacity: 1;
+}
+
+.members-list__confirm-text {
+  font-size: 0.9rem;
+}
+
+.members-list__confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.button--sm {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.members-modal__add-form {
+  border-top: 1px solid var(--color-border);
+  padding: 1rem 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.members-modal__add-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.members-modal__add-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-control);
+  color: var(--color-text);
+  padding: 0.65rem 0.85rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.members-modal__add-input:focus {
+  outline: 2px solid rgba(43, 91, 224, 0.3);
+  outline-offset: 1px;
+}
+
+.members-modal__add-btn {
+  flex-shrink: 0;
+  padding: 0.65rem 1.1rem;
+}
+
+.members-modal__add-error {
+  font-size: 0.83rem;
+  color: var(--color-danger);
+}
+
+.members-modal .modal-card__actions--end {
+  border-top: 1px solid var(--color-border);
+  padding: 1rem 1.5rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Members button in trip header */
+.trip-header__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  align-items: flex-end;
+}
+
+.trip-header__members-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 132px;
+}
+
+.trip-header__members-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.trip-header__members-label {
+  display: inline;
+}
+
+@media (max-width: 840px) {
+  .trip-header__actions {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .trip-header__actions .section-action-button,
+  .trip-header__actions .trip-header__members-btn {
+    flex: 1;
+    width: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .trip-header__members-label {
+    display: none;
+  }
+
+  .trip-header__members-btn {
+    min-width: 44px;
+    max-width: 44px;
+    width: 44px;
+    flex: 0 0 auto !important;
+    padding-inline: 0;
+  }
+
+  .members-modal .modal-card__header {
+    padding-inline: 1rem;
+  }
+
+  .members-list__item {
+    padding-inline: 1rem;
+  }
+
+  .members-modal__add-form {
+    padding-inline: 1rem;
+  }
+
+  .members-modal .modal-card__actions--end {
+    padding-inline: 1rem;
+  }
+}
