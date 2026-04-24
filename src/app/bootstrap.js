@@ -91,13 +91,18 @@ function renderBootstrapLoadingScreen() {
 }
 
 export function renderAppShell(content, options = {}) {
-  const { showDashboardLink = false, showNewTripButton = false } = options;
+  const {
+    showDashboardLink = false,
+    showNewTripButton = false,
+    shellClassName = "",
+  } = options;
   const { session } = sessionStore.getState();
   const email = session?.user?.email || "";
   const initials = getUserInitials(email);
+  const appShellClassName = ["app-shell", shellClassName].filter(Boolean).join(" ");
 
   appRoot.innerHTML = `
-    <main class="app-shell">
+    <main class="${appShellClassName}">
       <header class="topbar">
         <div class="topbar__left">
           <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">

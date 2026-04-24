@@ -4,6 +4,10 @@
   padding: 0.6rem 0 3rem;
 }
 
+.app-shell--trip-detail {
+  width: min(1440px, calc(100% - 1.5rem));
+}
+
 .app-shell--loading {
   min-height: 100vh;
   display: grid;
