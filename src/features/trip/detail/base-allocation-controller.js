@@ -154,7 +154,6 @@ function renderBasePhotoField(base) {
                 ${heroPhotoUrl ? `
                   <button class="photo-hero__replace" data-base-hero-replace="${escapeHtml(base.id)}" type="button" aria-label="Replace photo">
                     <i data-lucide="refresh-cw" aria-hidden="true"></i>
-                    <span>Replace photo</span>
                   </button>
                 ` : ""}
               </div>

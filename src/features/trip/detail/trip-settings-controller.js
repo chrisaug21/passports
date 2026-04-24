@@ -190,7 +190,6 @@ function renderTripSettingsPhotoField(trip) {
           ${heroPhotoUrl ? `
             <button class="photo-hero__replace" data-trip-hero-replace type="button" aria-label="Replace photo">
               <i data-lucide="refresh-cw" aria-hidden="true"></i>
-              <span>Replace photo</span>
             </button>
           ` : ""}
         </div>

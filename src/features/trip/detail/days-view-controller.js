@@ -59,9 +59,16 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
               ${
                 showBasePhotoAction
                   ? `
-                    <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Adjust photo crop for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
-                      <i data-lucide="camera" aria-hidden="true"></i>
-                    </button>
+                    <div class="photo-hero__controls">
+                      <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Adjust photo crop for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
+                        <i data-lucide="camera" aria-hidden="true"></i>
+                      </button>
+                      ${baseHeroPhotoUrl ? `
+                        <button class="photo-hero__replace" data-base-hero-replace="${escapeHtml(row.base.id)}" type="button" aria-label="Replace photo for ${escapeHtml(row.label)}">
+                          <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                        </button>
+                      ` : ""}
+                    </div>
                   `
                   : ""
               }

@@ -107,9 +107,16 @@ export function renderTripDetailPageView() {
       <section class="panel trip-header">
         <div class="trip-header__media photo-hero">
           ${tripHeroPhotoUrl ? renderHeroPhotoImage(tripHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
-          <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Adjust trip photo crop" : "Add trip photo"}">
-            <i data-lucide="camera" aria-hidden="true"></i>
-          </button>
+          <div class="photo-hero__controls">
+            <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Adjust trip photo crop" : "Add trip photo"}">
+              <i data-lucide="camera" aria-hidden="true"></i>
+            </button>
+            ${tripHeroPhotoUrl ? `
+              <button class="photo-hero__replace" data-trip-hero-replace type="button" aria-label="Replace trip photo">
+                <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              </button>
+            ` : ""}
+          </div>
         </div>
         <div class="trip-header__content">
           <div class="trip-header__top">

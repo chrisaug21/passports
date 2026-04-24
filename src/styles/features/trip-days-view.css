@@ -16,6 +16,17 @@
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
 }
 
+.days-base-section {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+
+.days-base-section > * {
+  width: 100%;
+  min-width: 0;
+}
+
 .days-view:has(.item-actions-menu[open]),
 .days-view__pool:has(.item-actions-menu[open]),
 .days-base-section:has(.item-actions-menu[open]) {
