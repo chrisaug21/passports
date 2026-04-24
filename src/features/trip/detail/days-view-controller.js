@@ -230,3 +230,42 @@ export function createDaysViewHandlers() {
     },
   };
 }
+
+export function logBaseSectionWidthChain() {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    const baseSection = document.querySelector(".days-base-section");
+
+    if (!(baseSection instanceof HTMLElement)) {
+      return;
+    }
+
+    const rows = [];
+    let current = baseSection;
+
+    while (current instanceof HTMLElement) {
+      const computedStyle = window.getComputedStyle(current);
+      rows.push({
+        element: current.tagName.toLowerCase(),
+        className: current.className || "(none)",
+        offsetWidth: current.offsetWidth,
+        clientWidth: current.clientWidth,
+        scrollWidth: current.scrollWidth,
+        computedWidth: computedStyle.width,
+        display: computedStyle.display,
+        maxWidth: computedStyle.maxWidth,
+        minWidth: computedStyle.minWidth,
+        justifySelf: computedStyle.justifySelf,
+        alignSelf: computedStyle.alignSelf,
+      });
+      current = current.parentElement;
+    }
+
+    console.groupCollapsed("[Days View] Base section width chain");
+    console.table(rows);
+    console.groupEnd();
+  });
+}
