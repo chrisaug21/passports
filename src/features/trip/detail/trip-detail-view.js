@@ -148,14 +148,7 @@ export function renderTripDetailPageView() {
 
       ${
         isSingleBaseTrip
-          ? `
-            <section class="trip-detail__single-base-action" aria-label="Base actions">
-              <button class="button button--secondary trip-detail__single-base-button" id="show-add-base-form" type="button">
-                <span class="trip-detail__single-base-button-icon" aria-hidden="true">+</span>
-                <span>Add Base</span>
-              </button>
-            </section>
-          `
+          ? ""
           : `
             <section class="panel base-manager-panel">
               <div class="base-manager-panel__header">
@@ -187,9 +180,21 @@ export function renderTripDetailPageView() {
           `
       }
 
-      <section class="trip-view-tabs" aria-label="Trip views">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
+      <section class="trip-view-tabs${isSingleBaseTrip ? " trip-view-tabs--single-base" : ""}" aria-label="Trip views">
+        <div class="trip-view-tabs__list" role="tablist" aria-label="Trip views">
+          <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+          <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
+        </div>
+        ${
+          isSingleBaseTrip
+            ? `
+              <button class="button button--secondary trip-detail__single-base-button" id="show-add-base-form" type="button">
+                <span class="trip-detail__single-base-button-icon" aria-hidden="true">+</span>
+                <span class="trip-detail__single-base-button-label">Add Base</span>
+              </button>
+            `
+            : ""
+        }
       </section>
 
       ${

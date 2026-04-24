@@ -44,6 +44,10 @@
   padding: 1.5rem 1.5rem 0;
 }
 
+.days-base-section .days-view__panel-header--single-base-actions {
+  justify-content: flex-end;
+}
+
 .days-base-section .day-card-grid {
   padding: 1rem 1.5rem 1.5rem;
 }
@@ -301,6 +305,15 @@
     .days-view__panel-header .section-action-button {
       width: 100%;
       max-width: none;
+    }
+
+    .days-view__panel-header--single-base-actions {
+      justify-items: end;
+    }
+
+    .days-view__panel-header--single-base-actions .section-action-button {
+      width: 180px;
+      max-width: 100%;
     }
 }
 

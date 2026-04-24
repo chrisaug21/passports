@@ -116,8 +116,16 @@
 
 .trip-view-tabs {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+.trip-view-tabs__list {
+  display: flex;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .trip-view-tabs__button {
@@ -145,10 +153,6 @@
   color: var(--color-text);
 }
 
-.trip-detail__single-base-action {
-  display: flex;
-}
-
 .trip-detail__single-base-button {
   width: auto;
   min-height: 44px;
@@ -162,6 +166,10 @@
 .trip-detail__single-base-button-icon {
   font-size: 1rem;
   line-height: 1;
+}
+
+.trip-detail__single-base-button-label {
+  display: inline;
 }
 
 .trip-detail .eyebrow {
@@ -205,6 +213,14 @@
     .trip-header__edit-button {
       width: 100%;
     }
+
+    .trip-view-tabs--single-base {
+      gap: 0.75rem;
+    }
+
+    .trip-view-tabs--single-base .trip-detail__single-base-button {
+      padding-inline: 0.85rem;
+    }
 }
 
 @media (max-width: 639px) {
@@ -215,5 +231,15 @@
     .trip-stat-tiles {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .trip-view-tabs--single-base .trip-detail__single-base-button-label {
+      display: none;
+    }
+
+    .trip-view-tabs--single-base .trip-detail__single-base-button {
+      min-width: 44px;
+      justify-content: center;
+      padding-inline: 0;
     }
 }
