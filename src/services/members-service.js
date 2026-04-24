@@ -1,27 +1,26 @@
 import { getSupabase } from "../lib/supabase.js";
 
 export async function fetchTripMembersWithEmails(tripId) {
-  const [membersResult, emailsResult] = await Promise.all([
-    getSupabase()
-      .from("trip_members")
-      .select("id, trip_id, user_id, role, invited_at, accepted_at")
-      .eq("trip_id", tripId)
-      .order("invited_at", { ascending: true }),
-    getSupabase()
-      .rpc("get_trip_member_emails", { p_trip_id: tripId }),
-  ]);
+  const { data, error } = await getSupabase()
+    .from("trip_members")
+    .select("id, trip_id, user_id, role, invited_at, accepted_at")
+    .eq("trip_id", tripId)
+    .order("invited_at", { ascending: true });
 
-  if (membersResult.error) throw membersResult.error;
+  if (error) throw error;
 
-  const members = membersResult.data || [];
-  const emailMap = new Map(
-    (emailsResult.data || []).map((row) => [row.user_id, row.email])
+  const members = data || [];
+
+  const emails = await Promise.all(
+    members.map((member) =>
+      getSupabase()
+        .rpc("get_user_email_by_id", { p_user_id: member.user_id })
+        .then(({ data: email }) => email || null)
+        .catch(() => null)
+    )
   );
 
-  return members.map((member) => ({
-    ...member,
-    email: emailMap.get(member.user_id) || null,
-  }));
+  return members.map((member, i) => ({ ...member, email: emails[i] }));
 }
 
 export async function addTripMember({ tripId, userId }) {
