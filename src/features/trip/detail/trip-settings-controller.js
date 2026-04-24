@@ -14,6 +14,8 @@ import {
 import {
   escapeHtml,
   getDisplayTitleForToast,
+  getTripHeroPhotoUrl,
+  renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 
 function getTripShrinkSummary(nextTripLength, days, items) {
@@ -132,7 +134,9 @@ export function renderTripSettingsForm(trip, isSaving) {
         </div>
 
         <form class="trip-settings-form" id="trip-settings-form">
-          <div class="item-editor-form__content">
+          <div class="item-editor-form__content trip-settings-form__content">
+            ${renderTripSettingsPhotoField(trip)}
+
             <label class="field">
               <span>Title</span>
               <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
@@ -167,6 +171,29 @@ export function renderTripSettingsForm(trip, isSaving) {
           </div>
         </form>
       </section>
+    </div>
+  `;
+}
+
+function renderTripSettingsPhotoField(trip) {
+  const heroPhotoUrl = getTripHeroPhotoUrl(trip);
+  const label = heroPhotoUrl ? "Adjust crop" : "Add photo";
+
+  return `
+    <div class="photo-field">
+      <div class="photo-field__preview photo-hero" tabindex="0">
+        ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+        <div class="photo-hero__controls">
+          <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${label}">
+            <i data-lucide="camera" aria-hidden="true"></i>
+          </button>
+          ${heroPhotoUrl ? `
+            <button class="photo-hero__replace" data-trip-hero-replace type="button" aria-label="Replace photo">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            </button>
+          ` : ""}
+        </div>
+      </div>
     </div>
   `;
 }

@@ -6,7 +6,8 @@ import {
 } from "../../../lib/format.js";
 import {
   escapeHtml,
-  getTripHeaderMediaStyle,
+  getTripHeroPhotoUrl,
+  renderHeroPhotoImage,
   getTripStatTiles,
 } from "./trip-detail-ui.js";
 import { tripDetailState } from "./trip-detail-state.js";
@@ -99,11 +100,25 @@ export function renderTripDetailPageView() {
   const allocationRows = buildAllocationRows(bases, allocationState.days);
   const allocationSummary = getAllocationSummary(trip, allocationRows, allocationState.tripLength);
   const statTiles = getTripStatTiles(trip, bases, items);
+  const tripHeroPhotoUrl = getTripHeroPhotoUrl(trip);
+  const isSingleBaseTrip = bases.length === 1;
 
   return `
     <section class="trip-detail">
       <section class="panel trip-header">
-        <div class="trip-header__media"${getTripHeaderMediaStyle(trip)}></div>
+        <div class="trip-header__media photo-hero">
+          ${tripHeroPhotoUrl ? renderHeroPhotoImage(tripHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+          <div class="photo-hero__controls">
+            <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Adjust trip photo crop" : "Add trip photo"}">
+              <i data-lucide="camera" aria-hidden="true"></i>
+            </button>
+            ${tripHeroPhotoUrl ? `
+              <button class="photo-hero__replace" data-trip-hero-replace type="button" aria-label="Replace trip photo">
+                <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              </button>
+            ` : ""}
+          </div>
+        </div>
         <div class="trip-header__content">
           <div class="trip-header__top">
             <div class="trip-header__meta">
@@ -131,37 +146,55 @@ export function renderTripDetailPageView() {
         `).join("")}
       </section>
 
-      <section class="panel base-manager-panel">
-        <div class="base-manager-panel__header">
-          <div>
-            <p class="eyebrow">Bases</p>
-            <h3>Day Allocation</h3>
-          </div>
-          <button class="button button--secondary section-action-button" id="show-add-base-form" type="button">Add Base</button>
-        </div>
-
-        <div class="allocation-list">
-          ${allocationRows.map((row) => renderAllocationRow(row, trip, tripDetail, items, bases, allocationState.tripLength)).join("")}
-        </div>
-
-        <p class="muted ${allocationSummary.isComplete ? "allocation-summary--complete" : "allocation-summary--warning"}">${escapeHtml(allocationSummary.label)}</p>
-
-        ${
-          hasAllocationDraftChanges(trip, days)
-            ? `
-              <div class="base-form__actions">
-                <button class="button button--secondary" id="cancel-allocation-changes" type="button">Cancel Changes</button>
-                <button class="button" id="save-allocation-changes" type="button" ${tripDetail.isSavingBase ? "disabled" : ""}>${tripDetail.isSavingBase ? "Saving…" : "Save Allocation"}</button>
+      ${
+        isSingleBaseTrip
+          ? ""
+          : `
+            <section class="panel base-manager-panel">
+              <div class="base-manager-panel__header">
+                <div>
+                  <p class="eyebrow">Bases</p>
+                  <h3>Day Allocation</h3>
+                </div>
+                <button class="button button--secondary section-action-button" id="show-add-base-form" type="button">Add Base</button>
               </div>
+
+              <div class="allocation-list">
+                ${allocationRows.map((row) => renderAllocationRow(row, trip, tripDetail, items, bases, allocationState.tripLength)).join("")}
+              </div>
+
+              <p class="muted ${allocationSummary.isComplete ? "allocation-summary--complete" : "allocation-summary--warning"}">${escapeHtml(allocationSummary.label)}</p>
+
+              ${
+                hasAllocationDraftChanges(trip, days)
+                  ? `
+                    <div class="base-form__actions">
+                      <button class="button button--secondary" id="cancel-allocation-changes" type="button">Cancel Changes</button>
+                      <button class="button" id="save-allocation-changes" type="button" ${tripDetail.isSavingBase ? "disabled" : ""}>${tripDetail.isSavingBase ? "Saving…" : "Save Allocation"}</button>
+                    </div>
+                  `
+                  : ""
+              }
+
+            </section>
+          `
+      }
+
+      <section class="trip-view-tabs${isSingleBaseTrip ? " trip-view-tabs--single-base" : ""}" aria-label="Trip views">
+        <div class="trip-view-tabs__list" role="tablist" aria-label="Trip views">
+          <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
+          <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
+        </div>
+        ${
+          isSingleBaseTrip
+            ? `
+              <button class="button button--secondary trip-detail__single-base-button" id="show-add-base-form" type="button">
+                <span class="trip-detail__single-base-button-icon" aria-hidden="true">+</span>
+                <span class="trip-detail__single-base-button-label">Add Base</span>
+              </button>
             `
             : ""
         }
-
-      </section>
-
-      <section class="trip-view-tabs" aria-label="Trip views">
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "days" ? "is-active" : ""}" data-view-mode="days" type="button">Days View</button>
-        <button class="trip-view-tabs__button ${tripDetail.viewMode === "master-list" ? "is-active" : ""}" data-view-mode="master-list" type="button">List View</button>
       </section>
 
       ${

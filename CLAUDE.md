@@ -105,6 +105,9 @@ Trip
 ## Pull Request Drafts
 Always open new PRs as drafts (`--draft` flag with `gh pr create`). Only mark ready for review when explicitly instructed.
 
+## Verification
+Unless otherwise specified, do not plan on `netlify dev` or a local server for final verification. Open a draft PR when instructed, then the project owner will test on the Netlify preview URL. Non-server checks, static analysis, and code review are still appropriate before handing off.
+
 ## Planned Future Work
 - **Wistia video embeds**: store Wistia media ID on day/trip; render Wistia player embed in diary mode
 - **User-uploaded photos**: Supabase Storage for post-trip memento photos (Phase 2)

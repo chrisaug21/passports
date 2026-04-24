@@ -198,6 +198,10 @@
 .item-editor-form__content {
   background: var(--color-surface-muted);
   overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-top: 0;
 }
 
@@ -205,6 +209,10 @@
     .item-editor-form__grid,
     .trip-settings-form__date-grid {
       grid-template-columns: 1fr;
+    }
+
+    .modal-card--editor {
+      max-height: min(calc(100dvh - 1rem), calc(100vh - 1rem));
     }
 
     .modal-card__actions--sticky {

@@ -6,7 +6,11 @@ import {
   tripDetailState,
   rerenderTripDetail,
 } from "./trip-detail-state.js";
-import { escapeHtml } from "./trip-detail-ui.js";
+import {
+  escapeHtml,
+  getBaseHeroPhotoUrl,
+  renderHeroPhotoImage,
+} from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
@@ -37,10 +41,41 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
 
 export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
+  const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
+  const shouldShowBaseHeader = !isSingleBaseTrip;
+  const baseHeroPhotoUrl = row.kind === "base" && !isSingleBaseTrip
+    ? getBaseHeroPhotoUrl(row.base)
+    : "";
+  const showBasePhotoAction = row.kind === "base" && !isSingleBaseTrip;
 
   return `
     <section class="panel days-base-section">
-      ${rowCount > 1 ? `
+      ${
+        row.kind === "base" && !isSingleBaseTrip
+          ? `
+            <div class="days-base-section__hero photo-hero">
+              ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+              ${
+                showBasePhotoAction
+                  ? `
+                    <div class="photo-hero__controls">
+                      <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Adjust photo crop for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
+                        <i data-lucide="camera" aria-hidden="true"></i>
+                      </button>
+                      ${baseHeroPhotoUrl ? `
+                        <button class="photo-hero__replace" data-base-hero-replace="${escapeHtml(row.base.id)}" type="button" aria-label="Replace photo for ${escapeHtml(row.label)}">
+                          <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                        </button>
+                      ` : ""}
+                    </div>
+                  `
+                  : ""
+              }
+            </div>
+          `
+          : ""
+      }
+      ${shouldShowBaseHeader && rowCount > 1 ? `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
@@ -48,7 +83,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           </div>
           ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
-      ` : `
+      ` : shouldShowBaseHeader ? `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
@@ -56,7 +91,11 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           </div>
           ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
-      `}
+      ` : isSingleBaseTrip && row.kind === "base" ? `
+        <div class="days-view__panel-header days-view__panel-header--single-base-actions">
+          <button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>
+        </div>
+      ` : ``}
       <div class="day-card-grid">
         ${baseDays.map((day) => renderDayCard(day, items, helpers)).join("")}
       </div>

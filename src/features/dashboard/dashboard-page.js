@@ -126,7 +126,6 @@ export function wireDashboardPage() {
       }
     });
   });
-
   wireCreateTripModal({
     onSubmit: async (formValues) => {
       const { session } = sessionStore.getState();
