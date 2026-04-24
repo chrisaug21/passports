@@ -19,12 +19,21 @@
 .days-base-section {
   width: 100%;
   min-width: 0;
+  max-width: none;
   justify-self: stretch;
+  align-self: stretch;
 }
 
 .days-base-section > * {
   width: 100%;
   min-width: 0;
+}
+
+.days-base-section .days-view__panel-header,
+.days-base-section .day-card-grid {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
 }
 
 .days-view:has(.item-actions-menu[open]),

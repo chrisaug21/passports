@@ -64,20 +64,27 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
     const CropperClass = window.Cropper;
     const modal = renderCropModal();
     const image = modal.querySelector("[data-photo-crop-image]");
+    const stage = modal.querySelector("[data-photo-crop-stage]");
     const zoomInput = modal.querySelector("[data-photo-crop-zoom]");
     const hadModalOpen = document.body.classList.contains("modal-open");
     let cropper = null;
     let minZoom = 0.01;
     let maxZoom = 3;
     let isSyncingZoom = false;
+    let isClosed = false;
+    let initTimeoutId = 0;
 
-    if (!CropperClass || !image || !zoomInput) {
+    if (!CropperClass || !image || !stage || !zoomInput) {
       cleanup();
       reject(new Error("Could not open the photo cropper."));
       return;
     }
 
     const teardown = () => {
+      isClosed = true;
+      if (initTimeoutId) {
+        window.clearTimeout(initTimeoutId);
+      }
       cropper?.destroy();
       modal.remove();
       document.body.classList.toggle("modal-open", hadModalOpen);
@@ -123,30 +130,50 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
     document.body.append(modal);
     document.body.classList.add("modal-open");
 
-    cropper = new CropperClass(image, {
-      aspectRatio,
-      viewMode: 1,
-      autoCropArea: 0.85,
-      dragMode: "move",
-      responsive: true,
-      restore: false,
-      background: false,
-      guides: false,
-      center: false,
-      highlight: false,
-      movable: true,
-      zoomable: true,
-      cropBoxMovable: true,
-      cropBoxResizable: true,
-      toggleDragModeOnDblclick: false,
-      ready() {
-        syncZoomInput();
-        window.requestAnimationFrame(syncZoomInput);
-      },
-      zoom() {
-        syncZoomInput();
-      },
-    });
+    const initializeCropper = (remainingAttempts = 8) => {
+      if (isClosed || cropper) {
+        return;
+      }
+
+      if (stage.offsetWidth <= 0 || stage.offsetHeight <= 0) {
+        if (remainingAttempts <= 0) {
+          fail(new Error("Could not open the photo cropper."));
+          return;
+        }
+
+        initTimeoutId = window.setTimeout(() => {
+          window.requestAnimationFrame(() => initializeCropper(remainingAttempts - 1));
+        }, 50);
+        return;
+      }
+
+      cropper = new CropperClass(image, {
+        aspectRatio,
+        viewMode: 1,
+        autoCropArea: 0.85,
+        dragMode: "move",
+        responsive: true,
+        restore: false,
+        background: false,
+        guides: false,
+        center: false,
+        highlight: false,
+        movable: true,
+        zoomable: true,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+        ready() {
+          syncZoomInput();
+          window.requestAnimationFrame(syncZoomInput);
+        },
+        zoom() {
+          syncZoomInput();
+        },
+      });
+    };
+
+    window.requestAnimationFrame(() => initializeCropper());
 
     zoomInput.addEventListener("input", () => {
       if (!cropper || isSyncingZoom) {

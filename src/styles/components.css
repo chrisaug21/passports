@@ -250,8 +250,13 @@
   align-content: stretch;
 }
 
+.photo-crop-modal__card .modal-card__header {
+  align-items: center;
+}
+
 .photo-crop-modal__stage {
   width: 100%;
+  height: min(62vh, 560px);
   min-height: 0;
   border-radius: 18px;
   background: var(--color-surface-muted);
@@ -334,11 +339,13 @@
   }
 
   .photo-crop-modal__stage {
-    margin-top: 1rem;
+    height: min(64vh, calc(100vh - 14rem));
+    min-height: 320px;
   }
 
   .photo-crop-modal__actions {
     flex-direction: row;
     justify-content: flex-end;
+    margin-top: auto;
   }
 }
