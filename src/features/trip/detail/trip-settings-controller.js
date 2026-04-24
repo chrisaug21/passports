@@ -183,9 +183,12 @@ function renderTripSettingsPhotoField(trip) {
       <div class="photo-field__preview photo-hero">
         ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
       </div>
-      <button class="button button--secondary" data-trip-hero-upload type="button">
-        ${heroPhotoUrl ? "Change photo" : "Add photo"}
-      </button>
+      <div class="photo-field__actions">
+        <button class="button button--secondary" data-trip-hero-upload type="button">
+          ${heroPhotoUrl ? "Adjust crop" : "Add photo"}
+        </button>
+        ${heroPhotoUrl ? `<button class="button-link" data-trip-hero-replace type="button">Replace photo</button>` : ""}
+      </div>
     </div>
   `;
 }

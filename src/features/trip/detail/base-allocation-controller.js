@@ -26,6 +26,7 @@ import {
   escapeHtml,
   getBaseHeroPhotoUrl,
   getDisplayTitleForToast,
+  getTripHeroPhotoUrl,
   renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 
@@ -133,16 +134,27 @@ export function renderEditBaseForm(base, isSaving) {
 }
 
 function renderBasePhotoField(base) {
-  const heroPhotoUrl = getBaseHeroPhotoUrl(base);
+  const trip = tripStore.getCurrentTrip();
+  const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
+  const heroPhotoUrl = isSingleBaseTrip ? getTripHeroPhotoUrl(trip) : getBaseHeroPhotoUrl(base);
 
   return `
     <div class="photo-field">
       <div class="photo-field__preview photo-hero">
         ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
       </div>
-      <button class="button button--secondary" data-base-hero-upload="${escapeHtml(base.id)}" type="button">
-        ${heroPhotoUrl ? "Change photo" : "Add photo"}
-      </button>
+      ${
+        isSingleBaseTrip
+          ? `<p class="field-hint">Single-base trips use the trip photo here. Add a second base before setting a separate base photo.</p>`
+          : `
+            <div class="photo-field__actions">
+              <button class="button button--secondary" data-base-hero-upload="${escapeHtml(base.id)}" type="button">
+                ${heroPhotoUrl ? "Adjust crop" : "Add photo"}
+              </button>
+              ${heroPhotoUrl ? `<button class="button-link" data-base-hero-replace="${escapeHtml(base.id)}" type="button">Replace photo</button>` : ""}
+            </div>
+          `
+      }
     </div>
   `;
 }

@@ -2,10 +2,16 @@ import { appStore } from "../../../state/app-store.js";
 import { sessionStore } from "../../../state/session-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { rerenderTripDetail } from "./trip-detail-state.js";
-import { openPhotoCropModal, selectImageFile } from "../../../lib/photo-upload.js";
+import {
+  DEFAULT_PHOTO_ASPECT_RATIO,
+  openPhotoCropModal,
+  openPhotoCropModalFromUrl,
+  selectImageFile,
+} from "../../../lib/photo-upload.js";
 import {
   PHOTO_CONTEXTS,
-  saveUploadedPrimaryPhoto,
+  recropExistingPrimaryPhoto,
+  replaceExistingPrimaryPhoto,
 } from "../../../services/photos-service.js";
 import { showToast } from "../../shared/toast.js";
 
@@ -13,24 +19,44 @@ export function createPhotoUploadHandlers() {
   return {
     onUploadTripHero: async () => {
       const trip = tripStore.getCurrentTrip();
-      await uploadHeroPhoto({
+      await handleHeroPhotoAction({
         tripId: trip?.id,
         context: PHOTO_CONTEXTS.tripHero,
+        mode: "adjust",
+      });
+    },
+    onReplaceTripHero: async () => {
+      const trip = tripStore.getCurrentTrip();
+      await handleHeroPhotoAction({
+        tripId: trip?.id,
+        context: PHOTO_CONTEXTS.tripHero,
+        mode: "replace",
       });
     },
     onUploadBaseHero: async (baseId) => {
       const trip = tripStore.getCurrentTrip();
-      await uploadHeroPhoto({
+      await handleHeroPhotoAction({
         tripId: trip?.id,
         baseId,
         context: PHOTO_CONTEXTS.baseHero,
+        mode: "adjust",
+      });
+    },
+    onReplaceBaseHero: async (baseId) => {
+      const trip = tripStore.getCurrentTrip();
+      await handleHeroPhotoAction({
+        tripId: trip?.id,
+        baseId,
+        context: PHOTO_CONTEXTS.baseHero,
+        mode: "replace",
       });
     },
   };
 }
 
-async function uploadHeroPhoto({ tripId, baseId = null, context }) {
+async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
   const { session } = sessionStore.getState();
+  const existingPhoto = getExistingPhoto({ baseId, context });
 
   if (!session?.user?.id || !tripId) {
     showToast("Your session expired. Sign in again.", "error");
@@ -38,13 +64,9 @@ async function uploadHeroPhoto({ tripId, baseId = null, context }) {
   }
 
   try {
-    const file = await selectImageFile();
-
-    if (!file) {
-      return;
-    }
-
-    const croppedBlob = await openPhotoCropModal(file, { aspectRatio: 16 / 9 });
+    const croppedBlob = existingPhoto && mode !== "replace"
+      ? await openPhotoCropModalFromUrl(existingPhoto.public_url, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO })
+      : await selectAndCropNewPhoto();
 
     if (!croppedBlob) {
       return;
@@ -56,13 +78,19 @@ async function uploadHeroPhoto({ tripId, baseId = null, context }) {
     });
     rerenderTripDetail();
 
-    const photo = await saveUploadedPrimaryPhoto({
-      userId: session.user.id,
-      tripId,
-      baseId,
-      context,
-      blob: croppedBlob,
-    });
+    const photo = existingPhoto && mode !== "replace"
+      ? await recropExistingPrimaryPhoto({
+        photoId: existingPhoto.id,
+        storagePath: existingPhoto.storage_path,
+        blob: croppedBlob,
+      })
+      : await replaceExistingPrimaryPhoto({
+        userId: session.user.id,
+        tripId,
+        baseId,
+        context,
+        blob: croppedBlob,
+      });
 
     appStore.updateTripDetail({
       isSavingTrip: false,
@@ -80,6 +108,24 @@ async function uploadHeroPhoto({ tripId, baseId = null, context }) {
     rerenderTripDetail();
     showToast("Something went wrong saving. Please try again.", "error");
   }
+}
+
+async function selectAndCropNewPhoto() {
+  const file = await selectImageFile();
+
+  if (!file) {
+    return null;
+  }
+
+  return openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
+}
+
+function getExistingPhoto({ baseId, context }) {
+  if (context === PHOTO_CONTEXTS.tripHero) {
+    return tripStore.getCurrentTrip()?.hero_photo || null;
+  }
+
+  return tripStore.getCurrentBases().find((entry) => entry.id === baseId)?.hero_photo || null;
 }
 
 function applyUploadedPhotoToStore({ photo, baseId, context }) {

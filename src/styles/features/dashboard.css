@@ -61,12 +61,12 @@
   box-shadow: var(--shadow-soft);
   cursor: pointer;
   display: grid;
-  grid-template-rows: 190px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .trip-card__media {
   position: relative;
-  min-height: 190px;
+  aspect-ratio: 3 / 2;
   padding: 1rem;
   display: flex;
   align-items: start;
@@ -132,6 +132,10 @@
 
 .trip-card__summary {
   font-weight: 600;
+}
+
+.trip-card__replace-photo {
+  justify-self: start;
 }
 
 .modal-shell {

@@ -9,6 +9,7 @@ import {
 import {
   escapeHtml,
   getBaseHeroPhotoUrl,
+  getTripHeroPhotoUrl,
   renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
@@ -41,7 +42,12 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
 
 export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
-  const baseHeroPhotoUrl = row.kind === "base" ? getBaseHeroPhotoUrl(row.base) : "";
+  const trip = tripStore.getCurrentTrip();
+  const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
+  const baseHeroPhotoUrl = row.kind === "base"
+    ? (isSingleBaseTrip ? getTripHeroPhotoUrl(trip) : getBaseHeroPhotoUrl(row.base))
+    : "";
+  const showBasePhotoAction = row.kind === "base" && !isSingleBaseTrip;
 
   return `
     <section class="panel days-base-section">
@@ -50,9 +56,15 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           ? `
             <div class="days-base-section__hero photo-hero">
               ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
-              <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Change photo for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
-                <i data-lucide="camera" aria-hidden="true"></i>
-              </button>
+              ${
+                showBasePhotoAction
+                  ? `
+                    <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(row.base.id)}" type="button" aria-label="${baseHeroPhotoUrl ? `Adjust photo crop for ${escapeHtml(row.label)}` : `Add photo for ${escapeHtml(row.label)}`}">
+                      <i data-lucide="camera" aria-hidden="true"></i>
+                    </button>
+                  `
+                  : ""
+              }
             </div>
           `
           : ""

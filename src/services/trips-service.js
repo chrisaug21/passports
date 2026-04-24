@@ -1,5 +1,4 @@
 import {
-  DEFAULT_BASE_NAME,
   DEFAULT_BASE_TIMEZONE,
   ITEM_STATUSES,
 } from "../config/constants.js";
@@ -52,7 +51,7 @@ async function attachPrimaryTripHeroPhotos(trips) {
 
   const { data, error } = await getSupabase()
     .from("trip_photos")
-    .select("id, trip_id, base_id, storage_path, is_primary, sort_order")
+    .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
     .in("trip_id", tripIds)
     .eq("is_primary", true)
     .is("base_id", null)
@@ -67,11 +66,12 @@ async function attachPrimaryTripHeroPhotos(trips) {
 
   return trips.map((trip) => {
     const photo = photosByTripId.get(trip.id) || null;
+    const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
 
     return {
       ...trip,
-      hero_photo_url: photo ? getPhotoPublicUrl(photo.storage_path) : "",
-      hero_photo: photo,
+      hero_photo_url: publicUrl,
+      hero_photo: photo ? { ...photo, public_url: publicUrl } : null,
     };
   });
 }
@@ -187,7 +187,7 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
       .insert({
         id: baseId,
         trip_id: tripId,
-        name: DEFAULT_BASE_NAME,
+        name: title,
         location_name: title,
         local_timezone: DEFAULT_BASE_TIMEZONE,
         sort_order: 0,
@@ -278,7 +278,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trip_photos")
-      .select("id, trip_id, base_id, storage_path, is_primary, sort_order")
+      .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
       .eq("trip_id", tripId)
       .eq("is_primary", true)
       .is("day_id", null)
@@ -316,16 +316,22 @@ export async function fetchTripDetailBundle(tripId) {
   return {
     trip: {
       ...tripResult.data,
-      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path) : "",
-      hero_photo: tripHeroPhoto,
+      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "",
+      hero_photo: tripHeroPhoto
+        ? {
+          ...tripHeroPhoto,
+          public_url: getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id),
+        }
+        : null,
     },
     bases: (basesResult.data || []).map((base) => {
       const photo = baseHeroPhotoByBaseId.get(base.id) || null;
+      const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
 
       return {
         ...base,
-        hero_photo_url: photo ? getPhotoPublicUrl(photo.storage_path) : "",
-        hero_photo: photo,
+        hero_photo_url: publicUrl,
+        hero_photo: photo ? { ...photo, public_url: publicUrl } : null,
       };
     }),
     days: daysResult.data || [],

@@ -78,6 +78,7 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
   bindClick("[data-trip-hero-upload]", handlers.onUploadTripHero);
+  bindClick("[data-trip-hero-replace]", handlers.onReplaceTripHero);
   bindClick("#cancel-trip-settings", handlers.onCancelTripSettings);
   bindClick("[data-close-trip-settings]", handlers.onCancelTripSettings);
   bindClick("#open-delete-trip-confirm", handlers.onOpenDeleteTripConfirm);
@@ -92,6 +93,9 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindAll("[data-base-hero-upload]", "click", (button) => {
     handlers.onUploadBaseHero?.(button.getAttribute("data-base-hero-upload"));
+  });
+  bindAll("[data-base-hero-replace]", "click", (button) => {
+    handlers.onReplaceBaseHero?.(button.getAttribute("data-base-hero-replace"));
   });
   bindAll("[data-cancel-edit-base]", "click", handlers.onCancelEditBase);
   bindAll("[data-allocation-adjust]", "click", (button) => {

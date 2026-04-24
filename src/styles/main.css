@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./base.css";
+@import "../lib/vendor/cropper.css";
 @import "./layout.css";
 @import "./components.css";
 @import "./features/auth.css";

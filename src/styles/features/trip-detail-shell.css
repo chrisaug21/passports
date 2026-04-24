@@ -26,7 +26,8 @@
 }
 
 .trip-header__media {
-  min-height: 120px;
+  aspect-ratio: auto;
+  height: clamp(220px, 42vw, 360px);
   background: var(--trip-header-media-gradient);
   background-position: center;
   background-size: cover;
@@ -188,7 +189,7 @@
 
 @media (min-width: 900px) {
     .trip-header__media {
-      min-height: 160px;
+      height: 360px;
     }
 }
 

@@ -9,7 +9,8 @@
 }
 
 .days-base-section__hero {
-  min-height: 180px;
+  aspect-ratio: auto;
+  height: 180px;
   margin: -1.5rem -1.5rem 0;
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
 }
@@ -271,6 +272,10 @@
 }
 
 @media (min-width: 900px) {
+    .days-base-section__hero {
+      height: 240px;
+    }
+
     .day-item__reorder-button,
     .item-actions-menu__trigger {
       width: 32px;

@@ -1,7 +1,6 @@
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 4;
+export const DEFAULT_PHOTO_ASPECT_RATIO = 3 / 2;
 
 export function selectImageFile() {
   return new Promise((resolve) => {
@@ -63,151 +62,127 @@ export async function resizeImageForUpload(file) {
   };
 }
 
-export async function openPhotoCropModal(file, { aspectRatio = 16 / 9 } = {}) {
+export async function openPhotoCropModal(file, { aspectRatio = DEFAULT_PHOTO_ASPECT_RATIO } = {}) {
   const resizedImage = await resizeImageForUpload(file);
   const imageUrl = URL.createObjectURL(resizedImage.blob);
 
+  return openCropperModal({
+    imageUrl,
+    aspectRatio,
+    cleanup: () => {
+      URL.revokeObjectURL(imageUrl);
+    },
+  });
+}
+
+export function openPhotoCropModalFromUrl(imageUrl, { aspectRatio = DEFAULT_PHOTO_ASPECT_RATIO } = {}) {
+  return openCropperModal({
+    imageUrl,
+    aspectRatio,
+  });
+}
+
+function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
   return new Promise((resolve, reject) => {
-    const cropState = {
-      imageUrl,
-      imageWidth: resizedImage.width,
-      imageHeight: resizedImage.height,
-      aspectRatio,
-      offsetX: 0,
-      offsetY: 0,
-      zoom: 1,
-      isDragging: false,
-      dragStartX: 0,
-      dragStartY: 0,
-      dragStartOffsetX: 0,
-      dragStartOffsetY: 0,
-    };
+    const CropperClass = window.Cropper;
     const modal = renderCropModal();
     const image = modal.querySelector("[data-photo-crop-image]");
-    const stage = modal.querySelector("[data-photo-crop-stage]");
-    const cropFrame = modal.querySelector("[data-photo-crop-frame]");
     const zoomInput = modal.querySelector("[data-photo-crop-zoom]");
     const hadModalOpen = document.body.classList.contains("modal-open");
+    let cropper = null;
+    let minZoom = 0.01;
+    let maxZoom = 3;
+    let isSyncingZoom = false;
 
-    if (!image || !stage || !cropFrame || !zoomInput) {
-      URL.revokeObjectURL(imageUrl);
+    if (!CropperClass || !image || !zoomInput) {
+      cleanup();
       reject(new Error("Could not open the photo cropper."));
       return;
     }
 
-    const cleanup = () => {
-      URL.revokeObjectURL(imageUrl);
+    const teardown = () => {
+      cropper?.destroy();
       modal.remove();
       document.body.classList.toggle("modal-open", hadModalOpen);
-      window.removeEventListener("resize", syncCropLayout);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      cleanup();
     };
 
     const finish = (value) => {
-      cleanup();
+      teardown();
       resolve(value);
     };
 
     const fail = (error) => {
-      cleanup();
+      teardown();
       reject(error);
     };
 
-    const updateImageTransform = () => {
-      image.style.width = `${cropState.imageWidth * cropState.zoom}px`;
-      image.style.height = `${cropState.imageHeight * cropState.zoom}px`;
-      image.style.transform = `translate(${cropState.offsetX}px, ${cropState.offsetY}px)`;
-    };
-
-    const clampOffsets = () => {
-      const frameRect = cropFrame.getBoundingClientRect();
-      const scaledWidth = cropState.imageWidth * cropState.zoom;
-      const scaledHeight = cropState.imageHeight * cropState.zoom;
-      const minX = frameRect.width - scaledWidth;
-      const minY = frameRect.height - scaledHeight;
-
-      cropState.offsetX = Math.min(0, Math.max(minX, cropState.offsetX));
-      cropState.offsetY = Math.min(0, Math.max(minY, cropState.offsetY));
-    };
-
-    function syncCropLayout() {
-      const stageRect = stage.getBoundingClientRect();
-      const maxWidth = Math.max(1, stageRect.width);
-      const maxHeight = Math.max(1, stageRect.height);
-      const frameWidth = Math.min(maxWidth, maxHeight * aspectRatio);
-      const frameHeight = frameWidth / aspectRatio;
-      const minZoom = Math.max(frameWidth / cropState.imageWidth, frameHeight / cropState.imageHeight, MIN_ZOOM);
-
-      cropFrame.style.width = `${frameWidth}px`;
-      cropFrame.style.height = `${frameHeight}px`;
-      zoomInput.min = String(minZoom);
-      zoomInput.max = String(Math.max(MAX_ZOOM, minZoom));
-
-      if (cropState.zoom < minZoom) {
-        cropState.zoom = minZoom;
-        zoomInput.value = String(minZoom);
-      }
-
-      if (cropState.offsetX === 0 && cropState.offsetY === 0) {
-        cropState.offsetX = (frameWidth - cropState.imageWidth * cropState.zoom) / 2;
-        cropState.offsetY = (frameHeight - cropState.imageHeight * cropState.zoom) / 2;
-      }
-
-      clampOffsets();
-      updateImageTransform();
-    }
-
-    function handlePointerMove(event) {
-      if (!cropState.isDragging) {
+    const syncZoomInput = () => {
+      if (!cropper) {
         return;
       }
 
-      cropState.offsetX = cropState.dragStartOffsetX + event.clientX - cropState.dragStartX;
-      cropState.offsetY = cropState.dragStartOffsetY + event.clientY - cropState.dragStartY;
-      clampOffsets();
-      updateImageTransform();
-    }
+      const imageData = cropper.getImageData();
+      const containerData = cropper.getContainerData();
+      const currentZoom = imageData.naturalWidth ? imageData.width / imageData.naturalWidth : 1;
+      const nextMinZoom = imageData.naturalWidth && imageData.naturalHeight
+        ? Math.max(0.01, Math.min(
+          containerData.width / imageData.naturalWidth,
+          containerData.height / imageData.naturalHeight
+        ))
+        : 0.01;
 
-    function handlePointerUp() {
-      cropState.isDragging = false;
-      cropFrame.classList.remove("is-dragging");
-    }
+      minZoom = nextMinZoom;
+      maxZoom = Math.max(minZoom + 0.01, currentZoom, minZoom * 6, 3);
+      zoomInput.min = String(minZoom);
+      zoomInput.max = String(maxZoom);
+      isSyncingZoom = true;
+      zoomInput.value = String(Math.min(maxZoom, Math.max(minZoom, currentZoom)));
+      isSyncingZoom = false;
+    };
 
+    image.crossOrigin = "anonymous";
     image.src = imageUrl;
     document.body.append(modal);
     document.body.classList.add("modal-open");
-    window.lucide?.createIcons?.();
-    requestAnimationFrame(syncCropLayout);
 
-    window.addEventListener("resize", syncCropLayout);
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-
-    cropFrame.addEventListener("pointerdown", (event) => {
-      cropState.isDragging = true;
-      cropState.dragStartX = event.clientX;
-      cropState.dragStartY = event.clientY;
-      cropState.dragStartOffsetX = cropState.offsetX;
-      cropState.dragStartOffsetY = cropState.offsetY;
-      cropFrame.classList.add("is-dragging");
-      cropFrame.setPointerCapture?.(event.pointerId);
+    cropper = new CropperClass(image, {
+      aspectRatio,
+      viewMode: 1,
+      autoCropArea: 0.85,
+      dragMode: "move",
+      responsive: true,
+      restore: false,
+      background: false,
+      guides: false,
+      center: false,
+      highlight: false,
+      movable: true,
+      zoomable: true,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+      ready() {
+        syncZoomInput();
+        window.requestAnimationFrame(syncZoomInput);
+      },
+      zoom() {
+        syncZoomInput();
+      },
     });
 
     zoomInput.addEventListener("input", () => {
-      const frameRect = cropFrame.getBoundingClientRect();
-      const previousZoom = cropState.zoom;
-      const nextZoom = Number(zoomInput.value);
-      const centerX = frameRect.width / 2;
-      const centerY = frameRect.height / 2;
-      const imageCenterX = (centerX - cropState.offsetX) / previousZoom;
-      const imageCenterY = (centerY - cropState.offsetY) / previousZoom;
+      if (!cropper || isSyncingZoom) {
+        return;
+      }
 
-      cropState.zoom = Number.isFinite(nextZoom) ? nextZoom : previousZoom;
-      cropState.offsetX = centerX - imageCenterX * cropState.zoom;
-      cropState.offsetY = centerY - imageCenterY * cropState.zoom;
-      clampOffsets();
-      updateImageTransform();
+      const nextZoom = Number(zoomInput.value);
+
+      if (!Number.isFinite(nextZoom)) {
+        return;
+      }
+
+      cropper.zoomTo(Math.min(maxZoom, Math.max(minZoom, nextZoom)));
     });
 
     modal.querySelectorAll("[data-photo-crop-cancel]").forEach((button) => {
@@ -218,36 +193,20 @@ export async function openPhotoCropModal(file, { aspectRatio = 16 / 9 } = {}) {
 
     modal.querySelector("[data-photo-crop-confirm]")?.addEventListener("click", async () => {
       try {
-        const croppedBlob = await cropImageBlob(cropState, cropFrame);
-        finish(croppedBlob);
+        const canvas = cropper?.getCroppedCanvas({
+          fillColor: "#ffffff",
+        });
+
+        if (!canvas) {
+          throw new Error("Could not crop that image.");
+        }
+
+        finish(await canvasToJpegBlob(canvas));
       } catch (error) {
         fail(error);
       }
     });
   });
-}
-
-async function cropImageBlob(cropState, cropFrame) {
-  const frameRect = cropFrame.getBoundingClientRect();
-  const outputWidth = Math.min(cropState.imageWidth, Math.round(frameRect.width / cropState.zoom));
-  const outputHeight = Math.round(outputWidth / cropState.aspectRatio);
-  const sourceX = Math.max(0, Math.round(-cropState.offsetX / cropState.zoom));
-  const sourceY = Math.max(0, Math.round(-cropState.offsetY / cropState.zoom));
-  const sourceWidth = Math.min(cropState.imageWidth - sourceX, Math.round(frameRect.width / cropState.zoom));
-  const sourceHeight = Math.min(cropState.imageHeight - sourceY, Math.round(frameRect.height / cropState.zoom));
-  const image = await loadImageFromUrl(cropState.imageUrl);
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Could not crop that image.");
-  }
-
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
-  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
-
-  return canvasToJpegBlob(canvas);
 }
 
 function renderCropModal() {
@@ -262,9 +221,7 @@ function renderCropModal() {
         <button class="icon-button" data-photo-crop-cancel type="button" aria-label="Close photo cropper">×</button>
       </div>
       <div class="photo-crop-modal__stage" data-photo-crop-stage>
-        <div class="photo-crop-modal__frame" data-photo-crop-frame>
-          <img class="photo-crop-modal__image" data-photo-crop-image alt="" draggable="false" />
-        </div>
+        <img class="photo-crop-modal__image" data-photo-crop-image alt="" draggable="false" />
       </div>
       <label class="field photo-crop-modal__zoom">
         <span>Zoom</span>
@@ -290,6 +247,9 @@ function loadImageFromFile(file) {
 function loadImageFromUrl(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    if (/^https?:/i.test(String(url || ""))) {
+      image.crossOrigin = "anonymous";
+    }
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("Could not load that image."));
     image.src = url;
