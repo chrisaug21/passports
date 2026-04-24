@@ -96,7 +96,6 @@ export function renderRoute(options = {}) {
 
     renderAppShell(renderTripDetailPage(), {
       showDashboardLink: true,
-      shellClassName: "app-shell--trip-detail",
       afterRender: () => {
         document.title = "Passports | Trip";
         wireTripDetailPage(tripId);

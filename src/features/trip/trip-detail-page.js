@@ -16,7 +16,6 @@ import {
 } from "./detail/base-allocation-controller.js";
 import {
   createDaysViewHandlers,
-  logBaseSectionLayout,
 } from "./detail/days-view-controller.js";
 import {
   createPhotoUploadHandlers,
@@ -107,5 +106,4 @@ export function wireTripDetailPage(tripId) {
   wireItemActionsMenus();
   wireTimezonePickers();
   wireTripDetailPageEvents(createTripDetailHandlers(tripId));
-  logBaseSectionLayout();
 }
