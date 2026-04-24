@@ -26,8 +26,9 @@
 }
 
 .trip-header__media {
-  aspect-ratio: auto;
-  height: clamp(220px, 42vw, 360px);
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
   background: var(--trip-header-media-gradient);
   background-position: center;
   background-size: cover;
@@ -184,12 +185,6 @@
 
     .trip-header__edit-button {
       width: 100%;
-    }
-}
-
-@media (min-width: 900px) {
-    .trip-header__media {
-      height: 360px;
     }
 }
 

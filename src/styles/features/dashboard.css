@@ -78,11 +78,6 @@
   background-size: cover;
 }
 
-.trip-card__photo-button {
-  top: 1rem;
-  right: 1rem;
-}
-
 .trip-card__status {
   position: relative;
   z-index: 1;
@@ -132,10 +127,6 @@
 
 .trip-card__summary {
   font-weight: 600;
-}
-
-.trip-card__replace-photo {
-  justify-self: start;
 }
 
 .modal-shell {
@@ -202,6 +193,12 @@
   .modal-card__actions {
     flex-direction: column-reverse;
     align-items: stretch;
+  }
+
+  .photo-crop-modal__actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
   }
 }
 

@@ -177,17 +177,23 @@ export function renderTripSettingsForm(trip, isSaving) {
 
 function renderTripSettingsPhotoField(trip) {
   const heroPhotoUrl = getTripHeroPhotoUrl(trip);
+  const label = heroPhotoUrl ? "Adjust crop" : "Add photo";
 
   return `
     <div class="photo-field">
-      <div class="photo-field__preview photo-hero">
+      <div class="photo-field__preview photo-hero" tabindex="0">
         ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
-      </div>
-      <div class="photo-field__actions">
-        <button class="button button--secondary" data-trip-hero-upload type="button">
-          ${heroPhotoUrl ? "Adjust crop" : "Add photo"}
-        </button>
-        ${heroPhotoUrl ? `<button class="button-link" data-trip-hero-replace type="button">Replace photo</button>` : ""}
+        <div class="photo-hero__controls">
+          <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${label}">
+            <i data-lucide="camera" aria-hidden="true"></i>
+          </button>
+          ${heroPhotoUrl ? `
+            <button class="photo-hero__replace" data-trip-hero-replace type="button" aria-label="Replace photo">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              <span>Replace photo</span>
+            </button>
+          ` : ""}
+        </div>
       </div>
     </div>
   `;

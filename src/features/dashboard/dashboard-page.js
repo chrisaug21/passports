@@ -7,17 +7,6 @@ import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.
 import { showToast } from "../shared/toast.js";
 import { navigate } from "../../app/router.js";
 import { deriveTripStatus } from "../../lib/derive.js";
-import {
-  DEFAULT_PHOTO_ASPECT_RATIO,
-  openPhotoCropModal,
-  openPhotoCropModalFromUrl,
-  selectImageFile,
-} from "../../lib/photo-upload.js";
-import {
-  PHOTO_CONTEXTS,
-  recropExistingPrimaryPhoto,
-  replaceExistingPrimaryPhoto,
-} from "../../services/photos-service.js";
 
 let rerenderDashboard = () => {};
 
@@ -137,21 +126,6 @@ export function wireDashboardPage() {
       }
     });
   });
-  document.querySelectorAll("[data-trip-card-photo-upload]").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      await handleDashboardTripHeroPhoto(button.getAttribute("data-trip-card-photo-upload"), "adjust");
-    });
-  });
-  document.querySelectorAll("[data-trip-card-photo-replace]").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      await handleDashboardTripHeroPhoto(button.getAttribute("data-trip-card-photo-replace"), "replace");
-    });
-  });
-
   wireCreateTripModal({
     onSubmit: async (formValues) => {
       const { session } = sessionStore.getState();
@@ -185,58 +159,6 @@ export function wireDashboardPage() {
       }
     },
   });
-}
-
-async function handleDashboardTripHeroPhoto(tripId, mode) {
-  const { session } = sessionStore.getState();
-  const trip = tripStore.getTrips().find((entry) => entry.id === tripId) || null;
-  const existingPhoto = trip?.hero_photo || null;
-
-  if (!session?.user?.id || !tripId) {
-    showToast("Your session expired. Sign in again.", "error");
-    return;
-  }
-
-  try {
-    const croppedBlob = existingPhoto && mode !== "replace"
-      ? await openPhotoCropModalFromUrl(existingPhoto.public_url, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO })
-      : await selectAndCropDashboardPhoto();
-
-    if (!croppedBlob) {
-      return;
-    }
-
-    if (existingPhoto && mode !== "replace") {
-      await recropExistingPrimaryPhoto({
-        photoId: existingPhoto.id,
-        storagePath: existingPhoto.storage_path,
-        blob: croppedBlob,
-      });
-    } else {
-      await replaceExistingPrimaryPhoto({
-        userId: session.user.id,
-        tripId,
-        context: PHOTO_CONTEXTS.tripHero,
-        blob: croppedBlob,
-      });
-    }
-
-    await loadDashboard();
-    showToast("Photo updated.", "success");
-  } catch (error) {
-    console.error(error);
-    showToast("Something went wrong saving. Please try again.", "error");
-  }
-}
-
-async function selectAndCropDashboardPhoto() {
-  const file = await selectImageFile();
-
-  if (!file) {
-    return null;
-  }
-
-  return openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
 }
 
 export async function loadDashboard() {

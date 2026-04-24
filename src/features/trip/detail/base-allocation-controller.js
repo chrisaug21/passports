@@ -137,23 +137,34 @@ function renderBasePhotoField(base) {
   const trip = tripStore.getCurrentTrip();
   const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
   const heroPhotoUrl = isSingleBaseTrip ? getTripHeroPhotoUrl(trip) : getBaseHeroPhotoUrl(base);
+  const label = heroPhotoUrl ? "Adjust crop" : "Add photo";
 
   return `
     <div class="photo-field">
-      <div class="photo-field__preview photo-hero">
+      <div class="photo-field__preview photo-hero" tabindex="0">
         ${heroPhotoUrl ? renderHeroPhotoImage(heroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+        ${
+          isSingleBaseTrip
+            ? ""
+            : `
+              <div class="photo-hero__controls">
+                <button class="photo-hero__action" data-base-hero-upload="${escapeHtml(base.id)}" type="button" aria-label="${label}">
+                  <i data-lucide="camera" aria-hidden="true"></i>
+                </button>
+                ${heroPhotoUrl ? `
+                  <button class="photo-hero__replace" data-base-hero-replace="${escapeHtml(base.id)}" type="button" aria-label="Replace photo">
+                    <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                    <span>Replace photo</span>
+                  </button>
+                ` : ""}
+              </div>
+            `
+        }
       </div>
       ${
         isSingleBaseTrip
           ? `<p class="field-hint">Single-base trips use the trip photo here. Add a second base before setting a separate base photo.</p>`
-          : `
-            <div class="photo-field__actions">
-              <button class="button button--secondary" data-base-hero-upload="${escapeHtml(base.id)}" type="button">
-                ${heroPhotoUrl ? "Adjust crop" : "Add photo"}
-              </button>
-              ${heroPhotoUrl ? `<button class="button-link" data-base-hero-replace="${escapeHtml(base.id)}" type="button">Replace photo</button>` : ""}
-            </div>
-          `
+          : ""
       }
     </div>
   `;

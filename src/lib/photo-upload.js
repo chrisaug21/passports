@@ -1,6 +1,7 @@
-const MAX_IMAGE_DIMENSION = 1600;
-const JPEG_QUALITY = 0.8;
 export const DEFAULT_PHOTO_ASPECT_RATIO = 3 / 2;
+const CROPPED_OUTPUT_WIDTH = 1200;
+const CROPPED_OUTPUT_HEIGHT = 800;
+const JPEG_QUALITY = 0.85;
 
 export function selectImageFile() {
   return new Promise((resolve) => {
@@ -39,32 +40,8 @@ export function selectImageFile() {
   });
 }
 
-export async function resizeImageForUpload(file) {
-  const image = await loadImageFromFile(file);
-  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
-  const width = Math.max(1, Math.round(image.naturalWidth * scale));
-  const height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Could not prepare that image.");
-  }
-
-  canvas.width = width;
-  canvas.height = height;
-  context.drawImage(image, 0, 0, width, height);
-
-  return {
-    blob: await canvasToJpegBlob(canvas),
-    width,
-    height,
-  };
-}
-
 export async function openPhotoCropModal(file, { aspectRatio = DEFAULT_PHOTO_ASPECT_RATIO } = {}) {
-  const resizedImage = await resizeImageForUpload(file);
-  const imageUrl = URL.createObjectURL(resizedImage.blob);
+  const imageUrl = URL.createObjectURL(file);
 
   return openCropperModal({
     imageUrl,
@@ -194,6 +171,8 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
     modal.querySelector("[data-photo-crop-confirm]")?.addEventListener("click", async () => {
       try {
         const canvas = cropper?.getCroppedCanvas({
+          width: CROPPED_OUTPUT_WIDTH,
+          height: CROPPED_OUTPUT_HEIGHT,
           fillColor: "#ffffff",
         });
 
@@ -227,7 +206,7 @@ function renderCropModal() {
         <span>Zoom</span>
         <input data-photo-crop-zoom type="range" min="1" max="4" step="0.01" value="1" />
       </label>
-      <div class="modal-card__actions modal-card__actions--end">
+      <div class="modal-card__actions modal-card__actions--end photo-crop-modal__actions">
         <button class="button button--secondary" data-photo-crop-cancel type="button">Cancel</button>
         <button class="button" data-photo-crop-confirm type="button">Use this crop</button>
       </div>
@@ -235,25 +214,6 @@ function renderCropModal() {
   `;
 
   return modal;
-}
-
-function loadImageFromFile(file) {
-  const imageUrl = URL.createObjectURL(file);
-  return loadImageFromUrl(imageUrl).finally(() => {
-    URL.revokeObjectURL(imageUrl);
-  });
-}
-
-function loadImageFromUrl(url) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    if (/^https?:/i.test(String(url || ""))) {
-      image.crossOrigin = "anonymous";
-    }
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Could not load that image."));
-    image.src = url;
-  });
 }
 
 function canvasToJpegBlob(canvas) {
