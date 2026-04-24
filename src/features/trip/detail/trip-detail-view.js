@@ -16,6 +16,7 @@ import {
   renderTripSettingsForm,
   renderTripSettingsSummary,
 } from "./trip-settings-controller.js";
+import { renderMembersModal } from "./members-controller.js";
 import {
   buildAllocationRows,
   getAllocationState,
@@ -129,9 +130,15 @@ export function renderTripDetailPageView() {
               </div>
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
-            <button class="button button--secondary trip-header__edit-button section-action-button" id="toggle-trip-settings" type="button">
-              Edit Trip
-            </button>
+            <div class="trip-header__actions">
+              <button class="button button--secondary section-action-button" id="toggle-trip-settings" type="button">
+                Edit Trip
+              </button>
+              <button class="button button--secondary trip-header__members-btn" id="open-members-modal" type="button" aria-label="Trip members">
+                <i data-lucide="users" aria-hidden="true"></i>
+                <span class="trip-header__members-label">Members</span>
+              </button>
+            </div>
           </div>
           ${renderTripSettingsSummary(trip)}
         </div>
@@ -256,6 +263,7 @@ export function renderTripDetailPageView() {
         isDeleting: tripDetail.isDeletingTrip,
       })}
       ${renderTimezoneOptionsDatalist()}
+      ${renderMembersModal()}
     </section>
   `;
 }

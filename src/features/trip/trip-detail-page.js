@@ -28,6 +28,7 @@ import {
   createItemEditorHandlers,
   getTripItemErrorMessage,
 } from "./detail/item-editor-controller.js";
+import { createMembersHandlers } from "./detail/members-controller.js";
 import { renderTripDetailPageView } from "./detail/trip-detail-view.js";
 
 export function setTripDetailRenderer(renderer) {
@@ -55,6 +56,7 @@ function syncTripDetailModalState(tripDetail) {
     tripDetail.isShowingMasterListFilters ||
     tripDetail.showDeleteBaseConfirm ||
     tripDetail.showDeleteTripConfirm ||
+    tripDetail.isShowingMembersModal ||
     tripDetailState.allocationConfirmState
   );
 
@@ -76,6 +78,7 @@ function createTripDetailHandlers(tripId) {
     getTripItemErrorMessage,
   });
   const itemEditorHandlers = createItemEditorHandlers();
+  const membersHandlers = createMembersHandlers();
 
   return {
     onBackToDashboard: () => navigate("/app"),
@@ -94,6 +97,7 @@ function createTripDetailHandlers(tripId) {
     ...photoUploadHandlers,
     ...itemsHandlers,
     ...itemEditorHandlers,
+    ...membersHandlers,
   };
 }
 
