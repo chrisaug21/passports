@@ -6,7 +6,7 @@ export const PHOTO_CONTEXTS = {
   baseHero: "base-hero",
 };
 
-const PHOTO_SELECT = "id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at";
+const PHOTO_SELECT = "id, trip_id, base_id, storage_path, is_primary, sort_order, created_at";
 
 export async function saveUploadedPrimaryPhoto({
   userId,
@@ -65,10 +65,6 @@ export async function recropExistingPrimaryPhoto({ photoId, storagePath, blob })
 
   const { data, error } = await getSupabase()
     .from("trip_photos")
-    .update({
-      is_primary: true,
-      updated_at: new Date().toISOString(),
-    })
     .eq("id", photoId)
     .select(PHOTO_SELECT)
     .single();
@@ -77,7 +73,10 @@ export async function recropExistingPrimaryPhoto({ photoId, storagePath, blob })
     throw error;
   }
 
-  return withPublicUrl(data);
+  return {
+    ...data,
+    public_url: getPhotoPublicUrl(data.storage_path, Date.now()),
+  };
 }
 
 export async function removePrimaryPhotoForSlot({ tripId, baseId = null }) {
@@ -211,6 +210,6 @@ function withPublicUrl(photo) {
 
   return {
     ...photo,
-    public_url: getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id),
+    public_url: getPhotoPublicUrl(photo.storage_path, photo.created_at || photo.id),
   };
 }

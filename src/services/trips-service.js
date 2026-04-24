@@ -51,7 +51,7 @@ async function attachPrimaryTripHeroPhotos(trips) {
 
   const { data, error } = await getSupabase()
     .from("trip_photos")
-    .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
+    .select("id, trip_id, base_id, storage_path, is_primary, sort_order, created_at")
     .in("trip_id", tripIds)
     .eq("is_primary", true)
     .is("base_id", null)
@@ -66,7 +66,7 @@ async function attachPrimaryTripHeroPhotos(trips) {
 
   return trips.map((trip) => {
     const photo = photosByTripId.get(trip.id) || null;
-    const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+    const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.created_at || photo.id) : "";
 
     return {
       ...trip,
@@ -278,7 +278,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trip_photos")
-      .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
+      .select("id, trip_id, base_id, storage_path, is_primary, sort_order, created_at")
       .eq("trip_id", tripId)
       .eq("is_primary", true)
       .is("day_id", null)
@@ -316,17 +316,17 @@ export async function fetchTripDetailBundle(tripId) {
   return {
     trip: {
       ...tripResult.data,
-      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "",
+      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.created_at || tripHeroPhoto.id) : "",
       hero_photo: tripHeroPhoto
         ? {
           ...tripHeroPhoto,
-          public_url: getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id),
+          public_url: getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.created_at || tripHeroPhoto.id),
         }
         : null,
     },
     bases: (basesResult.data || []).map((base) => {
       const photo = baseHeroPhotoByBaseId.get(base.id) || null;
-      const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+      const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.created_at || photo.id) : "";
 
       return {
         ...base,
