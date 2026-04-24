@@ -25,13 +25,14 @@ export function getTripStatTiles(trip, bases, items) {
   const mealCount = items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length;
   const activityCount = items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length;
   const stayCount = items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length;
+  const shouldShowBaseTile = bases.length >= 2;
   const transportCounts = TRANSPORT_MODES.reduce((counts, mode) => ({
     ...counts,
     [mode]: items.filter((item) => item.item_type === "transport" && item.transport_mode === mode).length,
   }), {});
   const ideaCount = items.filter((item) => item.status === "idea" || item.status === "shortlisted").length;
   const tiles = [
-    { label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length },
+    ...(shouldShowBaseTile ? [{ label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length }] : []),
     { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
     { label: getCountLabel(mealCount, "Meal", "Eats"), count: mealCount },
     { label: getCountLabel(activityCount, "Activity", "Activities"), count: activityCount },
@@ -46,7 +47,7 @@ export function getTripStatTiles(trip, bases, items) {
   if (tiles.length === 0) {
     return [
       { label: "Days", count: Number(trip.trip_length) || 0 },
-      { label: "Bases", count: bases.length },
+      ...(shouldShowBaseTile ? [{ label: "Bases", count: bases.length }] : []),
     ];
   }
 

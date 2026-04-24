@@ -145,6 +145,25 @@
   color: var(--color-text);
 }
 
+.trip-detail__single-base-action {
+  display: flex;
+}
+
+.trip-detail__single-base-button {
+  width: auto;
+  min-height: 44px;
+  padding-inline: 0.9rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-style: dashed;
+}
+
+.trip-detail__single-base-button-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .trip-detail .eyebrow {
   color: var(--color-structure);
 }

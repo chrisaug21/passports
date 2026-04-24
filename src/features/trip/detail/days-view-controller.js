@@ -9,7 +9,6 @@ import {
 import {
   escapeHtml,
   getBaseHeroPhotoUrl,
-  getTripHeroPhotoUrl,
   renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
@@ -42,17 +41,17 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
 
 export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
-  const trip = tripStore.getCurrentTrip();
   const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
-  const baseHeroPhotoUrl = row.kind === "base"
-    ? (isSingleBaseTrip ? getTripHeroPhotoUrl(trip) : getBaseHeroPhotoUrl(row.base))
+  const shouldShowBaseHeader = !isSingleBaseTrip;
+  const baseHeroPhotoUrl = row.kind === "base" && !isSingleBaseTrip
+    ? getBaseHeroPhotoUrl(row.base)
     : "";
   const showBasePhotoAction = row.kind === "base" && !isSingleBaseTrip;
 
   return `
     <section class="panel days-base-section">
       ${
-        row.kind === "base"
+        row.kind === "base" && !isSingleBaseTrip
           ? `
             <div class="days-base-section__hero photo-hero">
               ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
@@ -76,7 +75,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           `
           : ""
       }
-      ${rowCount > 1 ? `
+      ${shouldShowBaseHeader && rowCount > 1 ? `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
@@ -84,7 +83,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           </div>
           ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
-      ` : `
+      ` : shouldShowBaseHeader ? `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
@@ -92,7 +91,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           </div>
           ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
         </div>
-      `}
+      ` : ``}
       <div class="day-card-grid">
         ${baseDays.map((day) => renderDayCard(day, items, helpers)).join("")}
       </div>

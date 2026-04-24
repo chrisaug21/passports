@@ -134,7 +134,7 @@ export function renderTripSettingsForm(trip, isSaving) {
         </div>
 
         <form class="trip-settings-form" id="trip-settings-form">
-          <div class="item-editor-form__content">
+          <div class="item-editor-form__content trip-settings-form__content">
             ${renderTripSettingsPhotoField(trip)}
 
             <label class="field">
