@@ -321,6 +321,10 @@
   padding-bottom: 4rem;
 }
 
+.guide-trip-stat-tiles {
+  align-self: start;
+}
+
 .guide-day-section {
   display: grid;
   gap: 1rem;

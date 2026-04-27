@@ -9,6 +9,7 @@ import { deriveTripStatus } from "../../../lib/derive.js";
 import {
   escapeHtml,
   getTripHeroPhotoUrl,
+  getTripStatTiles,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -439,6 +440,8 @@ export function renderGuideView(state) {
   const todayDayNumber = getTodayDayNumber(trip);
 
   const visibleItems = filterItemsForViewer(items, viewerRole);
+  const statItems = isMember ? items : visibleItems;
+  const statTiles = getTripStatTiles(trip, bases, statItems);
   const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
   const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
 
@@ -462,6 +465,14 @@ export function renderGuideView(state) {
     <div class="guide-body">
       ${renderGuideDayNav(days, trip, todayDayNumber)}
       <div class="guide-content">
+        <section class="trip-stat-tiles guide-trip-stat-tiles" aria-label="Trip stats">
+          ${statTiles.map((tile) => `
+            <article class="panel trip-stat-tile">
+              <h3>${tile.count}</h3>
+              <p>${tile.label}</p>
+            </article>
+          `).join("")}
+        </section>
         ${daySections}
       </div>
     </div>
