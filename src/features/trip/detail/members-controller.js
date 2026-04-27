@@ -35,6 +35,7 @@ function renderMemberRow(member, currentUserId, ownerId) {
   const isRemoving = state?.isRemoving && isPendingRemove;
   const email = member.email || "Unknown user";
   const initial = getAvatarInitial(member.email);
+  const role = member.role || "";
 
   if (isPendingRemove) {
     return `
@@ -53,7 +54,7 @@ function renderMemberRow(member, currentUserId, ownerId) {
       <div class="members-list__avatar">${escapeHtml(initial)}</div>
       <div class="members-list__info">
         <span class="members-list__email">${escapeHtml(email)}</span>
-        <span class="members-list__role">${escapeHtml(member.role.charAt(0).toUpperCase() + member.role.slice(1))}</span>
+        <span class="members-list__role">${escapeHtml(role.charAt(0).toUpperCase() + role.slice(1))}</span>
       </div>
       <div class="members-list__badges">
         ${isCurrentUser ? `<span class="members-badge members-badge--you">You</span>` : ""}
@@ -164,6 +165,8 @@ export function createMembersHandlers() {
 
       appStore.updateTripDetail({ isShowingMembersModal: true });
       rerenderTripDetail();
+      const emailInput = document.getElementById("members-add-email");
+      if (emailInput && !emailInput.disabled) emailInput.focus();
       loadMembers(trip.id);
     },
 
@@ -200,7 +203,7 @@ export function createMembersHandlers() {
           return;
         }
 
-        const alreadyMember = (state?.members || []).some((m) => m.user_id === userId);
+        const alreadyMember = (getMembersState()?.members || []).some((m) => m.user_id === userId);
 
         if (alreadyMember) {
           setMembersState({ isAdding: false, addError: "Already a member of this trip." });

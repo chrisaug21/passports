@@ -2,25 +2,25 @@ import { getSupabase } from "../lib/supabase.js";
 
 export async function fetchTripMembersWithEmails(tripId) {
   const { data, error } = await getSupabase()
-    .from("trip_members")
-    .select("id, trip_id, user_id, role, invited_at, accepted_at")
-    .eq("trip_id", tripId)
-    .order("invited_at", { ascending: true });
+    .rpc("get_trip_members", { p_trip_id: tripId });
 
   if (error) throw error;
 
   const members = data || [];
+  const uniqueIds = [...new Set(members.map((m) => m.user_id))];
 
-  const emails = await Promise.all(
-    members.map((member) =>
+  const emailEntries = await Promise.all(
+    uniqueIds.map((userId) =>
       getSupabase()
-        .rpc("get_user_email_by_id", { p_user_id: member.user_id })
-        .then(({ data: email }) => email || null)
-        .catch(() => null)
+        .rpc("get_user_email_by_id", { p_user_id: userId })
+        .then(({ data: email }) => [userId, email || null])
+        .catch(() => [userId, null])
     )
   );
 
-  return members.map((member, i) => ({ ...member, email: emails[i] }));
+  const emailMap = new Map(emailEntries);
+
+  return members.map((member) => ({ ...member, email: emailMap.get(member.user_id) ?? null }));
 }
 
 export async function addTripMember({ tripId, userId }) {
@@ -41,7 +41,7 @@ export async function addTripMember({ tripId, userId }) {
 export async function removeTripMember({ tripId, userId }) {
   const { error } = await getSupabase()
     .from("trip_members")
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("trip_id", tripId)
     .eq("user_id", userId);
 

@@ -112,13 +112,20 @@
 
 .members-list__remove-btn {
   flex-shrink: 0;
-  opacity: 0.55;
+  opacity: 1;
   transition: opacity 140ms ease;
 }
 
-.members-list__remove-btn:hover,
-.members-list__remove-btn:focus-visible {
-  opacity: 1;
+@media (pointer: fine) {
+  .members-list__remove-btn {
+    opacity: 0.55;
+  }
+
+  .members-list__remove-btn:hover,
+  .members-list__remove-btn:focus-visible {
+    opacity: 1;
+    background: var(--color-surface-hover, rgba(0, 0, 0, 0.06));
+  }
 }
 
 .members-list__confirm-text {
@@ -152,6 +159,7 @@
 .members-modal__add-input {
   flex: 1;
   min-width: 0;
+  min-height: 44px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-control);
   background: var(--color-surface-control);
@@ -168,6 +176,7 @@
 
 .members-modal__add-btn {
   flex-shrink: 0;
+  min-height: 44px;
   padding: 0.65rem 1.1rem;
 }
 
