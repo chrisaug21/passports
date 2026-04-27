@@ -1,4 +1,4 @@
-# Passports — Product Spec
+ Passports — Product Spec
 **Project:** passports.chrisaug.com  
 **Stack:** Vanilla JS, Supabase (new project), Netlify  
 **GitHub:** chrisaug21/passports  
@@ -746,3 +746,434 @@ Please read the attached spec before writing any code.
 - Never reference Supabase in user-facing error messages
 - Display font: Fraunces (Google Fonts); body font TBD — use Nunito as default, we'll swap during design phase
 ```
+
+ADDENDUM:
+
+# Guide View — Feature Spec
+**Feature:** `/trip/:id/guide`
+**Project:** Passports (passports.chrisaug.com)
+**Status:** Spec v1.0 — ready for implementation planning
+
+---
+
+## Overview
+
+Guide View is a distinct, route-based reading experience for a trip. It lives at `/trip/:id/guide` and serves two equally important audiences:
+
+- **Travelers (logged in):** A beautiful day-by-day companion while planning and actively traveling, plus a permanent memento after the trip ends.
+- **Public viewers (no login):** A curated, shareable itinerary and optional travel journal — the kind of thing you'd send a friend heading to the same city.
+
+Guide View is not a planning tool. It is a reading and storytelling experience. All editing happens in the main planning views; Guide View surfaces the result.
+
+---
+
+## Two Modes
+
+Guide View has two modes, toggled via a tab in the guide header:
+
+### Itinerary Mode
+The plan — structured around what was scheduled or what actually happened. Useful before, during, and after a trip. The definitive reference for "what are we doing today" and "here's how we did our trip."
+
+- Day-by-day editorial cards
+- Items filtered by status (see Visibility Rules below)
+- Times, locations, notes, links, cost indicators
+- Anchor items visually prominent
+- Tone: clean, practical, scannable
+
+### Journal Mode
+The story — structured around what actually happened and how it felt. Unlocks when a trip goes Active. Written by travelers as they go. Available as a memento afterwards, optionally public.
+
+- Day-by-day narrative: `journal_notes` field is the primary content
+- Items marked Done surface as a soft "what we did" list (collapsed cards)
+- Up to 10 photos per day, displayed as a gallery
+- Optional single photo per trip item (surfaces in both modes)
+- Traveler reactions visible (⭐ Must Do, ✗ Skip, — No Preference)
+- Tone: personal, narrative, warm
+
+**The key distinction:** Itinerary Mode is item-heavy, story-light. Journal Mode is story-heavy, item-light.
+
+---
+
+## Item Status Model Update
+
+To support Guide View properly, the item status ladder gains one new status between Idea and Shortlisted:
+
+```
+Idea → Option → Shortlisted → Confirmed → Reserved → Done
+```
+
+| Status | Meaning | Itinerary (owner/planners/travelers) | Itinerary (public) | Journal (all) |
+|---|---|---|---|---|
+| Idea | Loose capture; not seriously in play | ❌ Hidden | ❌ Hidden | ❌ Hidden |
+| Option | Actively considering; might happen | ✅ Shown | ❌ Hidden | ❌ Hidden |
+| Shortlisted | Strong candidate | ✅ Shown | ❌ Hidden | ❌ Hidden |
+| Confirmed | Decided, not yet booked | ✅ Shown | ✅ Shown | ✅ if Done |
+| Reserved | Booked/ticketed | ✅ Shown | ✅ Shown | ✅ if Done |
+| Done | Happened | ✅ Shown | ✅ Shown | ✅ Shown |
+
+**Owner/planner rule:** Option and above appear in Itinerary Mode. Ideas remain scratchpad only.
+
+**Public rule:** Confirmed, Reserved, and Done only. Planning context is always hidden.
+
+**Journal rule:** Only Done items appear in Journal Mode (as collapsed "what we did" cards). The journal notes field is the real story.
+
+**Visual treatment for unconfirmed items (owner view):** Option and Shortlisted items render with a soft dashed border or muted opacity treatment in Itinerary Mode — visually distinct from locked-in items so you always know what's still in play.
+
+---
+
+## Visibility & Access Rules
+
+### Who Can See Guide View
+
+| Trip Status | Itinerary Mode | Journal Mode |
+|---|---|---|
+| Planning | ✅ Owner/Planners only | 🔒 Locked |
+| Upcoming | ✅ All trip members | 🔒 Locked |
+| Active | ✅ All trip members | ✅ Unlocked — write as you go |
+| Done | ✅ All trip members | ✅ Available — memento |
+
+Guide View is always accessible to logged-in trip members at `/trip/:id/guide`, regardless of `is_public`.
+
+### Public Sharing
+
+Two independent toggles control public access:
+
+- **`is_public`** — enables Itinerary Mode via public URL; shows Confirmed/Reserved/Done items only
+- **`is_journal_public`** — enables Journal Mode for public viewers; off by default even when `is_public` is true
+
+Journal is personal by default. Sharing it is an explicit opt-in decision.
+
+---
+
+## URL & Navigation
+
+### Route
+```
+/trip/:id/guide
+```
+
+### Accessing Guide View
+A **Guide button** lives in the trip detail page header, always visible to trip members:
+
+```
+[← Trips]    Spain 2026    [⋯ Settings]  [📖 Guide]
+```
+
+The Guide button uses a compass or open-book icon + "Guide" label. It is not buried in settings — it is a primary navigation element alongside Settings.
+
+### Returning to Planning
+A persistent back link in the Guide View header:
+```
+← Back to planning
+```
+
+Always visible. Never requires browser back button.
+
+### Sharing
+When `is_public = true`, a **Copy link** button appears in the Guide View header. It copies the public URL to clipboard.
+
+When `is_public = false`, a **Share** button appears instead. Tapping it prompts the user to enable public sharing first (links to Trip Settings).
+
+---
+
+## Layout & Navigation Within Guide View
+
+### Page Structure
+
+Guide View is a single scrollable page with smart navigation layered on top. It is not a multi-page app — the URL does not change as you navigate between days.
+
+```
+/trip/:id/guide
+├── Hero header (full-bleed photo, trip meta, mode tabs)
+├── Sticky day navigation
+└── Day sections (Itinerary or Journal content, depending on mode)
+```
+
+### Desktop Layout
+- **Sticky left sidebar:** Day list (Day 1, Day 2... with real dates when known). Current day highlighted. Click to smooth-scroll to that day's section.
+- **Main content area:** Scrollable day sections, right of sidebar.
+- Sidebar is ~220px. Content area takes remaining width, max ~800px centered.
+
+### Mobile Layout
+- **Sticky pill nav:** Horizontal scrolling pill row at the top (Day 1, Day 2, Day 3...). Tapping a pill smooth-scrolls to that day section.
+- Full-width content below.
+- Pills are compact — day number + abbreviated date if known (e.g., "Day 3 · Jun 14").
+
+### "Today" Awareness
+When trip status is **Active**, Guide View auto-scrolls to the current day on load:
+- Desktop: sidebar highlights today's day; page scrolls to that section.
+- Mobile: pill nav scrolls to today's pill; page scrolls to that section.
+- "Today" is determined by matching the current date against trip day dates (requires `start_date` to be set on the trip).
+- If `start_date` is not set, no auto-scroll — open at Day 1.
+
+---
+
+## Trip Header
+
+The first thing you see when opening Guide View. This is the cover of your guide.
+
+### Elements (top to bottom)
+
+**Full-bleed hero photo**
+- Uses the trip's hero photo (uploaded via trip photo feature)
+- Gradient overlay (dark at bottom) for text legibility
+- On mobile: ~40vh height. On desktop: ~55vh height.
+- If no photo: a tasteful solid or subtle pattern fill in the app's coastal-editorial palette.
+
+**Overlaid on photo (bottom of hero):**
+- Trip title — large, serif (Fraunces)
+- Destination
+- Date range — "Jun 12–19, 2026" or "8 days · dates TBD" if no start_date
+- Status badge — subtle pill: Planning / Upcoming / Active / Done
+
+**Below hero:**
+- Trip description/tagline (if set) — soft body text, italic
+- Mode tab bar: **Itinerary · Journal**
+  - Journal tab is grayed/disabled when trip status is Planning or Upcoming
+  - Journal tab shows a lock icon with tooltip "Unlocks when trip goes Active" on hover/tap
+
+**Header actions (top-right corner, always visible):**
+- `← Back to planning` (text link, top-left)
+- `Copy link` or `Share` button (top-right, when public sharing is on/off respectively)
+
+---
+
+## Itinerary Mode — Day Section
+
+Each day is a section in the scrollable page, preceded by a sticky-on-scroll day header.
+
+### Day Header
+```
+Day 3  ·  Thursday, June 14       Granada
+```
+- Day number + real date (if known)
+- Base/city name on the right
+- Visually divides sections. Sticks to top of viewport as you scroll through that day's items.
+
+### Item Cards
+
+Each confirmed/option/shortlisted item (per visibility rules) renders as an editorial card.
+
+**Full card (Itinerary Mode):**
+
+```
+┌─────────────────────────────────────────────────┐
+│ 🍽  7:30 PM  ·  CONFIRMED            [📎 anchor] │
+│                                                  │
+│ Casa Lucio                                       │
+│ La Latina · Madrid                               │
+│                                                  │
+│ "Classic cochinillo. Reservation under Chris,    │
+│  party of 2."                                    │
+│                                                  │
+│ [🔗 Reservation]                      €€€        │
+└─────────────────────────────────────────────────┘
+```
+
+**Card anatomy:**
+- **Top row:** Category icon + time (if set) + status badge (soft, small) + anchor pin icon (if `is_anchor = true`)
+- **Name:** Large, primary text
+- **Location:** Neighborhood · City — secondary text, helps with wayfinding
+- **Note:** Planning note surfaced as a caption (italic, muted). This is the detail that makes a guide actually useful — "reservation under Chris" or "buy tickets in advance."
+- **URL link:** Tap to open (reservation, Google Maps, website). Icon + label.
+- **Cost indicator:** € / €€ / €€€ / €€€€ range — not exact numbers. Derived from `cost_low`/`cost_high`. Hidden from public view.
+- **Item photo** (if set): Displayed below the note as a thumbnail. Tap to expand. Visible in both Itinerary and Journal modes, to logged-in members and public viewers.
+
+**Anchor item treatment:**
+- Left border accent (e.g., a 3px colored stripe)
+- Pin icon in top-right
+- Anchor items always render first within their time slot
+
+**Option/Shortlisted items (owner/planner view only):**
+- Dashed border instead of solid
+- Muted status badge ("Option" or "Shortlisted" in amber/gray)
+- Slightly reduced opacity (~85%)
+- A soft label: "Still deciding" or just the status badge is sufficient
+
+**No-time flex items:**
+- Render without a time in the top row
+- "Flex" label or simply no time shown — don't fabricate a time
+
+**Lodging items:**
+- Render as a distinct card style — perhaps a horizontal band rather than a box
+- Show check-in / check-out at top and bottom of a base's days rather than within a specific day's item list
+
+### Day section — item ordering
+1. Anchor items, sorted by `time_start`
+2. Flex items with estimated times, sorted by `time_start`
+3. Flex items with no time, sorted by `sort_order`
+
+---
+
+## Journal Mode — Day Section
+
+### Day Header
+Same structure as Itinerary Mode, but warmer visual treatment (slightly softer typography weight).
+
+### Journal Notes
+The primary content of each day section in Journal Mode.
+
+- Freeform text field: `journal_notes` on the `trip_days` table
+- Renders as flowing prose, full-width
+- **Edit behavior (logged-in Planners and Travelers, Active or Done trips):**
+  - Click/tap the notes area to enter edit mode
+  - Inline editing — no separate modal or page
+  - Auto-saves on blur (debounced)
+  - Placeholder text when empty: *"How was Day 3? Add notes, highlights, or reflections..."*
+- **Read behavior (public viewers, or logged-in when not editing):**
+  - Renders as styled prose
+  - Empty days: no placeholder shown to public — day section simply has no notes
+
+### Day Photo Gallery
+Up to **10 photos per day**, displayed as a gallery below the journal notes.
+
+- **Display:** Responsive grid — 2 columns on mobile, 3–4 on desktop. Tap any photo to open a full-screen lightbox with swipe navigation between photos.
+- **Upload (edit mode, logged-in Planners/Travelers):**
+  - "Add photos" button below the gallery (or inline with empty state)
+  - Multi-select upload — up to 10 per day total
+  - Simple upload, no cropping required (unlike trip hero photos — these are memories, not compositions)
+  - Photos stored in Supabase Storage: `trip-photos` bucket, path `day-photos/:trip_id/:day_id/:filename`
+  - Upload replaces at the individual photo level — can delete and re-upload individual photos
+- **Ordering:** Photos display in upload order. Drag to reorder (logged-in, edit mode).
+- **Caption:** Optional per-photo caption. Tap to add/edit in edit mode. Renders below photo in gallery and in lightbox.
+- **Public visibility:** Day photos are visible to public viewers when `is_journal_public = true`.
+
+### Item Photo (per trip item)
+Any trip item can have a single associated photo. This is separate from day gallery photos.
+
+- **Purpose:** A photo of a specific place, dish, or moment associated with that item ("the cochinillo at Casa Lucio")
+- **Upload:** Via item edit modal in planning view OR inline in Journal Mode edit
+- **Display in Journal Mode:** Renders as a thumbnail on the collapsed Done item card
+- **Display in Itinerary Mode:** Renders as a thumbnail within the full item card (below notes)
+- **Storage:** `trip-photos` bucket, path `item-photos/:trip_id/:item_id/:filename`
+- **Limit:** 1 photo per item
+- **Public visibility:** Item photos are visible to public viewers in both Itinerary and Journal modes
+
+### "What We Did" — Collapsed Item List
+Below the journal notes (and above or below the photo gallery — TBD during implementation), Done items for the day render as a compact list.
+
+```
+✓  🍽  Casa Lucio
+✓  🧭  Alhambra Palace
+✓  🚶  Albaicín neighborhood walk
+```
+
+- Icon + name only — no time, no cost, no note
+- Checkmark prefix to signal "done"
+- Not interactive (no un-done from here)
+- Hidden if day has no Done items
+
+### Journal Interactivity
+
+**Mark item Done (Active trips, logged-in):**
+- In Journal Mode, a Done toggle appears on each item's collapsed card
+- Tapping marks the item `status = Done`
+- Item moves from the active list to the "What We Did" section on next render
+- This is the primary interaction while actively traveling — "we just finished dinner, mark it done"
+
+**Edit journal notes:** Inline, as described above.
+
+**Upload/manage day photos:** Via "Add photos" / delete buttons in edit mode.
+
+**Upload item photo:** Via inline button on item card in Journal Mode edit.
+
+No other editing from Guide View. All item edits (name, time, location, etc.) happen in the planning view.
+
+---
+
+## Data Model Additions
+
+The following additions to the existing schema are required for Guide View:
+
+### New status value
+Add `option` to the `trip_items_status` enum:
+```
+idea | option | shortlisted | confirmed | reserved | done
+```
+
+### `trip_days` table additions
+| Column | Type | Notes |
+|---|---|---|
+| `journal_notes` | text, nullable | Freeform day journal entry |
+
+### `day_photos` table (new)
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `trip_id` | uuid FK → trips | For RLS |
+| `day_id` | uuid FK → trip_days | |
+| `storage_path` | text | Supabase Storage path |
+| `public_url` | text | Cached public URL |
+| `caption` | text, nullable | Optional photo caption |
+| `sort_order` | integer | Display order within day |
+| `uploaded_by` | uuid FK → users | |
+| `created_at` | timestamptz | |
+| `deleted_at` | timestamptz, nullable | Soft delete |
+
+**Constraint:** Max 10 non-deleted photos per `day_id` (enforced at application layer, validated server-side).
+
+### `trip_items` table additions
+| Column | Type | Notes |
+|---|---|---|
+| `photo_storage_path` | text, nullable | Single item photo — Storage path |
+| `photo_public_url` | text, nullable | Cached public URL |
+| `photo_uploaded_by` | uuid FK → users, nullable | |
+
+### `trips` table additions
+| Column | Type | Notes |
+|---|---|---|
+| `is_journal_public` | boolean, default false | Public access to Journal Mode |
+
+---
+
+## Sharing — Public URL Behavior
+
+**Public URL format:** `/trip/:id/guide` — same route, no login required when `is_public = true`.
+
+**When `is_public = true`, public viewers see:**
+- Guide View in Itinerary Mode
+- Confirmed, Reserved, Done items only
+- Trip hero photo, day headers, item cards (no costs)
+- Item photos
+- Journal Mode tab is visible but disabled unless `is_journal_public = true`
+
+**When `is_journal_public = true` (requires `is_public = true`):**
+- Journal tab is enabled for public viewers
+- Journal notes, day photo galleries, item photos, Done item list all visible
+- Edit controls are hidden — read-only
+
+**When neither toggle is on:**
+- `/trip/:id/guide` redirects to login for unauthenticated users
+
+---
+
+## Decisions Log
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Guide View always accessible | Yes — to logged-in members always | `is_public` only gates public URL access |
+| Item filter (owner) | Option and above | Ideas are scratchpad; Options are actively in play |
+| Item filter (public) | Confirmed/Reserved/Done only | Public view is always the curated, finished version |
+| Journal public | Separate toggle (`is_journal_public`) | Journal is personal by default; sharing it is opt-in |
+| Route | Distinct `/trip/:id/guide` | Shareable, bookmarkable, clean separation from planning |
+| Navigation | Sticky sidebar (desktop) + pill nav (mobile) | One scrollable page, smart jump navigation |
+| Today auto-scroll | Yes, when Active + start_date set | Passive but smart — no button required |
+| Itinerary interactivity | Read-only | Clean separation; edit = go back to planning |
+| Journal interactivity | Write-enabled for logged-in members | Notes, Done toggle, photo upload |
+| Day photos | Up to 10 per day, gallery display | Memory capture; journals without photos feel incomplete |
+| Item photo | 1 per item | Specific memory or reference for that place/dish |
+| Photo cropping | Not required for day/item photos | These are memories, not compositions |
+| Done toggle in Journal | Yes, Active trips | Core active travel use case — "we just did this" |
+| Option status | Added between Idea and Shortlisted | Disambiguates "considering" from "just an idea" |
+
+---
+
+## Out of Scope for This Feature
+
+- Video embeds (deferred to Phase 3 — Wistia integration)
+- Reactions UI in Guide View (reactions set from planning view; may surface as read-only display in Journal Mode in a future pass)
+- Map integration
+- Offline support / PWA caching of Guide View
+- Photo editing or filters
+- Comments or social features on public Guide View
+- AI-generated summaries or captions

@@ -24,6 +24,10 @@ src/
   styles/       — tokens.css, base.css, utilities.css, layout.css, components.css, features/
 ```
 
+## Vendored Libraries
+Files in `src/lib/vendor/` are third-party libraries and must never be edited.
+Do not read them for context. Do not modify them.
+
 ## Three Modes
 - **Planning mode** — private; full edit access; idea/shortlisted items visible
 - **Traveling mode** — phone-first; shows today's plan based on trip dates

@@ -19,21 +19,34 @@ export async function saveUploadedPrimaryPhoto({
     throw new Error("Missing photo upload details.");
   }
 
-  await removePrimaryPhotoForSlot({ tripId, baseId });
+  // Capture existing photo reference before uploading so we can delete it by
+  // ID after the new record is confirmed — calling getPrimaryPhotoForSlot after
+  // insert would return the new photo instead.
+  const existingPhoto = await getPrimaryPhotoForSlot({ tripId, baseId });
 
   const storagePath = `${userId}/${tripId}/${context}/${Date.now()}.jpg`;
   await uploadPhotoBlob({ storagePath, blob, upsert: false });
 
+  let newPhoto;
   try {
-    return await insertPrimaryPhotoRecord({
-      tripId,
-      baseId,
-      storagePath,
-    });
+    newPhoto = await insertPrimaryPhotoRecord({ tripId, baseId, storagePath });
   } catch (error) {
     await removeStorageFile(storagePath).catch(() => {});
     throw error;
   }
+
+  if (existingPhoto) {
+    await removeStorageFile(existingPhoto.storage_path).catch(() => {});
+    const { error } = await getSupabase()
+      .from("trip_photos")
+      .delete()
+      .eq("id", existingPhoto.id);
+    if (error) {
+      throw error;
+    }
+  }
+
+  return newPhoto;
 }
 
 export async function replaceExistingPrimaryPhoto({
@@ -67,6 +80,7 @@ export async function recropExistingPrimaryPhoto({ photoId, storagePath, blob })
     .from("trip_photos")
     .update({
       is_primary: true,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", photoId)
     .select(PHOTO_SELECT)
@@ -115,7 +129,10 @@ export async function getPrimaryPhotoForSlot({ tripId, baseId = null }) {
 
   query = baseId ? query.eq("base_id", baseId) : query.is("base_id", null);
 
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     throw error;

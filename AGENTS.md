@@ -58,6 +58,10 @@ src/
     features/                     — per-feature CSS files
 ```
 
+## Vendored Libraries
+Files in `src/lib/vendor/` are third-party libraries and must never be edited.
+Do not read them for context. Do not modify them.
+
 ## Architecture
 - Supabase-first. No offline writes — show error toast if Supabase unreachable on write.
 - localStorage is read-only cache only. Never write trip data to localStorage.

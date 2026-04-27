@@ -13,7 +13,7 @@ export function renderTripCard(trip, options = {}) {
   return `
     <article class="trip-card" data-trip-card data-trip-id="${tripId}" role="button" tabindex="0" aria-label="Open ${tripTitle}">
       <div class="trip-card__media photo-hero">
-        ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" />` : ""}
+        ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
         <span class="trip-card__status trip-card__status--${safeStatus}">${statusLabel}</span>
       </div>
       <div class="trip-card__body">

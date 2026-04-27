@@ -15,37 +15,41 @@ import {
 } from "../../../services/photos-service.js";
 import { showToast } from "../../shared/toast.js";
 
+let isHandlerBusy = false;
+
 export function createPhotoUploadHandlers() {
+  const tripId = tripStore.getCurrentTrip()?.id;
+
   return {
     onUploadTripHero: async () => {
-      const trip = tripStore.getCurrentTrip();
+      if (!tripId) return;
       await handleHeroPhotoAction({
-        tripId: trip?.id,
+        tripId,
         context: PHOTO_CONTEXTS.tripHero,
         mode: "adjust",
       });
     },
     onReplaceTripHero: async () => {
-      const trip = tripStore.getCurrentTrip();
+      if (!tripId) return;
       await handleHeroPhotoAction({
-        tripId: trip?.id,
+        tripId,
         context: PHOTO_CONTEXTS.tripHero,
         mode: "replace",
       });
     },
     onUploadBaseHero: async (baseId) => {
-      const trip = tripStore.getCurrentTrip();
+      if (!tripId) return;
       await handleHeroPhotoAction({
-        tripId: trip?.id,
+        tripId,
         baseId,
         context: PHOTO_CONTEXTS.baseHero,
         mode: "adjust",
       });
     },
     onReplaceBaseHero: async (baseId) => {
-      const trip = tripStore.getCurrentTrip();
+      if (!tripId) return;
       await handleHeroPhotoAction({
-        tripId: trip?.id,
+        tripId,
         baseId,
         context: PHOTO_CONTEXTS.baseHero,
         mode: "replace",
@@ -55,15 +59,18 @@ export function createPhotoUploadHandlers() {
 }
 
 async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
-  const { session } = sessionStore.getState();
-  const existingPhoto = getExistingPhoto({ baseId, context });
-
-  if (!session?.user?.id || !tripId) {
-    showToast("Your session expired. Sign in again.", "error");
-    return;
-  }
+  if (isHandlerBusy) return;
+  isHandlerBusy = true;
 
   try {
+    const { session } = sessionStore.getState();
+    const existingPhoto = getExistingPhoto({ baseId, context });
+
+    if (!session?.user?.id || !tripId) {
+      showToast("Your session expired. Sign in again.", "error");
+      return;
+    }
+
     const croppedBlob = existingPhoto && mode !== "replace"
       ? await openPhotoCropModalFromUrl(existingPhoto.public_url, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO })
       : await selectAndCropNewPhoto();
@@ -107,6 +114,8 @@ async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
     });
     rerenderTripDetail();
     showToast("Something went wrong saving. Please try again.", "error");
+  } finally {
+    isHandlerBusy = false;
   }
 }
 
