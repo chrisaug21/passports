@@ -508,25 +508,29 @@ export async function batchUpdateTripItems(itemUpdates) {
   }
 
   const now = new Date().toISOString();
-  const { data, error } = await getSupabase()
-    .from("trip_items")
-    .upsert(
-      itemUpdates.map((item) => ({
-        ...item,
-        updated_at: item.updated_at || now,
-      })),
-      {
-        onConflict: "id",
+  const supabase = getSupabase();
+
+  return Promise.all(
+    itemUpdates.map(async (item) => {
+      const { data, error } = await supabase
+        .from("trip_items")
+        .update({
+          day_id: item.day_id,
+          base_id: item.base_id,
+          sort_order: item.sort_order,
+          updated_at: now,
+        })
+        .eq("id", item.id)
+        .select(TRIP_ITEM_SELECT)
+        .single();
+
+      if (error) {
+        throw error;
       }
-    )
-    .is("deleted_at", null)
-    .select(TRIP_ITEM_SELECT);
 
-  if (error) {
-    throw error;
-  }
-
-  return data || [];
+      return data;
+    })
+  );
 }
 
 export async function softDeleteTripItem(itemId) {

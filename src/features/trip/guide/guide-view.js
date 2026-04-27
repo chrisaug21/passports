@@ -18,26 +18,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export function sortGuideItems(items) {
-  // Anchor items first, sorted by time_start ascending (nulls last), then
-  // non-anchor items with a time (ascending), then no-time items by sort_order.
-  const compareTimeNullsLast = (a, b) => {
-    const aTime = a.time_start || null;
-    const bTime = b.time_start || null;
-    if (aTime && !bTime) return -1;
-    if (!aTime && bTime) return 1;
-    if (aTime && bTime) return String(aTime).localeCompare(String(bTime));
-    return 0;
-  };
-
-  const anchors = items.filter((i) => i.is_anchor).sort(compareTimeNullsLast);
-  const flexWithTime = items
-    .filter((i) => !i.is_anchor && i.time_start)
-    .sort((a, b) => String(a.time_start).localeCompare(String(b.time_start)));
-  const flexNoTime = items
-    .filter((i) => !i.is_anchor && !i.time_start)
-    .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0));
-
-  return [...anchors, ...flexWithTime, ...flexNoTime];
+  return [...items].sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0));
 }
 
 // ---------------------------------------------------------------------------
@@ -314,10 +295,10 @@ export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBan
   return `
     ${renderDayHeader(day, base, startDate)}
     <div class="guide-day-items">
+      ${checkOutBands.map((b) => renderLodgingBand(b.lodging, "check-out")).join("")}
       ${checkInBands.map((b) => renderLodgingBand(b.lodging, "check-in")).join("")}
       ${sortedItems.map((item) => renderGuideItemCard(item, viewerRole)).join("")}
       ${!hasContent ? `<p class="guide-day-empty muted">Nothing planned for this day yet.</p>` : ""}
-      ${checkOutBands.map((b) => renderLodgingBand(b.lodging, "check-out")).join("")}
     </div>
   `;
 }

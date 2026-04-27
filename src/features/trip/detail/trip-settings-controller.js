@@ -164,10 +164,13 @@ export function renderTripSettingsForm(trip, isSaving) {
             </label>
 
             <div class="trip-settings-form__sharing">
-              <label class="trip-settings-form__public-label">
-                <input name="isPublic" type="checkbox" ${trip.is_public ? "checked" : ""} />
-                <span>Public trip</span>
-              </label>
+              <div class="trip-settings-form__sharing-row">
+                <span class="trip-settings-form__sharing-label">Public trip</span>
+                <label class="toggle-switch" aria-label="Public trip">
+                  <input name="isPublic" type="checkbox" class="toggle-switch__input" ${trip.is_public ? "checked" : ""} />
+                  <span class="toggle-switch__track" aria-hidden="true"></span>
+                </label>
+              </div>
               <p class="field-hint">When on, anyone with the link can view your itinerary</p>
             </div>
 

@@ -59,13 +59,64 @@
   border-top: 1px solid var(--color-border);
 }
 
-.trip-settings-form__public-label {
-  display: inline-flex;
+.trip-settings-form__sharing-row {
+  display: flex;
   align-items: center;
-  gap: 0.55rem;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.trip-settings-form__sharing-label {
   font-weight: 600;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
   cursor: pointer;
-  user-select: none;
+}
+
+.toggle-switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+  transition: background 0.2s ease;
+}
+
+.toggle-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch__input:checked + .toggle-switch__track {
+  background: var(--color-action);
+}
+
+.toggle-switch__input:checked + .toggle-switch__track::after {
+  transform: translateX(20px);
+}
+
+.toggle-switch__input:focus-visible + .toggle-switch__track {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
 }
 
 @media (max-width: 840px) {
