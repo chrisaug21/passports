@@ -163,6 +163,14 @@ export function renderTripSettingsForm(trip, isSaving) {
               <textarea name="description" rows="4">${escapeHtml(trip.description || "")}</textarea>
             </label>
 
+            <div class="trip-settings-form__sharing">
+              <label class="trip-settings-form__public-label">
+                <input name="isPublic" type="checkbox" ${trip.is_public ? "checked" : ""} />
+                <span>Public trip</span>
+              </label>
+              <p class="field-hint">When on, anyone with the link can view your itinerary</p>
+            </div>
+
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
@@ -303,6 +311,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         description: String(formData.get("description") || "").trim(),
         startDate,
         tripLength,
+        isPublic: formData.get("isPublic") === "on",
       };
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 

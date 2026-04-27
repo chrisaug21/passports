@@ -143,6 +143,13 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
 function renderTypeSpecificFields(draft) {
   return `
+    <div class="item-editor-section" data-item-type-section="lodging">
+      <p class="item-editor-section__title">Type-Specific Details</p>
+      <label class="field">
+        <span>Check-out date</span>
+        <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+      </label>
+    </div>
     <div class="item-editor-section" data-item-type-section="meal">
       <p class="item-editor-section__title">Type-Specific Details</p>
       <label class="field">

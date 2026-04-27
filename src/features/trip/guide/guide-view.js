@@ -18,11 +18,18 @@ import {
 // ---------------------------------------------------------------------------
 
 export function sortGuideItems(items) {
-  const compareTime = (a, b) =>
-    String(a.time_start || "").localeCompare(String(b.time_start || "")) ||
-    String(a.title || "").localeCompare(String(b.title || ""));
+  // Anchor items first, sorted by time_start ascending (nulls last), then
+  // non-anchor items with a time (ascending), then no-time items by sort_order.
+  const compareTimeNullsLast = (a, b) => {
+    const aTime = a.time_start || null;
+    const bTime = b.time_start || null;
+    if (aTime && !bTime) return -1;
+    if (!aTime && bTime) return 1;
+    if (aTime && bTime) return String(aTime).localeCompare(String(bTime));
+    return 0;
+  };
 
-  const anchors = items.filter((i) => i.is_anchor).sort(compareTime);
+  const anchors = items.filter((i) => i.is_anchor).sort(compareTimeNullsLast);
   const flexWithTime = items
     .filter((i) => !i.is_anchor && i.time_start)
     .sort((a, b) => String(a.time_start).localeCompare(String(b.time_start)));
@@ -225,7 +232,7 @@ function renderGuideItemCard(item, viewerRole) {
       data-item-type="${escapeHtml(item.item_type)}"
     >
       ${item.is_anchor ? `<i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}
-      ${(isOption || isShortlisted) && isMember ? `<span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>` : ""}
+      <span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
         <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>

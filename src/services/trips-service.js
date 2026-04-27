@@ -377,6 +377,7 @@ export async function createDetailedTripItem({
   isAnchor,
   baseId,
   dayId,
+  checkOutDate,
   mealSlot,
   activityType,
   transportMode,
@@ -408,6 +409,7 @@ export async function createDetailedTripItem({
       item_type: itemType,
       status: normalizedStatus,
       is_anchor: Boolean(isAnchor),
+      check_out_date: checkOutDate || null,
       meal_slot: mealSlot || null,
       activity_type: activityType || null,
       transport_mode: transportMode || null,
@@ -549,6 +551,7 @@ export async function updateTripSettings({
   description,
   startDate,
   tripLength,
+  isPublic,
 }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
@@ -608,6 +611,7 @@ export async function updateTripSettings({
       description: description || null,
       start_date: startDate || null,
       trip_length: tripLength,
+      is_public: Boolean(isPublic),
       updated_at: now,
     })
     .eq("id", tripId)

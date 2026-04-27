@@ -196,8 +196,8 @@
 }
 
 .guide-hero__tab:disabled {
-  opacity: 0.45;
-  cursor: default;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Back link */
@@ -480,6 +480,11 @@
   width: fit-content;
 }
 
+.guide-item-card__status-badge--idea {
+  background: rgba(156, 163, 175, 0.15);
+  color: var(--color-status-idea);
+}
+
 .guide-item-card__status-badge--option {
   background: rgba(245, 158, 11, 0.12);
   color: #b45309;
@@ -488,6 +493,21 @@
 .guide-item-card__status-badge--shortlisted {
   background: rgba(217, 119, 6, 0.1);
   color: #92400e;
+}
+
+.guide-item-card__status-badge--confirmed {
+  background: rgba(14, 168, 122, 0.12);
+  color: var(--color-action-strong);
+}
+
+.guide-item-card__status-badge--reserved {
+  background: rgba(22, 179, 106, 0.15);
+  color: var(--color-action-strong);
+}
+
+.guide-item-card__status-badge--done {
+  background: rgba(196, 168, 130, 0.2);
+  color: var(--color-status-done);
 }
 
 /* Card header */

@@ -9,8 +9,8 @@ import {
 
 let cleanupFns = [];
 
-// Set true on touchstart/touchmove; cleared with debounce after touchend so
-// programmatic scrolls don't fight user's finger or momentum.
+// Programmatic scrolls on desktop can fight touch momentum. Set on touchstart;
+// cleared 400ms after touchend to let momentum settle before re-enabling.
 let isUserScrolling = false;
 let touchEndTimer = null;
 
@@ -21,6 +21,10 @@ export function teardownGuideView() {
   clearTimeout(touchEndTimer);
 }
 
+function isMobileLayout() {
+  return window.innerWidth <= 840;
+}
+
 export function wireGuideView(state) {
   wireBackLink(state.tripId);
   wireDashboardLink();
@@ -29,14 +33,18 @@ export function wireGuideView(state) {
   setupScrollTracking();
   setupLazyDays(state);
 
-  // Auto-scroll to today's day on active trips (spec §5)
   const todayDayNumber = getTodayDayNumber(state.trip);
   if (todayDayNumber) {
-    window.setTimeout(() => scrollToDay(todayDayNumber), 100);
+    window.setTimeout(() => scrollOrJumpToDay(todayDayNumber), 100);
   }
 
-  // Set initial active nav item
-  updateActiveSection();
+  // Desktop: derive initial active state from scroll position.
+  // Mobile: scrollOrJumpToDay handles active state; default to day 1 otherwise.
+  if (!isMobileLayout()) {
+    updateActiveSection();
+  } else if (!todayDayNumber) {
+    document.querySelector(".guide-nav-item")?.classList.add("is-active");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -57,20 +65,37 @@ function wireDashboardLink() {
 }
 
 // ---------------------------------------------------------------------------
-// Day nav click → smooth scroll
+// Day nav click → scroll / jump
 // ---------------------------------------------------------------------------
 
 function wireNavClicks() {
   document.querySelectorAll("[data-guide-nav-day]").forEach((button) => {
     button.addEventListener("click", () => {
       const dayNumber = parseInt(button.dataset.guideNavDay, 10);
-      scrollToDay(dayNumber);
+      scrollOrJumpToDay(dayNumber);
     });
   });
 }
 
+// Desktop: smooth-scroll to offset position; scroll-spy updates active state.
+// Mobile: set active pill immediately then scrollIntoView — no scroll-spy.
+function scrollOrJumpToDay(dayNumber) {
+  if (isMobileLayout()) {
+    document.querySelectorAll(".guide-nav-item").forEach((item) => {
+      item.classList.toggle("is-active", item.dataset.dayNumber === String(dayNumber));
+    });
+    document.getElementById(`guide-day-${dayNumber}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  } else {
+    scrollToDay(dayNumber);
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Touch scroll guard — prevents programmatic scrolls from fighting the user
+// Touch scroll guard (desktop touch screens — prevents scroll-spy fighting
+// touch momentum when both are active on the same device)
 // ---------------------------------------------------------------------------
 
 function setupTouchScrollTracking() {
@@ -81,7 +106,6 @@ function setupTouchScrollTracking() {
 
   const handleTouchEnd = () => {
     clearTimeout(touchEndTimer);
-    // Wait for momentum scroll to settle before clearing the flag
     touchEndTimer = setTimeout(() => {
       isUserScrolling = false;
     }, 400);
@@ -107,10 +131,12 @@ function scrollToDay(dayNumber) {
 }
 
 // ---------------------------------------------------------------------------
-// Scroll tracking → active nav highlight (spec §5)
+// Scroll-spy → active nav highlight (desktop only — mobile uses explicit tap)
 // ---------------------------------------------------------------------------
 
 function setupScrollTracking() {
+  if (isMobileLayout()) return;
+
   let rafId = null;
 
   const handleScroll = () => {
@@ -143,24 +169,13 @@ function updateActiveSection() {
     }
   }
 
-  let changed = false;
   document.querySelectorAll(".guide-nav-item").forEach((item) => {
-    const isActive = item.dataset.dayNumber === activeDayNumber;
-    if (isActive !== item.classList.contains("is-active")) {
-      item.classList.toggle("is-active", isActive);
-      changed = true;
-    }
+    item.classList.toggle("is-active", item.dataset.dayNumber === activeDayNumber);
   });
-
-  // On mobile, auto-scroll the active pill into view (spec §5)
-  if (changed && window.innerWidth <= 840 && !isUserScrolling) {
-    const activePill = document.querySelector(".guide-nav-item.is-active");
-    activePill?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }
 }
 
 // ---------------------------------------------------------------------------
-// Lazy day loading (spec §3)
+// Lazy day loading
 // ---------------------------------------------------------------------------
 
 function setupLazyDays(state) {
