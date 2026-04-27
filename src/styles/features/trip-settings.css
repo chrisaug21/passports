@@ -70,6 +70,54 @@
   font-weight: 600;
 }
 
+.trip-settings-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.trip-settings-share-link:hover,
+.trip-settings-share-link:focus-visible,
+.trip-settings-share-link.is-copied {
+  color: var(--color-text);
+}
+
+.trip-settings-share-link.is-disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.trip-settings-share-link__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.trip-settings-share-link__label {
+  font-size: 0.875rem;
+  line-height: 1.2;
+  opacity: 0;
+  transform: translateX(-0.15rem);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.trip-settings-share-link:hover .trip-settings-share-link__label,
+.trip-settings-share-link:focus-visible .trip-settings-share-link__label,
+.trip-settings-share-link.is-copied .trip-settings-share-link__label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;
