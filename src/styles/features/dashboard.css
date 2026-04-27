@@ -110,7 +110,7 @@
 .trip-card__body h3 {
   font-family: var(--font-display);
   font-size: 1.55rem;
-  line-height: 1;
+  line-height: 1.15;
   letter-spacing: -0.03em;
   display: -webkit-box;
   -webkit-box-orient: vertical;

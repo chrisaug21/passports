@@ -2,11 +2,7 @@ import { getSupabase } from "../lib/supabase.js";
 
 export async function fetchTripMembersWithEmails(tripId) {
   const { data, error } = await getSupabase()
-    .from("trip_members")
-    .select("id, trip_id, user_id, role, invited_at, accepted_at")
-    .eq("trip_id", tripId)
-    .is("deleted_at", null)
-    .order("invited_at", { ascending: true });
+    .rpc("get_trip_members", { p_trip_id: tripId });
 
   if (error) throw error;
 
