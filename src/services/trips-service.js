@@ -56,7 +56,8 @@ async function attachPrimaryTripHeroPhotos(trips) {
     .eq("is_primary", true)
     .is("base_id", null)
     .is("day_id", null)
-    .is("item_id", null);
+    .is("item_id", null)
+    .order("updated_at", { ascending: false });
 
   if (error) {
     throw error;
@@ -282,7 +283,8 @@ export async function fetchTripDetailBundle(tripId) {
       .eq("trip_id", tripId)
       .eq("is_primary", true)
       .is("day_id", null)
-      .is("item_id", null),
+      .is("item_id", null)
+      .order("updated_at", { ascending: false }),
   ]);
 
   if (tripResult.error) {
@@ -312,17 +314,13 @@ export async function fetchTripDetailBundle(tripId) {
       .filter((photo) => photo.base_id)
       .map((photo) => [photo.base_id, photo])
   );
+  const tripHeroPublicUrl = tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "";
 
   return {
     trip: {
       ...tripResult.data,
-      hero_photo_url: tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "",
-      hero_photo: tripHeroPhoto
-        ? {
-          ...tripHeroPhoto,
-          public_url: getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id),
-        }
-        : null,
+      hero_photo_url: tripHeroPublicUrl,
+      hero_photo: tripHeroPhoto ? { ...tripHeroPhoto, public_url: tripHeroPublicUrl } : null,
     },
     bases: (basesResult.data || []).map((base) => {
       const photo = baseHeroPhotoByBaseId.get(base.id) || null;

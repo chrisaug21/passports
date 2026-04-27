@@ -67,6 +67,7 @@ export async function recropExistingPrimaryPhoto({ photoId, storagePath, blob })
     .from("trip_photos")
     .update({
       is_primary: true,
+      updated_at: new Date().toISOString(),
     })
     .eq("id", photoId)
     .select(PHOTO_SELECT)
@@ -115,7 +116,10 @@ export async function getPrimaryPhotoForSlot({ tripId, baseId = null }) {
 
   query = baseId ? query.eq("base_id", baseId) : query.is("base_id", null);
 
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     throw error;
