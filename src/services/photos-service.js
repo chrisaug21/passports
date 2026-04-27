@@ -19,13 +19,29 @@ export async function saveUploadedPrimaryPhoto({
     throw new Error("Missing photo upload details.");
   }
 
-  // Capture existing photo reference before uploading so we can delete it by
-  // ID after the new record is confirmed — calling getPrimaryPhotoForSlot after
-  // insert would return the new photo instead.
   const existingPhoto = await getPrimaryPhotoForSlot({ tripId, baseId });
+
+  // Delete the old storage file first so the slot is clear before uploading.
+  if (existingPhoto) {
+    await removeStorageFile(existingPhoto.storage_path).catch(() => {});
+  }
 
   const storagePath = `${userId}/${tripId}/${context}/${Date.now()}.jpg`;
   await uploadPhotoBlob({ storagePath, blob, upsert: false });
+
+  // Remove the old DB row before inserting the new one — the trip_photos
+  // unique constraint (one row per trip/base slot) blocks INSERT while the
+  // old row is still present.
+  if (existingPhoto) {
+    const { error: deleteError } = await getSupabase()
+      .from("trip_photos")
+      .delete()
+      .eq("id", existingPhoto.id);
+    if (deleteError) {
+      await removeStorageFile(storagePath).catch(() => {});
+      throw deleteError;
+    }
+  }
 
   let newPhoto;
   try {
@@ -33,17 +49,6 @@ export async function saveUploadedPrimaryPhoto({
   } catch (error) {
     await removeStorageFile(storagePath).catch(() => {});
     throw error;
-  }
-
-  if (existingPhoto) {
-    await removeStorageFile(existingPhoto.storage_path).catch(() => {});
-    const { error } = await getSupabase()
-      .from("trip_photos")
-      .delete()
-      .eq("id", existingPhoto.id);
-    if (error) {
-      throw error;
-    }
   }
 
   return newPhoto;
