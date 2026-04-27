@@ -515,9 +515,27 @@ export async function batchUpdateTripItems(itemUpdates) {
       const { data, error } = await supabase
         .from("trip_items")
         .update({
-          day_id: item.day_id,
+          title: item.title,
+          item_type: item.item_type,
+          status: item.status,
+          is_anchor: item.is_anchor,
           base_id: item.base_id,
+          day_id: item.day_id,
+          meal_slot: item.meal_slot,
+          activity_type: item.activity_type,
+          transport_mode: item.transport_mode,
+          transport_origin: item.transport_origin,
+          transport_destination: item.transport_destination,
+          time_start: item.time_start,
+          time_end: item.time_end,
+          time_is_estimated: item.time_is_estimated,
+          cost_low: item.cost_low,
+          cost_high: item.cost_high,
+          confirmation_ref: item.confirmation_ref,
+          url: item.url,
+          notes: item.notes,
           sort_order: item.sort_order,
+          check_out_date: item.check_out_date,
           updated_at: now,
         })
         .eq("id", item.id)
