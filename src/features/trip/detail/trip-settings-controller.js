@@ -251,18 +251,20 @@ export function renderTripSettingsForm(trip, isSaving) {
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>
               </div>
-              <button
-                class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
-                data-copy-share-link
-                type="button"
-                aria-disabled="${trip.is_public ? "false" : "true"}"
-              >
-                <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
-                  <i data-lucide="link" aria-hidden="true"></i>
-                </span>
-                <span class="trip-settings-share-link__label" data-share-link-label>Copy share link</span>
-              </button>
-              <p class="field-hint">Anyone with the link can view your itinerary.</p>
+              <div class="trip-settings-form__sharing-meta">
+                <p class="field-hint trip-settings-form__sharing-hint">Anyone with the link can view your itinerary.</p>
+                <button
+                  class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
+                  data-copy-share-link
+                  type="button"
+                  aria-disabled="${trip.is_public ? "false" : "true"}"
+                >
+                  <span class="trip-settings-share-link__label" data-share-link-label>Copy share link</span>
+                  <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
+                    <i data-lucide="link" aria-hidden="true"></i>
+                  </span>
+                </button>
+              </div>
             </div>
 
           </div>

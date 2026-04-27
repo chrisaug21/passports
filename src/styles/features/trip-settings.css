@@ -74,12 +74,25 @@
   justify-self: end;
 }
 
+.trip-settings-form__sharing-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.trip-settings-form__sharing-hint {
+  margin: 0;
+}
+
 .trip-settings-share-link {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  width: fit-content;
-  justify-self: end;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  margin-left: auto;
+  min-width: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -111,8 +124,11 @@
 .trip-settings-share-link__label {
   font-size: 0.875rem;
   line-height: 1.2;
+  white-space: nowrap;
   opacity: 0;
-  transform: translateX(-0.15rem);
+  max-width: 0;
+  overflow: hidden;
+  transform: translateX(0.15rem);
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -120,6 +136,7 @@
 .trip-settings-share-link:focus-visible .trip-settings-share-link__label,
 .trip-settings-share-link.is-copied .trip-settings-share-link__label {
   opacity: 1;
+  max-width: 10rem;
   transform: translateX(0);
 }
 
