@@ -134,9 +134,10 @@ export function renderTripDetailPageView() {
               <button class="button button--secondary section-action-button" id="toggle-trip-settings" type="button">
                 Edit Trip
               </button>
-              <button class="button button--secondary trip-header__members-btn" id="open-members-modal" type="button" aria-label="Trip members">
+              <button class="button button--secondary trip-header__members-btn" id="open-members-modal" type="button">
                 <i data-lucide="users" aria-hidden="true"></i>
-                <span class="trip-header__members-label">Members</span>
+                <span class="trip-header__members-label" aria-hidden="true">Members</span>
+                <span class="sr-only">Members</span>
               </button>
             </div>
           </div>
