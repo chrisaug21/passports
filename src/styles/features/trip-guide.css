@@ -103,10 +103,33 @@
   font-size: 0.9rem;
 }
 
-.guide-hero__meta .trip-pill {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+.guide-hero__status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-hero__status-pill[data-derived-status="planning"] {
+  background: rgba(43, 91, 224, 0.35);
+  color: #c0d4ff;
+  border: 1px solid rgba(43, 91, 224, 0.45);
+}
+
+.guide-hero__status-pill[data-derived-status="traveling"] {
+  background: rgba(14, 168, 122, 0.35);
+  color: #a0f5d8;
+  border: 1px solid rgba(14, 168, 122, 0.45);
+}
+
+.guide-hero__status-pill[data-derived-status="past"] {
+  background: rgba(196, 168, 130, 0.3);
+  color: #f0dfc0;
+  border: 1px solid rgba(196, 168, 130, 0.4);
 }
 
 /* Member avatars */
@@ -140,33 +163,40 @@
   font-size: 0.6rem;
 }
 
-/* Mode tabs */
+/* Mode tabs — segmented control */
 .guide-hero__tabs {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
+  gap: 0;
   margin-top: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  width: fit-content;
 }
 
 .guide-hero__tab {
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  border: none;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.65);
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.3rem 0.85rem;
+  padding: 0.35rem 0.9rem;
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;
 }
 
+.guide-hero__tab + .guide-hero__tab {
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
 .guide-hero__tab.is-active {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
 }
 
 .guide-hero__tab:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -337,6 +367,7 @@
   color: var(--color-structure);
 }
 
+.guide-day-header__dow,
 .guide-day-header__date,
 .guide-day-header__base {
   font-size: 0.75rem;
@@ -344,6 +375,7 @@
   color: var(--color-text-muted);
 }
 
+.guide-day-header__dow::before,
 .guide-day-header__date::before,
 .guide-day-header__base::before {
   content: "·";
@@ -390,9 +422,33 @@
   border-left-color: var(--color-structure);
 }
 
-.guide-item-card--speculative {
+/* Option: dashed border, more transparent, lighter amber badge */
+.guide-item-card--option {
   border-style: dashed;
-  opacity: 0.85;
+  opacity: 0.75;
+}
+
+/* Shortlisted: solid border, slightly transparent, darker amber badge */
+.guide-item-card--shortlisted {
+  opacity: 0.9;
+}
+
+/* Type-based left border colors */
+.guide-item-card[data-item-type="lodging"] {
+  border-left-color: var(--color-item-lodging);
+  background: var(--color-surface-muted);
+}
+
+.guide-item-card[data-item-type="meal"] {
+  border-left-color: var(--color-item-meal);
+}
+
+.guide-item-card[data-item-type="activity"] {
+  border-left-color: var(--color-item-activity);
+}
+
+.guide-item-card[data-item-type="transport"] {
+  border-left-color: var(--color-item-transport);
 }
 
 /* Anchor pin icon */

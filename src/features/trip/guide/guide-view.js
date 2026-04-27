@@ -50,7 +50,7 @@ export function filterItemsForViewer(items, viewerRole) {
 // Lodging bands (spec §6 — lodging renders at first/last day of its base)
 // ---------------------------------------------------------------------------
 
-export function getLodgingBands(items, bases, days) {
+export function getLodgingBands(items, bases, days, startDate = null) {
   const bands = [];
 
   items
@@ -62,10 +62,23 @@ export function getLodgingBands(items, bases, days) {
 
       if (baseDays.length === 0) return;
 
+      // Default: last day of the base. Override with check_out_date if set and
+      // it maps to a real day in this trip (falls back to last-day-of-base if not).
+      let checkOutDayNumber = baseDays[baseDays.length - 1].day_number;
+      if (lodging.check_out_date && startDate) {
+        const coDate = new Date(`${lodging.check_out_date}T12:00:00`);
+        const stDate = new Date(`${startDate}T12:00:00`);
+        const diffDays = Math.round((coDate - stDate) / (1000 * 60 * 60 * 24));
+        const derivedDayNumber = diffDays + 1;
+        if (days.find((d) => d.day_number === derivedDayNumber)) {
+          checkOutDayNumber = derivedDayNumber;
+        }
+      }
+
       bands.push({
         lodging,
         checkInDayNumber: baseDays[0].day_number,
-        checkOutDayNumber: baseDays[baseDays.length - 1].day_number,
+        checkOutDayNumber,
       });
     });
 
@@ -77,12 +90,14 @@ export function getLodgingBands(items, bases, days) {
 // ---------------------------------------------------------------------------
 
 function getCostSymbol(low, high) {
-  const value = Number(high ?? low ?? null);
-  if (!value && value !== 0) return "";
-  if (value <= 25) return "€";
-  if (value <= 75) return "€€";
-  if (value <= 150) return "€€€";
-  return "€€€€";
+  const raw = high ?? low ?? null;
+  if (raw === null || raw === undefined) return "";
+  const value = Number(raw);
+  if (!isFinite(value) || value === 0) return "";
+  if (value <= 25) return "$";
+  if (value <= 75) return "$$";
+  if (value <= 150) return "$$$";
+  return "$$$$";
 }
 
 // ---------------------------------------------------------------------------
@@ -129,8 +144,9 @@ function renderMemberAvatars(members) {
   const avatars = displayed
     .map((m) => {
       const hue = hashCode(m.user_id) % 360;
-      const initial = (m.role || "M").charAt(0).toUpperCase();
-      return `<div class="guide-hero__avatar" style="--avatar-hue: ${hue}deg" aria-label="${escapeHtml(m.role || "Member")}">${initial}</div>`;
+      // Use first character of email; first-name initial is future work once profile data is available
+      const initial = m.email ? m.email.charAt(0).toUpperCase() : "?";
+      return `<div class="guide-hero__avatar" style="--avatar-hue: ${hue}deg" aria-label="${escapeHtml(m.email || m.role || "Member")}">${initial}</div>`;
     })
     .join("");
   const overflowEl =
@@ -181,7 +197,8 @@ function renderTransportRoute(item) {
 // ---------------------------------------------------------------------------
 
 function renderGuideItemCard(item, viewerRole) {
-  const isSpeculative = item.status === "option" || item.status === "shortlisted";
+  const isOption = item.status === "option";
+  const isShortlisted = item.status === "shortlisted";
   const isMember = viewerRole === "member";
 
   let timeLabel = "";
@@ -195,13 +212,20 @@ function renderGuideItemCard(item, viewerRole) {
 
   const costSymbol = isMember ? getCostSymbol(item.cost_low, item.cost_high) : "";
 
+  const speculativeClass = isOption
+    ? " guide-item-card--option"
+    : isShortlisted
+      ? " guide-item-card--shortlisted"
+      : "";
+
   return `
     <article
-      class="guide-item-card${item.is_anchor ? " guide-item-card--anchor" : ""}${isSpeculative ? " guide-item-card--speculative" : ""}"
+      class="guide-item-card${item.is_anchor ? " guide-item-card--anchor" : ""}${speculativeClass}"
       data-status="${escapeHtml(item.status)}"
+      data-item-type="${escapeHtml(item.item_type)}"
     >
-      ${item.is_anchor ? `<i data-lucide="map-pin" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}
-      ${isSpeculative && isMember ? `<span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>` : ""}
+      ${item.is_anchor ? `<i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}
+      ${(isOption || isShortlisted) && isMember ? `<span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>` : ""}
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
         <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
@@ -249,10 +273,19 @@ function renderDayHeader(day, base, startDate) {
   const dateLabel = startDate ? formatNavDayDate(startDate, day.day_number) : "";
   const baseName = base?.name || base?.location_name || "";
 
+  let dowLabel = "";
+  if (startDate) {
+    const date = getTripDateByDayNumber(startDate, day.day_number);
+    if (date) {
+      dowLabel = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
+    }
+  }
+
   return `
     <div class="guide-day-header">
       <div class="guide-day-header__eyebrow">
         <span class="guide-day-header__number">Day ${day.day_number}</span>
+        ${dowLabel ? `<span class="guide-day-header__dow">${escapeHtml(dowLabel)}</span>` : ""}
         ${dateLabel ? `<span class="guide-day-header__date">${escapeHtml(dateLabel)}</span>` : ""}
         ${baseName ? `<span class="guide-day-header__base">${escapeHtml(baseName)}</span>` : ""}
       </div>
@@ -335,10 +368,9 @@ function renderGuideDayNav(days, trip, todayDayNumber) {
 // ---------------------------------------------------------------------------
 
 function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus) {
-  const baseNames = bases
-    .map((b) => b.name || b.location_name || "")
-    .filter(Boolean)
-    .join(" → ");
+  const baseNames = bases.length > 1
+    ? bases.map((b) => b.name || b.location_name || "").filter(Boolean).join(" → ")
+    : "";
 
   return `
     <div class="guide-hero">
@@ -361,10 +393,10 @@ function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedSt
         <h1 class="guide-hero__title">${escapeHtml(trip.title || "Untitled Trip")}</h1>
         <div class="guide-hero__meta">
           <span class="guide-hero__dates">${escapeHtml(formatTripDateSummary(trip))}</span>
-          <span class="trip-pill">${escapeHtml(formatStatusLabel(derivedStatus))}</span>
+          <span class="guide-hero__status-pill" data-derived-status="${escapeHtml(derivedStatus)}">${escapeHtml(formatStatusLabel(derivedStatus))}</span>
         </div>
         ${isMember ? renderMemberAvatars(members) : ""}
-        <div class="guide-hero__tabs" role="tablist">
+        <div class="guide-hero__tabs" role="tablist" aria-label="View mode">
           <button class="guide-hero__tab is-active" role="tab" aria-selected="true" type="button">Itinerary</button>
           <button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when trip is Active" type="button">Journal</button>
         </div>
@@ -419,7 +451,7 @@ export function renderGuideView(state) {
   const todayDayNumber = getTodayDayNumber(trip);
 
   const visibleItems = filterItemsForViewer(items, viewerRole);
-  const lodgingBands = getLodgingBands(visibleItems, bases, days);
+  const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
   const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
 
   const daySections = days

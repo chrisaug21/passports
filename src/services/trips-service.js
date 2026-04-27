@@ -29,6 +29,7 @@ const TRIP_ITEM_SELECT = `
   url,
   notes,
   sort_order,
+  check_out_date,
   created_at,
   updated_at
 `;

@@ -1,4 +1,5 @@
 import { fetchTripDetailBundle } from "../../../services/trips-service.js";
+import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
 import { getSupabase } from "../../../lib/supabase.js";
 import { sessionStore } from "../../../state/session-store.js";
 import { navigate } from "../../../app/router.js";
@@ -41,16 +42,6 @@ async function checkViewerRole(tripId, userId) {
   return data?.role ? "member" : "public";
 }
 
-async function fetchMembersBasic(tripId) {
-  const { data } = await getSupabase()
-    .from("trip_members")
-    .select("user_id, role")
-    .eq("trip_id", tripId)
-    .is("deleted_at", null);
-
-  return data || [];
-}
-
 // ---------------------------------------------------------------------------
 // Async data load + render
 // ---------------------------------------------------------------------------
@@ -71,7 +62,7 @@ export async function loadGuidePage(tripId) {
 
     let members = [];
     if (viewerRole === "member") {
-      members = await fetchMembersBasic(tripId);
+      members = await fetchTripMembersWithEmails(tripId);
     }
 
     const state = {

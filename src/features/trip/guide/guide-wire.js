@@ -9,14 +9,23 @@ import {
 
 let cleanupFns = [];
 
+// Set true on touchstart/touchmove; cleared with debounce after touchend so
+// programmatic scrolls don't fight user's finger or momentum.
+let isUserScrolling = false;
+let touchEndTimer = null;
+
 export function teardownGuideView() {
   cleanupFns.forEach((fn) => fn());
   cleanupFns = [];
+  isUserScrolling = false;
+  clearTimeout(touchEndTimer);
 }
 
 export function wireGuideView(state) {
   wireBackLink(state.tripId);
+  wireDashboardLink();
   wireNavClicks();
+  setupTouchScrollTracking();
   setupScrollTracking();
   setupLazyDays(state);
 
@@ -31,13 +40,19 @@ export function wireGuideView(state) {
 }
 
 // ---------------------------------------------------------------------------
-// Back link
+// Back link + topbar dashboard link
 // ---------------------------------------------------------------------------
 
 function wireBackLink(tripId) {
   document.querySelector("[data-guide-back]")?.addEventListener("click", (event) => {
     event.preventDefault();
     navigate(`/app/trip/${tripId}`);
+  });
+}
+
+function wireDashboardLink() {
+  document.querySelector("#trip-back-to-dashboard")?.addEventListener("click", () => {
+    navigate("/app");
   });
 }
 
@@ -54,7 +69,36 @@ function wireNavClicks() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Touch scroll guard — prevents programmatic scrolls from fighting the user
+// ---------------------------------------------------------------------------
+
+function setupTouchScrollTracking() {
+  const handleTouchStart = () => {
+    isUserScrolling = true;
+    clearTimeout(touchEndTimer);
+  };
+
+  const handleTouchEnd = () => {
+    clearTimeout(touchEndTimer);
+    // Wait for momentum scroll to settle before clearing the flag
+    touchEndTimer = setTimeout(() => {
+      isUserScrolling = false;
+    }, 400);
+  };
+
+  document.addEventListener("touchstart", handleTouchStart, { passive: true });
+  document.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+  cleanupFns.push(() => {
+    document.removeEventListener("touchstart", handleTouchStart);
+    document.removeEventListener("touchend", handleTouchEnd);
+    clearTimeout(touchEndTimer);
+  });
+}
+
 function scrollToDay(dayNumber) {
+  if (isUserScrolling) return;
   const section = document.getElementById(`guide-day-${dayNumber}`);
   if (!section) return;
   const OFFSET = 80;
@@ -109,7 +153,7 @@ function updateActiveSection() {
   });
 
   // On mobile, auto-scroll the active pill into view (spec §5)
-  if (changed && window.innerWidth <= 840) {
+  if (changed && window.innerWidth <= 840 && !isUserScrolling) {
     const activePill = document.querySelector(".guide-nav-item.is-active");
     activePill?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }
@@ -139,7 +183,7 @@ function setupLazyDays(state) {
         if (!section) return;
 
         const allVisible = filterItemsForViewer(state.items, state.viewerRole);
-        const allBands = getLodgingBands(allVisible, state.bases, state.days);
+        const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
         const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
 
         const dayItems = allVisible.filter((i) => i.day_id === day.id && !bandItemIds.has(i.id));
