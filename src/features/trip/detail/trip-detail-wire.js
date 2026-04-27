@@ -235,6 +235,7 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-trip", handlers.onCancelDeleteTrip);
   bindClick("[data-cancel-delete-trip]", handlers.onCancelDeleteTrip);
   bindClick("#confirm-delete-trip", handlers.onConfirmDeleteTrip);
+  bindClick("[data-open-guide]", handlers.onOpenGuide);
   bindClick("#open-members-modal", handlers.onOpenMembersModal);
   bindClick("#close-members-modal", handlers.onCloseMembersModal);
   bindClick("#close-members-modal-footer", handlers.onCloseMembersModal);

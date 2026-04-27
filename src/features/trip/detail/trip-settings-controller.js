@@ -18,6 +18,16 @@ import {
   renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 
+const SHARE_LINK_FEEDBACK_DURATION_MS = 2000;
+let shareLinkFeedbackResetTimer = null;
+
+function clearShareLinkFeedbackResetTimer() {
+  if (shareLinkFeedbackResetTimer) {
+    window.clearTimeout(shareLinkFeedbackResetTimer);
+    shareLinkFeedbackResetTimer = null;
+  }
+}
+
 function getTripShrinkSummary(nextTripLength, days, items) {
   const removedDays = days.filter((day) => day.day_number > nextTripLength);
   const removedDayIds = new Set(removedDays.map((day) => day.id));
@@ -68,6 +78,101 @@ function wireTripSettingsDatePreview() {
   form.querySelector('[name="startDate"]')?.addEventListener("input", updatePreview);
   form.querySelector('[name="tripLength"]')?.addEventListener("input", updatePreview);
   updatePreview();
+}
+
+function buildTripGuideUrl(tripId) {
+  return new URL(`/app/trip/${tripId}/guide`, window.location.origin).toString();
+}
+
+function updateShareLinkHint(hint, message) {
+  if (!hint) {
+    return;
+  }
+
+  hint.textContent = message;
+}
+
+function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
+  const icon = button.querySelector("[data-share-link-icon]");
+  const label = button.querySelector("[data-share-link-label]");
+
+  button.classList.toggle("is-disabled", !isEnabled);
+  button.classList.toggle("is-copied", isCopied);
+  button.setAttribute("aria-disabled", String(!isEnabled));
+  button.tabIndex = isEnabled ? 0 : -1;
+
+  if (icon) {
+    icon.innerHTML = `<i data-lucide="${isCopied ? "check" : "link"}" aria-hidden="true"></i>`;
+  }
+
+  if (label) {
+    label.textContent = isCopied ? "Copied!" : "Copy share link";
+  }
+
+  window.lucide?.createIcons?.();
+}
+
+function wireTripSettingsShareLink(trip) {
+  const form = document.querySelector("#trip-settings-form");
+  const isPublicInput = form?.querySelector('[name="isPublic"]');
+  const shareLinkButton = form?.querySelector("[data-copy-share-link]");
+  const shareLinkHint = form?.querySelector("[data-share-link-hint]");
+  const savedShareHint = "Anyone with the link can view your itinerary.";
+  const unsavedShareHint = "Save changes to enable sharing";
+
+  if (!trip?.id || !isPublicInput || !shareLinkButton) {
+    return;
+  }
+
+  clearShareLinkFeedbackResetTimer();
+  updateShareLinkHint(shareLinkHint, savedShareHint);
+
+  const syncButtonState = ({ isCopied = false } = {}) => {
+    const hasPersistedShareLink = Boolean(trip.is_public);
+    const hasUnsavedShareIntent = isPublicInput.checked && !hasPersistedShareLink;
+
+    updateShareLinkButtonState(shareLinkButton, {
+      isEnabled: hasPersistedShareLink || hasUnsavedShareIntent,
+      isCopied: hasPersistedShareLink && isCopied,
+    });
+
+    if (!hasUnsavedShareIntent) {
+      updateShareLinkHint(shareLinkHint, savedShareHint);
+    }
+  };
+
+  isPublicInput.addEventListener("change", () => {
+    clearShareLinkFeedbackResetTimer();
+    syncButtonState();
+  });
+
+  shareLinkButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+
+    if (!isPublicInput.checked) {
+      return;
+    }
+
+    if (!trip.is_public) {
+      updateShareLinkHint(shareLinkHint, unsavedShareHint);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildTripGuideUrl(trip.id));
+      syncButtonState({ isCopied: true });
+      clearShareLinkFeedbackResetTimer();
+      shareLinkFeedbackResetTimer = window.setTimeout(() => {
+        syncButtonState();
+        shareLinkFeedbackResetTimer = null;
+      }, SHARE_LINK_FEEDBACK_DURATION_MS);
+    } catch (error) {
+      console.error(error);
+      showToast("Couldn't copy. Try again.", "error");
+    }
+  });
+
+  syncButtonState();
 }
 
 function formatRemovedDayLabels(dayNumbers) {
@@ -162,6 +267,30 @@ export function renderTripSettingsForm(trip, isSaving) {
               <span>Description</span>
               <textarea name="description" rows="4">${escapeHtml(trip.description || "")}</textarea>
             </label>
+
+            <div class="trip-settings-form__sharing">
+              <div class="trip-settings-form__sharing-row">
+                <span class="trip-settings-form__sharing-label">Public trip</span>
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Public trip">
+                  <input name="isPublic" type="checkbox" class="toggle-switch__input" ${trip.is_public ? "checked" : ""} />
+                  <span class="toggle-switch__track" aria-hidden="true"></span>
+                </label>
+              </div>
+              <div class="trip-settings-form__sharing-meta">
+                <p class="field-hint trip-settings-form__sharing-hint" data-share-link-hint>Anyone with the link can view your itinerary.</p>
+                <button
+                  class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
+                  data-copy-share-link
+                  type="button"
+                  aria-disabled="${trip.is_public ? "false" : "true"}"
+                >
+                  <span class="trip-settings-share-link__label" data-share-link-label>Copy share link</span>
+                  <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
+                    <i data-lucide="link" aria-hidden="true"></i>
+                  </span>
+                </button>
+              </div>
+            </div>
 
           </div>
 
@@ -263,6 +392,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       rerenderTripDetail();
     },
     onCancelTripSettings: () => {
+      clearShareLinkFeedbackResetTimer();
       tripDetailState.pendingTripSettingsDraft = null;
       tripDetailState.tripLengthConfirmState = null;
       appStore.updateTripDetail({
@@ -271,7 +401,10 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       });
       rerenderTripDetail();
     },
-    onAfterTripSettingsOpen: wireTripSettingsDatePreview,
+    onAfterTripSettingsOpen: () => {
+      wireTripSettingsDatePreview();
+      wireTripSettingsShareLink(tripStore.getCurrentTrip());
+    },
     onOpenDeleteTripConfirm: () => {
       appStore.updateTripDetail({
         showDeleteTripConfirm: true,
@@ -303,6 +436,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         description: String(formData.get("description") || "").trim(),
         startDate,
         tripLength,
+        isPublic: formData.get("isPublic") === "on",
       };
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 

@@ -29,6 +29,7 @@ const TRIP_ITEM_SELECT = `
   url,
   notes,
   sort_order,
+  check_out_date,
   created_at,
   updated_at
 `;
@@ -376,6 +377,7 @@ export async function createDetailedTripItem({
   isAnchor,
   baseId,
   dayId,
+  checkOutDate,
   mealSlot,
   activityType,
   transportMode,
@@ -407,6 +409,7 @@ export async function createDetailedTripItem({
       item_type: itemType,
       status: normalizedStatus,
       is_anchor: Boolean(isAnchor),
+      check_out_date: checkOutDate || null,
       meal_slot: mealSlot || null,
       activity_type: activityType || null,
       transport_mode: transportMode || null,
@@ -505,25 +508,47 @@ export async function batchUpdateTripItems(itemUpdates) {
   }
 
   const now = new Date().toISOString();
-  const { data, error } = await getSupabase()
-    .from("trip_items")
-    .upsert(
-      itemUpdates.map((item) => ({
-        ...item,
-        updated_at: item.updated_at || now,
-      })),
-      {
-        onConflict: "id",
+  const supabase = getSupabase();
+
+  return Promise.all(
+    itemUpdates.map(async (item) => {
+      const { data, error } = await supabase
+        .from("trip_items")
+        .update({
+          title: item.title,
+          item_type: item.item_type,
+          status: item.status,
+          is_anchor: item.is_anchor,
+          base_id: item.base_id,
+          day_id: item.day_id,
+          meal_slot: item.meal_slot,
+          activity_type: item.activity_type,
+          transport_mode: item.transport_mode,
+          transport_origin: item.transport_origin,
+          transport_destination: item.transport_destination,
+          time_start: item.time_start,
+          time_end: item.time_end,
+          time_is_estimated: item.time_is_estimated,
+          cost_low: item.cost_low,
+          cost_high: item.cost_high,
+          confirmation_ref: item.confirmation_ref,
+          url: item.url,
+          notes: item.notes,
+          sort_order: item.sort_order,
+          check_out_date: item.check_out_date,
+          updated_at: now,
+        })
+        .eq("id", item.id)
+        .select(TRIP_ITEM_SELECT)
+        .single();
+
+      if (error) {
+        throw error;
       }
-    )
-    .is("deleted_at", null)
-    .select(TRIP_ITEM_SELECT);
 
-  if (error) {
-    throw error;
-  }
-
-  return data || [];
+      return data;
+    })
+  );
 }
 
 export async function softDeleteTripItem(itemId) {
@@ -548,6 +573,7 @@ export async function updateTripSettings({
   description,
   startDate,
   tripLength,
+  isPublic,
 }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
@@ -607,6 +633,7 @@ export async function updateTripSettings({
       description: description || null,
       start_date: startDate || null,
       trip_length: tripLength,
+      is_public: Boolean(isPublic),
       updated_at: now,
     })
     .eq("id", tripId)

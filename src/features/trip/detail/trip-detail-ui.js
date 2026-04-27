@@ -30,7 +30,7 @@ export function getTripStatTiles(trip, bases, items) {
     ...counts,
     [mode]: items.filter((item) => item.item_type === "transport" && item.transport_mode === mode).length,
   }), {});
-  const ideaCount = items.filter((item) => item.status === "idea" || item.status === "shortlisted").length;
+  const ideaCount = items.filter((item) => isIdeaLikeStatus(item.status)).length;
   const tiles = [
     ...(shouldShowBaseTile ? [{ label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length }] : []),
     { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
@@ -52,6 +52,10 @@ export function getTripStatTiles(trip, bases, items) {
   }
 
   return tiles;
+}
+
+export function isIdeaLikeStatus(status) {
+  return status === "idea" || status === "option" || status === "shortlisted";
 }
 
 export function getCountLabel(count, singular, plural) {

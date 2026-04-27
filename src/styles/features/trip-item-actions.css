@@ -104,6 +104,10 @@
   background: var(--color-status-idea);
 }
 
+.status-dot--option {
+  background: var(--color-status-option);
+}
+
 .status-dot--shortlisted {
   background: var(--color-status-shortlisted);
 }
@@ -132,6 +136,10 @@
 
 .item-status-meta--idea {
   color: var(--color-status-idea);
+}
+
+.item-status-meta--option {
+  color: var(--color-status-option);
 }
 
 .item-status-meta--shortlisted {

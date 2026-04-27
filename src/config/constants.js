@@ -1,4 +1,4 @@
-export const APP_VERSION = "v0.2.21";
+export const APP_VERSION = "v0.3.9";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -8,7 +8,7 @@ export const DEFAULT_BASE_TIMEZONE = "America/New_York";
 
 export const ITEM_TYPES = ["meal", "activity", "transport", "lodging"];
 
-export const ITEM_STATUSES = ["idea", "shortlisted", "confirmed", "reserved", "done"];
+export const ITEM_STATUSES = ["idea", "option", "shortlisted", "confirmed", "reserved", "done"];
 
 export const MEAL_SLOTS = ["breakfast", "brunch", "lunch", "dinner"];
 

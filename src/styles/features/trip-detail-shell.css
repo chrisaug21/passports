@@ -176,6 +176,41 @@
   color: var(--color-structure);
 }
 
+/* Icon-only header action buttons (Edit Trip, Members, Guide) */
+.trip-header__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.trip-header__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  flex-shrink: 0;
+}
+
+.trip-header__icon-btn:hover,
+.trip-header__icon-btn:focus-visible {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted);
+}
+
+.trip-header__icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .section-action-button {
   width: 132px;
   justify-self: end;
@@ -205,6 +240,7 @@
       flex-direction: column;
       align-items: stretch;
     }
+
 
     .trip-view-tabs--single-base {
       gap: 0.75rem;

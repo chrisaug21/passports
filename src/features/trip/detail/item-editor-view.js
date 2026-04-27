@@ -59,6 +59,8 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             </label>
           </div>
 
+          ${renderTypeSpecificFields(draft)}
+
           <div class="item-editor-form__grid">
             <label class="field">
               <span>Base</span>
@@ -82,6 +84,7 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
           <div class="item-editor-section">
             <p class="item-editor-section__title">Timing</p>
+
             <div class="item-editor-form__grid">
               <label class="field">
               <span>Start Time</span>
@@ -101,8 +104,6 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
               <span>Anchor stop</span>
             </label>
           </div>
-
-          ${renderTypeSpecificFields(draft)}
 
           <div class="item-editor-section">
             <p class="item-editor-section__title">Cost</p>
@@ -143,8 +144,13 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
 function renderTypeSpecificFields(draft) {
   return `
+    <div class="item-editor-section" data-item-type-section="lodging">
+      <label class="field">
+        <span>Check-out date</span>
+        <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+      </label>
+    </div>
     <div class="item-editor-section" data-item-type-section="meal">
-      <p class="item-editor-section__title">Type-Specific Details</p>
       <label class="field">
         <span>Meal Slot</span>
         <select name="mealSlot">
@@ -154,7 +160,6 @@ function renderTypeSpecificFields(draft) {
       </label>
     </div>
     <div class="item-editor-section" data-item-type-section="activity">
-      <p class="item-editor-section__title">Type-Specific Details</p>
       <label class="field">
         <span>Activity Type</span>
         <select name="activityType">
@@ -164,7 +169,6 @@ function renderTypeSpecificFields(draft) {
       </label>
     </div>
     <div class="item-editor-section" data-item-type-section="transport">
-      <p class="item-editor-section__title">Type-Specific Details</p>
       <label class="field">
         <span>Transport Mode</span>
         <select name="transportMode">

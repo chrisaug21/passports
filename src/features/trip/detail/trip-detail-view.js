@@ -131,13 +131,14 @@ export function renderTripDetailPageView() {
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
             <div class="trip-header__actions">
-              <button class="button button--secondary section-action-button" id="toggle-trip-settings" type="button">
-                Edit Trip
+              <button class="trip-header__icon-btn" id="toggle-trip-settings" type="button" title="Edit Trip" aria-label="Edit Trip">
+                <i data-lucide="pencil" aria-hidden="true"></i>
               </button>
-              <button class="button button--secondary trip-header__members-btn" id="open-members-modal" type="button">
+              <button class="trip-header__icon-btn" id="open-members-modal" type="button" title="Members" aria-label="Members">
                 <i data-lucide="users" aria-hidden="true"></i>
-                <span class="trip-header__members-label" aria-hidden="true">Members</span>
-                <span class="sr-only">Members</span>
+              </button>
+              <button class="trip-header__icon-btn" data-open-guide type="button" title="Guide" aria-label="Guide">
+                <i data-lucide="compass" aria-hidden="true"></i>
               </button>
             </div>
           </div>
