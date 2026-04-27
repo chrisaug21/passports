@@ -75,15 +75,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           `
           : ""
       }
-      ${shouldShowBaseHeader && rowCount > 1 ? `
-        <div class="days-view__panel-header">
-          <div>
-            <p class="eyebrow">Base</p>
-            <h3>${escapeHtml(row.label)}</h3>
-          </div>
-          ${row.kind === "base" ? `<button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>` : ""}
-        </div>
-      ` : shouldShowBaseHeader ? `
+      ${shouldShowBaseHeader ? `
         <div class="days-view__panel-header">
           <div>
             <p class="eyebrow">Base</p>
