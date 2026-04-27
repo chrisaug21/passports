@@ -172,7 +172,8 @@
   pointer-events: auto;
 }
 
-.allocation-row__delete svg {
+.allocation-row__delete svg,
+.allocation-row__edit svg {
   width: 16px;
   height: 16px;
 }
@@ -236,11 +237,6 @@
     .allocation-row__delete {
       width: 32px;
       height: 32px;
-    }
-
-    .allocation-row__edit svg {
-      width: 16px;
-      height: 16px;
     }
 }
 

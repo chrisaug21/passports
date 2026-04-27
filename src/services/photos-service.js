@@ -21,11 +21,6 @@ export async function saveUploadedPrimaryPhoto({
 
   const existingPhoto = await getPrimaryPhotoForSlot({ tripId, baseId });
 
-  // Delete the old storage file first so the slot is clear before uploading.
-  if (existingPhoto) {
-    await removeStorageFile(existingPhoto.storage_path).catch(() => {});
-  }
-
   const storagePath = `${userId}/${tripId}/${context}/${Date.now()}.jpg`;
   await uploadPhotoBlob({ storagePath, blob, upsert: false });
 
@@ -49,6 +44,13 @@ export async function saveUploadedPrimaryPhoto({
   } catch (error) {
     await removeStorageFile(storagePath).catch(() => {});
     throw error;
+  }
+
+  // Old storage file deleted only after DB update succeeds — best-effort cleanup.
+  if (existingPhoto) {
+    await removeStorageFile(existingPhoto.storage_path).catch((err) => {
+      console.warn("Failed to remove old photo from storage:", err);
+    });
   }
 
   return newPhoto;

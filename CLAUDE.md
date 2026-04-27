@@ -71,7 +71,7 @@ Trip
 - Trip-level items (`base_id = null`) can have `day_id` set — used for inbound/outbound transport
 - It is valid for an item's base and day to point to different bases (travel day scenario)
 - Public share hides idea/shortlisted items and costs automatically — no secondary toggle
-- Soft delete only — never hard delete; `deleted_at` exists on all main tables
+- Soft delete only — never hard delete; `deleted_at` exists on all main tables -- The ONLY exception is hard deleting photos from storage upon replacement (which is allowed) so we avoid storing old photos we'll never use and wasting storage space. 
 - Never reference Supabase in user-facing errors
 - Never hardcode colors — CSS custom properties only
 - VERSION bump is mandatory on every PR and every push that changes shipped code. Never forget it, never skip it, and never push without doing it first. In this repo the version lives in `src/config/constants.js` as `APP_VERSION`.
