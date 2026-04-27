@@ -70,11 +70,16 @@
   font-weight: 600;
 }
 
+.trip-settings-form__sharing-toggle {
+  justify-self: end;
+}
+
 .trip-settings-share-link {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   width: fit-content;
+  justify-self: end;
   padding: 0;
   border: 0;
   background: transparent;

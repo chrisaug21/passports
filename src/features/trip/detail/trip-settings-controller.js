@@ -246,7 +246,7 @@ export function renderTripSettingsForm(trip, isSaving) {
             <div class="trip-settings-form__sharing">
               <div class="trip-settings-form__sharing-row">
                 <span class="trip-settings-form__sharing-label">Public trip</span>
-                <label class="toggle-switch" aria-label="Public trip">
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Public trip">
                   <input name="isPublic" type="checkbox" class="toggle-switch__input" ${trip.is_public ? "checked" : ""} />
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>
@@ -262,7 +262,7 @@ export function renderTripSettingsForm(trip, isSaving) {
                 </span>
                 <span class="trip-settings-share-link__label" data-share-link-label>Copy share link</span>
               </button>
-              <p class="field-hint">When on, anyone with the link can view your itinerary</p>
+              <p class="field-hint">Anyone with the link can view your itinerary.</p>
             </div>
 
           </div>
