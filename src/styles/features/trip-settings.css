@@ -172,7 +172,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: white;
+  background: var(--color-surface);
   transition: transform 0.2s ease;
 }
 

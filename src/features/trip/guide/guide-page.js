@@ -28,8 +28,9 @@ export function renderGuidePage() {
 // Viewer-role check
 // ---------------------------------------------------------------------------
 
-async function checkViewerRole(tripId, userId) {
+async function checkViewerRole(tripId, userId, ownerId) {
   if (!userId) return "public";
+  if (userId === ownerId) return "owner";
 
   const { data } = await getSupabase()
     .from("trip_members")
@@ -52,7 +53,7 @@ export async function loadGuidePage(tripId) {
 
   try {
     const bundle = await fetchTripDetailBundle(tripId);
-    const viewerRole = await checkViewerRole(tripId, userId);
+    const viewerRole = await checkViewerRole(tripId, userId, bundle.trip.owner_id);
 
     // Non-member on a private trip → redirect away
     if (viewerRole === "public" && !bundle.trip.is_public) {
@@ -61,7 +62,7 @@ export async function loadGuidePage(tripId) {
     }
 
     let members = [];
-    if (viewerRole === "member") {
+    if (viewerRole !== "public") {
       members = await fetchTripMembersWithEmails(tripId);
     }
 

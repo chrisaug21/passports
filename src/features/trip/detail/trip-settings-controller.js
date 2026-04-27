@@ -84,6 +84,14 @@ function buildTripGuideUrl(tripId) {
   return new URL(`/app/trip/${tripId}/guide`, window.location.origin).toString();
 }
 
+function updateShareLinkHint(hint, message) {
+  if (!hint) {
+    return;
+  }
+
+  hint.textContent = message;
+}
+
 function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
   const icon = button.querySelector("[data-share-link-icon]");
   const label = button.querySelector("[data-share-link-label]");
@@ -104,22 +112,33 @@ function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
   window.lucide?.createIcons?.();
 }
 
-function wireTripSettingsShareLink(tripId) {
+function wireTripSettingsShareLink(trip) {
   const form = document.querySelector("#trip-settings-form");
   const isPublicInput = form?.querySelector('[name="isPublic"]');
   const shareLinkButton = form?.querySelector("[data-copy-share-link]");
+  const shareLinkHint = form?.querySelector("[data-share-link-hint]");
+  const savedShareHint = "Anyone with the link can view your itinerary.";
+  const unsavedShareHint = "Save changes to enable sharing";
 
-  if (!tripId || !isPublicInput || !shareLinkButton) {
+  if (!trip?.id || !isPublicInput || !shareLinkButton) {
     return;
   }
 
   clearShareLinkFeedbackResetTimer();
+  updateShareLinkHint(shareLinkHint, savedShareHint);
 
   const syncButtonState = ({ isCopied = false } = {}) => {
+    const hasPersistedShareLink = Boolean(trip.is_public);
+    const hasUnsavedShareIntent = isPublicInput.checked && !hasPersistedShareLink;
+
     updateShareLinkButtonState(shareLinkButton, {
-      isEnabled: isPublicInput.checked,
-      isCopied: isPublicInput.checked && isCopied,
+      isEnabled: hasPersistedShareLink || hasUnsavedShareIntent,
+      isCopied: hasPersistedShareLink && isCopied,
     });
+
+    if (!hasUnsavedShareIntent) {
+      updateShareLinkHint(shareLinkHint, savedShareHint);
+    }
   };
 
   isPublicInput.addEventListener("change", () => {
@@ -134,8 +153,13 @@ function wireTripSettingsShareLink(tripId) {
       return;
     }
 
+    if (!trip.is_public) {
+      updateShareLinkHint(shareLinkHint, unsavedShareHint);
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(buildTripGuideUrl(tripId));
+      await navigator.clipboard.writeText(buildTripGuideUrl(trip.id));
       syncButtonState({ isCopied: true });
       clearShareLinkFeedbackResetTimer();
       shareLinkFeedbackResetTimer = window.setTimeout(() => {
@@ -144,6 +168,7 @@ function wireTripSettingsShareLink(tripId) {
       }, SHARE_LINK_FEEDBACK_DURATION_MS);
     } catch (error) {
       console.error(error);
+      showToast("Couldn't copy. Try again.", "error");
     }
   });
 
@@ -252,7 +277,7 @@ export function renderTripSettingsForm(trip, isSaving) {
                 </label>
               </div>
               <div class="trip-settings-form__sharing-meta">
-                <p class="field-hint trip-settings-form__sharing-hint">Anyone with the link can view your itinerary.</p>
+                <p class="field-hint trip-settings-form__sharing-hint" data-share-link-hint>Anyone with the link can view your itinerary.</p>
                 <button
                   class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
                   data-copy-share-link
@@ -378,7 +403,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
     },
     onAfterTripSettingsOpen: () => {
       wireTripSettingsDatePreview();
-      wireTripSettingsShareLink(tripStore.getCurrentTrip()?.id);
+      wireTripSettingsShareLink(tripStore.getCurrentTrip());
     },
     onOpenDeleteTripConfirm: () => {
       appStore.updateTripDetail({

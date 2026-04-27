@@ -612,12 +612,13 @@
 
 .guide-lodging-band {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 1rem;
   border-radius: 12px;
   background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-card);
+  box-shadow: 0 2px 8px rgba(27, 43, 66, 0.05);
 }
 
 .guide-lodging-band--check-in {
@@ -641,15 +642,15 @@
 }
 
 .guide-lodging-band__content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  display: grid;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .guide-lodging-band__name {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -657,8 +658,10 @@
 }
 
 .guide-lodging-band__time {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--color-text-muted);
+  line-height: 1.45;
 }
 
 /* ---------------------------------------------------------------------------
@@ -775,7 +778,7 @@
     align-items: center;
     white-space: nowrap;
     min-width: auto;
-    min-height: 36px;
+    min-height: var(--touch-target);
     padding: 0.35rem 0.85rem;
     border-radius: var(--radius-pill);
     font-size: 0.82rem;

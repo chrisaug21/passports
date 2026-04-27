@@ -27,7 +27,7 @@ export function sortGuideItems(items) {
 // ---------------------------------------------------------------------------
 
 export function filterItemsForViewer(items, viewerRole) {
-  if (viewerRole === "member") {
+  if (viewerRole !== "public") {
     return items.filter((i) => i.status !== "idea");
   }
   // public: DB already enforces confirmed/reserved/done; filter defensively
@@ -94,7 +94,12 @@ function getCostSymbol(low, high) {
 // ---------------------------------------------------------------------------
 
 export function getTodayDayNumber(trip) {
-  if (!trip.start_date || trip.status !== "active") return null;
+  const derivedStatus = deriveTripStatus(trip);
+
+  if (!trip.start_date || (trip.status !== "active" && derivedStatus !== "traveling")) {
+    return null;
+  }
+
   const start = new Date(`${trip.start_date}T12:00:00`);
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -188,7 +193,7 @@ function renderTransportRoute(item) {
 function renderGuideItemCard(item, viewerRole) {
   const isOption = item.status === "option";
   const isShortlisted = item.status === "shortlisted";
-  const isMember = viewerRole === "member";
+  const isMember = viewerRole !== "public";
 
   let timeLabel = "";
   if (item.time_start) {
@@ -435,7 +440,7 @@ export function renderGuideErrorView() {
 export function renderGuideView(state) {
   const { trip, bases, days, items, members, viewerRole } = state;
   const derivedStatus = deriveTripStatus(trip);
-  const isMember = viewerRole === "member";
+  const isMember = viewerRole !== "public";
   const heroPhotoUrl = getTripHeroPhotoUrl(trip);
   const todayDayNumber = getTodayDayNumber(trip);
 
