@@ -15,9 +15,15 @@ import {
   wireTripDetailPage,
 } from "../features/trip/trip-detail-page.js";
 import { tripStore } from "../state/trip-store.js";
+import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-page.js";
 
 function normalizePath(pathname) {
-  if (pathname === "/login" || pathname === "/app" || /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname)) {
+  if (
+    pathname === "/login" ||
+    pathname === "/app" ||
+    /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
+    /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname)
+  ) {
     return pathname;
   }
 
@@ -46,6 +52,24 @@ export function renderRoute(options = {}) {
   const { session } = sessionStore.getState();
   const pathname = normalizePath(window.location.pathname);
   document.body.classList.remove("modal-open");
+
+  // Guide route: public access allowed — handle before session check
+  const guideMatch = pathname.match(/^\/app\/trip\/([0-9a-f-]+)\/guide$/i);
+  if (guideMatch) {
+    const tripId = guideMatch[1];
+
+    renderAppShell(renderGuidePage(), {
+      showDashboardLink: Boolean(session),
+      afterRender: () => {
+        document.title = "Passports | Guide";
+        loadGuidePage(tripId);
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
 
   if (!session) {
     if (pathname !== "/login") {
