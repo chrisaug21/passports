@@ -4,6 +4,7 @@ import { initializeSupabase } from "../lib/supabase.js";
 import { renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
+import { openProfileModal } from "../features/shared/profile-modal.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
@@ -128,6 +129,7 @@ export function renderAppShell(content, options = {}) {
                   </summary>
                   <div class="account-menu__panel">
                     <p class="account-menu__email">${escapeHtml(email)}</p>
+                    <button class="account-menu__profile" id="open-profile-modal" type="button">Profile</button>
                     <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                   </div>
                 </details>
@@ -147,6 +149,12 @@ export function renderAppShell(content, options = {}) {
 
   if (session) {
     bindAccountMenuListeners();
+
+    document.querySelector("#open-profile-modal")?.addEventListener("click", () => {
+      document.querySelector("#account-menu").open = false;
+      openProfileModal();
+    });
+
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
 

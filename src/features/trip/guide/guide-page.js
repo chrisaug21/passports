@@ -9,6 +9,7 @@ import {
   renderGuideErrorView,
 } from "./guide-view.js";
 import { wireGuideView, teardownGuideView } from "./guide-wire.js";
+import { fetchUserProfile } from "../../../services/journal-service.js";
 
 // ---------------------------------------------------------------------------
 // Initial render — loading shell (called synchronously by router)
@@ -66,6 +67,12 @@ export async function loadGuidePage(tripId) {
       members = await fetchTripMembersWithEmails(tripId);
     }
 
+    // Pre-fetch the current user's profile so the profile prompt check is immediate
+    let currentUserProfile = null;
+    if (userId) {
+      currentUserProfile = await fetchUserProfile(userId).catch(() => null);
+    }
+
     const state = {
       tripId,
       trip: bundle.trip,
@@ -75,6 +82,7 @@ export async function loadGuidePage(tripId) {
       members,
       viewerRole,
       userId,
+      currentUserProfile,
     };
 
     const root = document.querySelector("#guide-view-root");

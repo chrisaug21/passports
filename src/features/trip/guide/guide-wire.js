@@ -6,6 +6,14 @@ import {
   sortGuideItems,
   getTodayDayNumber,
 } from "./guide-view.js";
+import { getTripStatTiles } from "../detail/trip-detail-ui.js";
+import {
+  renderJournalContent,
+  renderJournalDayNav,
+  renderJournalDaySection,
+} from "./journal-view.js";
+import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
+import { fetchJournalData } from "../../../services/journal-service.js";
 
 let cleanupFns = [];
 
@@ -14,11 +22,26 @@ let cleanupFns = [];
 let isUserScrolling = false;
 let touchEndTimer = null;
 
+// Shared state for tab switching
+let _guideState = null;
+let _currentMode = "itinerary";
+let _journalState = {
+  hasFetched: false,
+  isFetching: false,
+  entries: [],
+  photos: [],
+  profiles: [],
+};
+
 export function teardownGuideView() {
   cleanupFns.forEach((fn) => fn());
   cleanupFns = [];
   isUserScrolling = false;
   clearTimeout(touchEndTimer);
+  teardownJournalMode();
+  _guideState = null;
+  _currentMode = "itinerary";
+  _journalState = { hasFetched: false, isFetching: false, entries: [], photos: [], profiles: [] };
 }
 
 function isMobileLayout() {
@@ -26,8 +49,12 @@ function isMobileLayout() {
 }
 
 export function wireGuideView(state) {
+  _guideState = state;
+  _currentMode = "itinerary";
+
   wireBackLink(state.tripId);
   wireDashboardLink();
+  wireTabSwitching();
   wireNavClicks();
   setupTouchScrollTracking();
   setupScrollTracking();
@@ -45,6 +72,15 @@ export function wireGuideView(state) {
   } else if (!todayDayNumber) {
     document.querySelector(".guide-nav-item")?.classList.add("is-active");
   }
+}
+
+// Exposed so journal-wire can update journal state after saves/uploads
+export function getJournalState() {
+  return _journalState;
+}
+
+export function getGuideState() {
+  return _guideState;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +252,171 @@ function setupLazyDays(state) {
           state.trip.start_date
         );
         window.lucide?.createIcons?.();
+      });
+    },
+    { rootMargin: "300px 0px" }
+  );
+
+  placeholders.forEach((el) => observer.observe(el));
+  cleanupFns.push(() => observer.disconnect());
+}
+
+// ---------------------------------------------------------------------------
+// Tab switching — Itinerary ↔ Journal
+// ---------------------------------------------------------------------------
+
+function wireTabSwitching() {
+  document.querySelectorAll("[data-guide-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.guideTab;
+      if (tab === _currentMode) return;
+      if (tab === "journal") switchToJournal();
+      else switchToItinerary();
+    });
+  });
+}
+
+async function switchToJournal() {
+  if (!_guideState) return;
+  if (_journalState.isFetching) return;
+
+  setActiveTab("journal");
+
+  if (!_journalState.hasFetched) {
+    _journalState.isFetching = true;
+
+    try {
+      const memberUserIds = _guideState.members.map((m) => m.user_id);
+      const data = await fetchJournalData(_guideState.tripId, memberUserIds);
+      _journalState.entries = data.entries;
+      _journalState.photos = data.photos;
+      _journalState.profiles = data.profiles;
+      _journalState.hasFetched = true;
+    } catch (error) {
+      console.error("Failed to load journal data:", error);
+      _journalState.isFetching = false;
+      setActiveTab("itinerary");
+      return;
+    }
+
+    _journalState.isFetching = false;
+  }
+
+  _currentMode = "journal";
+  renderJournalModeContent();
+}
+
+function switchToItinerary() {
+  if (!_guideState) return;
+
+  teardownJournalMode();
+  setActiveTab("itinerary");
+  _currentMode = "itinerary";
+  renderItineraryModeContent();
+}
+
+function setActiveTab(tab) {
+  document.querySelectorAll("[data-guide-tab]").forEach((btn) => {
+    const isActive = btn.dataset.guideTab === tab;
+    btn.classList.toggle("is-active", isActive);
+    btn.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function renderJournalModeContent() {
+  const nav = document.querySelector(".guide-day-nav");
+  const content = document.querySelector(".guide-content");
+  if (!nav || !content || !_guideState) return;
+
+  // Replace only the nav items, not the <nav> element itself
+  nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip);
+  content.innerHTML = renderJournalContent(_guideState, _journalState);
+
+  window.lucide?.createIcons?.();
+  wireNavClicks();
+  setupLazyJournalDays();
+  wireJournalMode(_guideState, _journalState);
+}
+
+function renderItineraryModeContent() {
+  const nav = document.querySelector(".guide-day-nav");
+  const content = document.querySelector(".guide-content");
+  if (!nav || !content || !_guideState) return;
+
+  const { trip, bases, days, items, viewerRole } = _guideState;
+  const todayDayNumber = getTodayDayNumber(trip);
+
+  // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
+  nav.innerHTML = renderJournalDayNav(days, trip);
+
+  const visibleItems = filterItemsForViewer(items, viewerRole);
+  const isMember = viewerRole !== "public";
+  const statItems = isMember ? items : visibleItems;
+  const statTiles = getTripStatTiles(trip, bases, statItems);
+  const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
+  const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
+
+  const daySections = days
+    .map((day, index) => {
+      const dayItems = visibleItems.filter((i) => i.day_id === day.id && !lodgingBandItemIds.has(i.id));
+      const sorted = sortGuideItems(dayItems);
+      const dayBands = lodgingBands.filter(
+        (b) => b.checkInDayNumber === day.day_number || b.checkOutDayNumber === day.day_number
+      );
+      if (index === 0) {
+        return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date)}
+        </section>`;
+      }
+      return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+        <div class="guide-day-placeholder" data-lazy-day="${day.day_number}"></div>
+      </section>`;
+    })
+    .join("");
+
+  content.innerHTML = `
+    <section class="trip-stat-tiles guide-trip-stat-tiles" aria-label="Trip stats">
+      ${statTiles.map((tile) => `
+        <article class="panel trip-stat-tile">
+          <h3>${tile.count}</h3>
+          <p>${tile.label}</p>
+        </article>
+      `).join("")}
+    </section>
+    ${daySections}
+  `;
+
+  window.lucide?.createIcons?.();
+  wireNavClicks();
+  setupLazyDays(_guideState);
+
+  if (todayDayNumber) scrollOrJumpToDay(todayDayNumber);
+  else if (!isMobileLayout()) updateActiveSection();
+  else document.querySelector(".guide-nav-item")?.classList.add("is-active");
+}
+
+function setupLazyJournalDays() {
+  const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-journal-day]");
+  if (placeholders.length === 0) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+
+        const placeholder = entry.target;
+        const dayNumber = parseInt(placeholder.dataset.lazyJournalDay, 10);
+        const day = _guideState.days.find((d) => d.day_number === dayNumber);
+        if (!day) return;
+
+        observer.unobserve(placeholder);
+
+        const section = placeholder.closest(".guide-day-section");
+        if (!section) return;
+
+        section.innerHTML = renderJournalDaySection(day, _guideState, _journalState);
+        window.lucide?.createIcons?.();
+        wireJournalMode(_guideState, _journalState);
       });
     },
     { rootMargin: "300px 0px" }
