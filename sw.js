@@ -1,5 +1,5 @@
-const params = new URL(self.location.href).searchParams;
-const version = params.get("v") || "dev";
+// Keep this in sync with APP_VERSION in src/config/constants.js.
+const version = "v0.4.6";
 const cacheName = `passports-shell-${version}`;
 const appShell = [
   "/",
