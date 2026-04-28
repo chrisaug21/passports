@@ -5,6 +5,8 @@ import {
 } from "../../../lib/format.js";
 import {
   escapeHtml,
+  getCountLabel,
+  getTripStatTiles,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -71,10 +73,10 @@ function renderEntryEditor(ariaLabel, notes, placeholder, savedClass, rows) {
         rows="${rows}"
         aria-label="${escapeHtml(ariaLabel)}"
       >${escapeHtml(notes || "")}</textarea>
-      <div class="journal-entry-editor__actions">
-        <button class="button" data-journal-save type="button">Save</button>
-        <button class="button-link" data-journal-cancel type="button">Cancel</button>
+      <div class="journal-entry-actions">
         <span class="${savedClass}" aria-live="polite"></span>
+        <button class="journal-entry-actions__cancel" data-journal-cancel type="button">Cancel</button>
+        <button class="journal-entry-actions__save" data-journal-save type="button">Save</button>
       </div>
     </div>
   `;
@@ -496,10 +498,13 @@ function shouldShowProfilePrompt(state, journalState) {
 }
 
 function renderJournalStatTiles(state, journalState) {
+  const doneItems = state.items.filter((item) => item.status === "done");
+  const itemTypeTiles = getTripStatTiles(state.trip, state.bases, doneItems)
+    .filter((tile) => tile.label !== "Days" && tile.label !== "Bases");
   const tiles = [
-    { label: "Days", count: Number(state.trip.trip_length) || 0 },
-    { label: "Bases", count: state.bases.length },
-    { label: "Done", count: state.items.filter((item) => item.status === "done").length },
+    { label: getCountLabel(Number(state.trip.trip_length) || 0, "Day", "Days"), count: Number(state.trip.trip_length) || 0 },
+    { label: getCountLabel(state.bases.length, "Base", "Bases"), count: state.bases.length },
+    ...itemTypeTiles,
     { label: "Journal entries", count: journalState.entries.length },
   ];
 

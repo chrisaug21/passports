@@ -8,9 +8,11 @@ import { openProfileModal } from "../features/shared/profile-modal.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
+import { fetchUserProfile } from "../services/journal-service.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
+let profileRequestToken = 0;
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -94,6 +96,7 @@ function renderBootstrapLoadingScreen() {
 export function renderAppShell(content, options = {}) {
   const { showDashboardLink = false, showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
+  const userId = session?.user?.id || "";
   const email = session?.user?.email || "";
   const initials = getUserInitials({ email });
 
@@ -149,6 +152,7 @@ export function renderAppShell(content, options = {}) {
 
   if (session) {
     bindAccountMenuListeners();
+    void hydrateAccountMenuProfile({ userId, email });
 
     document.querySelector("#open-profile-modal")?.addEventListener("click", () => {
       document.querySelector("#account-menu").open = false;
@@ -197,19 +201,25 @@ export function updateAccountMenuProfile(profile = {}) {
   });
 }
 
+async function hydrateAccountMenuProfile({ userId, email }) {
+  if (!userId) return;
+  const token = ++profileRequestToken;
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    if (token !== profileRequestToken) return;
+    updateAccountMenuProfile(profile || { email });
+  } catch (_error) {
+    if (token !== profileRequestToken) return;
+    updateAccountMenuProfile({ email });
+  }
+}
+
 function getUserInitials({ email, firstName = "", lastName = "" }) {
   if (firstName) {
     return `${firstName.charAt(0)}${lastName ? lastName.charAt(0) : ""}`.toUpperCase();
   }
-
-  const localPart = String(email || "").split("@")[0] || "";
-  const segments = localPart.split(/[._-]+/).filter(Boolean);
-
-  if (segments.length >= 2) {
-    return `${segments[0][0] || ""}${segments[1][0] || ""}`.toUpperCase();
-  }
-
-  return localPart.slice(0, 2).toUpperCase() || "U";
+  return String(email || "").charAt(0).toUpperCase() || "U";
 }
 
 function bindAccountMenuListeners() {

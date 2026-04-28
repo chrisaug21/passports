@@ -15,11 +15,7 @@ export const JOURNAL_PHOTO_QUALITY = 0.82;
 export async function fetchJournalData(tripId, memberUserIds) {
   const supabase = getSupabase();
 
-  const profileQuery = memberUserIds.length > 0
-    ? supabase.from("user_profiles").select(USER_PROFILE_SELECT).in("id", memberUserIds)
-    : Promise.resolve({ data: [], error: null });
-
-  const [entriesResult, photosResult, profilesResult] = await Promise.all([
+  const [entriesResult, photosResult] = await Promise.all([
     supabase
       .from("journal_entries")
       .select(JOURNAL_ENTRY_SELECT)
@@ -29,11 +25,20 @@ export async function fetchJournalData(tripId, memberUserIds) {
       .from("journal_item_photos")
       .select(JOURNAL_PHOTO_SELECT)
       .eq("trip_id", tripId),
-    profileQuery,
   ]);
 
   if (entriesResult.error) throw entriesResult.error;
   if (photosResult.error) throw photosResult.error;
+
+  const authorUserIds = new Set(memberUserIds);
+  (entriesResult.data || []).forEach((entry) => authorUserIds.add(entry.user_id));
+  (photosResult.data || []).forEach((photo) => authorUserIds.add(photo.user_id));
+
+  const profileQuery = authorUserIds.size > 0
+    ? supabase.from("user_profiles").select(USER_PROFILE_SELECT).in("id", [...authorUserIds])
+    : Promise.resolve({ data: [], error: null });
+
+  const profilesResult = await profileQuery;
   if (profilesResult.error) throw profilesResult.error;
 
   return {
