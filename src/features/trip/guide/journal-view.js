@@ -3,6 +3,7 @@ import {
   formatItemTypeLabel,
   getTripDateByDayNumber,
 } from "../../../lib/format.js";
+import { deriveTripStatus } from "../../../lib/derive.js";
 import {
   escapeHtml,
   getCountLabel,
