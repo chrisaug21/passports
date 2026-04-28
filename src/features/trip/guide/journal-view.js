@@ -21,7 +21,7 @@ function getJournalTripMode(trip) {
 
   return {
     isEnabled: trip.status === "active" || isCompleted,
-    isReadOnly: isCompleted,
+    isReadOnly: false,
   };
 }
 
@@ -397,7 +397,7 @@ export function renderJournalDaySection(day, state, journalState) {
 
   const isMember = viewerRole !== "public";
   const { isReadOnly } = getJournalTripMode(trip);
-  const isWritable = isMember && Boolean(userId) && trip.status === "active" && !isReadOnly;
+  const isWritable = isMember && Boolean(userId) && !isReadOnly;
   const showDoneToggle = isWritable;
 
   let dateLabel = "";
