@@ -67,7 +67,7 @@ function renderProfileModalHTML({ firstName, lastName, email, isSaving }) {
           </div>
           <p id="profile-modal-status" class="profile-modal__status" aria-live="polite"></p>
         </div>
-        <div class="modal-card__actions modal-card__actions--end profile-modal__actions">
+        <div class="modal-card__actions modal-card__actions--sticky modal-card__actions--end">
           <button class="button" type="submit" id="profile-modal-save" ${isSaving ? "disabled" : ""}>
             ${isSaving ? "Saving…" : "Save"}
           </button>
