@@ -2,6 +2,11 @@
   publish = "."
   functions = "netlify/functions"
 
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

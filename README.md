@@ -31,6 +31,12 @@ Then open the local URL Netlify prints.
 
 Do not use `file://` or a simple static server for auth flows.
 
+## PWA Versioning
+
+- `src/config/constants.js` holds `APP_VERSION` for the app UI.
+- `sw.js` has its own matching version string so browsers detect a changed service worker file on deploy.
+- Bump both together on every shipped change.
+
 ## Project Structure
 
 ```text
