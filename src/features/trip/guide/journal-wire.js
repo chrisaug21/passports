@@ -3,23 +3,23 @@ import {
   upsertJournalEntry,
   uploadJournalPhoto,
   deleteJournalPhoto,
-  markItemDone,
+  updateJournalItemStatus,
   compressJournalPhoto,
 } from "../../../services/journal-service.js";
 import { openProfileModal } from "../../shared/profile-modal.js";
 import { showToast } from "../../shared/toast.js";
 import {
   renderJournalDaySection,
-  renderProfilePromptBanner,
   renderItemPhotoSlot,
 } from "./journal-view.js";
 
 const AUTOSAVE_DELAY_MS = 500;
 const SAVED_FEEDBACK_MS = 2000;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
+const JOURNAL_REVERT_STATUS = "confirmed";
 
 let _journalCleanupFns = [];
-let _profileBannerDismissed = false;
 
 export function teardownJournalMode() {
   _journalCleanupFns.forEach((fn) => fn());
@@ -50,7 +50,11 @@ function wireProfilePrompt(state, journalState) {
   if (!prompt) return;
 
   document.querySelector("#journal-dismiss-profile-prompt")?.addEventListener("click", () => {
-    _profileBannerDismissed = true;
+    try {
+      window.sessionStorage.setItem(JOURNAL_PROFILE_PROMPT_DISMISSED_KEY, "true");
+    } catch (_error) {
+      // Ignore sessionStorage failures.
+    }
     prompt.remove();
   });
 
@@ -59,6 +63,12 @@ function wireProfilePrompt(state, journalState) {
       onSaved: (profile) => {
         journalState.profiles = journalState.profiles.filter((p) => p.id !== profile.id);
         journalState.profiles.push(profile);
+        state.currentUserProfile = profile;
+        try {
+          window.sessionStorage.removeItem(JOURNAL_PROFILE_PROMPT_DISMISSED_KEY);
+        } catch (_error) {
+          // Ignore sessionStorage failures.
+        }
         const prompt = document.querySelector("#journal-profile-prompt");
         if (prompt) prompt.remove();
       },
@@ -96,61 +106,185 @@ function showSavedFeedback(savedEl) {
   }, SAVED_FEEDBACK_MS);
 }
 
+function updateLocalJournalEntry(entries, nextEntry, previousEntryId = null) {
+  const matchIndex = entries.findIndex((entry) =>
+    entry.id === nextEntry.id
+    || (previousEntryId && entry.id === previousEntryId)
+    || (
+      entry.user_id === nextEntry.user_id
+      && entry.day_id === nextEntry.day_id
+      && entry.item_id === nextEntry.item_id
+    )
+  );
+
+  if (matchIndex >= 0) {
+    entries[matchIndex] = nextEntry;
+    return;
+  }
+
+  entries.push(nextEntry);
+}
+
+function updateDisplayText(displayEl, notes) {
+  if (!displayEl) return;
+  const textEl = displayEl.querySelector(".journal-entry-display__text");
+  const placeholderEl = displayEl.querySelector(".journal-entry-display__placeholder");
+  const nextNotes = String(notes || "").trim();
+
+  if (textEl) {
+    textEl.textContent = nextNotes;
+    textEl.hidden = nextNotes.length === 0;
+  }
+
+  if (placeholderEl) {
+    placeholderEl.hidden = nextNotes.length > 0;
+  }
+}
+
+function openEntryEditor(container) {
+  const display = container.querySelector(".journal-entry-display");
+  const editor = container.querySelector("[data-journal-editor]");
+  const textarea = container.querySelector("[data-journal-textarea]");
+  if (!display || !editor || !textarea) return;
+
+  display.hidden = true;
+  editor.hidden = false;
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  autoResizeTextarea(textarea);
+}
+
+function closeEntryEditor(container, { restoreValue = null } = {}) {
+  const display = container.querySelector(".journal-entry-display");
+  const editor = container.querySelector("[data-journal-editor]");
+  const textarea = container.querySelector("[data-journal-textarea]");
+  if (!display || !editor || !textarea) return;
+
+  if (restoreValue !== null) {
+    textarea.value = restoreValue;
+    autoResizeTextarea(textarea);
+  }
+
+  editor.hidden = true;
+  display.hidden = false;
+}
+
+function wireEntryContainer({
+  container,
+  state,
+  journalState,
+  userId,
+  targetId,
+  entryKind,
+  saveErrorMessage,
+  savedSelector,
+}) {
+  const textarea = container.querySelector("[data-journal-textarea]");
+  const editButton = container.querySelector("[data-journal-edit-toggle]");
+  const cancelButton = container.querySelector("[data-journal-cancel]");
+  const saveButton = container.querySelector("[data-journal-save]");
+  const display = container.querySelector(".journal-entry-display");
+  if (!textarea || !editButton || !cancelButton || !saveButton || !display) return;
+
+  setupAutoResize(textarea);
+
+  let debounceTimer = null;
+  let suppressBlurSave = false;
+  let savedEntryId = container.dataset.entryId || null;
+  let lastSavedValue = textarea.value.trim();
+
+  const persistEntry = async ({ shouldCloseEditor = true } = {}) => {
+    const notes = textarea.value.trim();
+    const savedEl = container.querySelector(savedSelector);
+
+    try {
+      const result = await upsertJournalEntry({
+        existingId: savedEntryId || null,
+        tripId: state.tripId,
+        userId,
+        dayId: entryKind === "day" ? targetId : null,
+        itemId: entryKind === "item" ? targetId : null,
+        notes,
+      });
+
+      updateLocalJournalEntry(journalState.entries, result, savedEntryId);
+      savedEntryId = result.id;
+      lastSavedValue = notes;
+      container.dataset.entryId = result.id;
+      updateDisplayText(display, notes);
+      showSavedFeedback(savedEl);
+
+      if (shouldCloseEditor) {
+        closeEntryEditor(container);
+      }
+    } catch (error) {
+      console.error(`Failed to save ${entryKind} journal entry:`, error);
+      showToast(saveErrorMessage, "error");
+    }
+  };
+
+  const handleEditClick = () => openEntryEditor(container);
+  const handleCancelClick = () => {
+    suppressBlurSave = true;
+    closeEntryEditor(container, { restoreValue: lastSavedValue });
+    window.setTimeout(() => {
+      suppressBlurSave = false;
+    }, 0);
+  };
+  const handleSaveClick = async () => {
+    clearTimeout(debounceTimer);
+    await persistEntry({ shouldCloseEditor: true });
+  };
+  const handleCancelMouseDown = () => {
+    suppressBlurSave = true;
+    clearTimeout(debounceTimer);
+  };
+  const handleBlur = () => {
+    if (suppressBlurSave) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
+      const editor = container.querySelector("[data-journal-editor]");
+      if (!editor || editor.hidden) return;
+      void persistEntry({ shouldCloseEditor: false });
+    }, AUTOSAVE_DELAY_MS);
+  };
+
+  editButton.addEventListener("click", handleEditClick);
+  cancelButton.addEventListener("mousedown", handleCancelMouseDown);
+  cancelButton.addEventListener("click", handleCancelClick);
+  saveButton.addEventListener("click", handleSaveClick);
+  textarea.addEventListener("blur", handleBlur);
+
+  _journalCleanupFns.push(() => {
+    editButton.removeEventListener("click", handleEditClick);
+    cancelButton.removeEventListener("mousedown", handleCancelMouseDown);
+    cancelButton.removeEventListener("click", handleCancelClick);
+    saveButton.removeEventListener("click", handleSaveClick);
+    textarea.removeEventListener("blur", handleBlur);
+    clearTimeout(debounceTimer);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Day-level journal entries
 // ---------------------------------------------------------------------------
 
 function wireDayEntries(state, journalState, userId) {
   document.querySelectorAll("[data-journal-day-entry]").forEach((container) => {
+    if (container.dataset.journalEntryBound === "true") return;
     const dayId = container.dataset.journalDayEntry;
-    const textarea = container.querySelector("[data-journal-textarea]");
-    if (!textarea) return;
+    if (!dayId) return;
+    container.dataset.journalEntryBound = "true";
 
-    setupAutoResize(textarea);
-
-    let debounceTimer = null;
-    let savedEntryId = container.dataset.entryId || null;
-
-    const saveEntry = async () => {
-      const notes = textarea.value.trim();
-      const savedEl = container.querySelector(".journal-day-entry__saved");
-
-      try {
-        const result = await upsertJournalEntry({
-          existingId: savedEntryId || null,
-          tripId: state.tripId,
-          userId,
-          dayId,
-          itemId: null,
-          notes,
-        });
-
-        savedEntryId = result.id;
-        container.dataset.entryId = result.id;
-
-        const existingIdx = journalState.entries.findIndex((e) => e.id === result.id);
-        if (existingIdx >= 0) {
-          journalState.entries[existingIdx] = result;
-        } else {
-          journalState.entries.push(result);
-        }
-
-        showSavedFeedback(savedEl);
-      } catch (error) {
-        console.error("Failed to save journal entry:", error);
-        showToast("Couldn't save your entry. Try again.", "error");
-      }
-    };
-
-    const handleBlur = () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(saveEntry, AUTOSAVE_DELAY_MS);
-    };
-
-    textarea.addEventListener("blur", handleBlur);
-    _journalCleanupFns.push(() => {
-      textarea.removeEventListener("blur", handleBlur);
-      clearTimeout(debounceTimer);
+    wireEntryContainer({
+      container,
+      state,
+      journalState,
+      userId,
+      targetId: dayId,
+      entryKind: "day",
+      saveErrorMessage: "Couldn't save your entry. Try again.",
+      savedSelector: ".journal-day-entry__saved",
     });
   });
 }
@@ -161,55 +295,20 @@ function wireDayEntries(state, journalState, userId) {
 
 function wireItemEntries(state, journalState, userId) {
   document.querySelectorAll("[data-journal-item-entry]").forEach((container) => {
+    if (container.dataset.journalEntryBound === "true") return;
     const itemId = container.dataset.journalItemEntry;
-    const textarea = container.querySelector("[data-journal-textarea]");
-    if (!textarea) return;
+    if (!itemId) return;
+    container.dataset.journalEntryBound = "true";
 
-    setupAutoResize(textarea);
-
-    let debounceTimer = null;
-    let savedEntryId = container.dataset.entryId || null;
-
-    const saveEntry = async () => {
-      const notes = textarea.value.trim();
-      const savedEl = container.querySelector(".journal-item-entry__saved");
-
-      try {
-        const result = await upsertJournalEntry({
-          existingId: savedEntryId || null,
-          tripId: state.tripId,
-          userId,
-          dayId: null,
-          itemId,
-          notes,
-        });
-
-        savedEntryId = result.id;
-        container.dataset.entryId = result.id;
-
-        const existingIdx = journalState.entries.findIndex((e) => e.id === result.id);
-        if (existingIdx >= 0) {
-          journalState.entries[existingIdx] = result;
-        } else {
-          journalState.entries.push(result);
-        }
-
-        showSavedFeedback(savedEl);
-      } catch (error) {
-        console.error("Failed to save item journal entry:", error);
-        showToast("Couldn't save your note. Try again.", "error");
-      }
-    };
-
-    const handleBlur = () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(saveEntry, AUTOSAVE_DELAY_MS);
-    };
-
-    textarea.addEventListener("blur", handleBlur);
-    _journalCleanupFns.push(() => {
-      textarea.removeEventListener("blur", handleBlur);
-      clearTimeout(debounceTimer);
+    wireEntryContainer({
+      container,
+      state,
+      journalState,
+      userId,
+      targetId: itemId,
+      entryKind: "item",
+      saveErrorMessage: "Couldn't save your note. Try again.",
+      savedSelector: ".journal-item-entry__saved",
     });
   });
 }
@@ -221,7 +320,9 @@ function wireItemEntries(state, journalState, userId) {
 function wireItemPhotos(state, journalState, userId) {
   // Add photo
   document.querySelectorAll("[data-journal-photo-add]").forEach((button) => {
+    if (button.dataset.journalPhotoBound === "true") return;
     const itemId = button.dataset.journalPhotoAdd;
+    button.dataset.journalPhotoBound = "true";
     const handler = () => handlePhotoAdd({ itemId, state, journalState, userId });
     button.addEventListener("click", handler);
     _journalCleanupFns.push(() => button.removeEventListener("click", handler));
@@ -229,7 +330,9 @@ function wireItemPhotos(state, journalState, userId) {
 
   // Replace photo
   document.querySelectorAll("[data-journal-photo-replace]").forEach((button) => {
+    if (button.dataset.journalPhotoBound === "true") return;
     const itemId = button.dataset.journalPhotoReplace;
+    button.dataset.journalPhotoBound = "true";
     const handler = () => handlePhotoReplace({ itemId, state, journalState, userId });
     button.addEventListener("click", handler);
     _journalCleanupFns.push(() => button.removeEventListener("click", handler));
@@ -237,7 +340,9 @@ function wireItemPhotos(state, journalState, userId) {
 
   // Remove photo
   document.querySelectorAll("[data-journal-photo-remove]").forEach((button) => {
+    if (button.dataset.journalPhotoBound === "true") return;
     const itemId = button.dataset.journalPhotoRemove;
+    button.dataset.journalPhotoBound = "true";
     const handler = () => handlePhotoRemove({ itemId, state, journalState });
     button.addEventListener("click", handler);
     _journalCleanupFns.push(() => button.removeEventListener("click", handler));
@@ -389,42 +494,45 @@ function refreshItemPhotoSlot({ itemId, state, journalState, userId }) {
 
 function wireDoneToggles(state, journalState) {
   document.querySelectorAll("[data-journal-done-toggle]").forEach((button) => {
-    if (button.disabled) return;
-
+    if (button.dataset.journalDoneBound === "true") return;
     const itemId = button.dataset.journalDoneToggle;
+    button.dataset.journalDoneBound = "true";
 
     const handler = async () => {
+      const item = state.items.find((candidate) => candidate.id === itemId);
+      if (!item) return;
+
+      const previousStatus = item.status;
+      const nextStatus = previousStatus === "done" ? JOURNAL_REVERT_STATUS : "done";
+      const card = button.closest("[data-item-id]");
+      const isDone = nextStatus === "done";
+
+      item.status = nextStatus;
+      card?.classList.toggle("journal-item-card--done", isDone);
+      card?.setAttribute("data-status", nextStatus);
+      button.classList.toggle("is-done", isDone);
+      button.setAttribute("aria-pressed", String(isDone));
+      button.setAttribute("aria-label", isDone ? "Mark not done" : "Mark as done");
+      window.lucide?.createIcons?.();
       button.disabled = true;
 
       try {
-        await markItemDone(itemId);
-
-        // Update items in the state so switching back to itinerary is correct
-        const item = state.items.find((i) => i.id === itemId);
-        if (item) item.status = "done";
-
-        // Apply done styling to the card
-        const card = button.closest("[data-item-id]");
-        if (card) {
-          card.classList.add("journal-item-card--done");
-          const title = card.querySelector(".guide-item-card__title");
-          if (title) title.classList.add("journal-item-card__title--done");
-        }
-
-        // Swap icon to check-circle
-        button.classList.add("is-done");
-        button.setAttribute("aria-pressed", "true");
-        button.setAttribute("aria-label", "Done");
-        const icon = button.querySelector("i[data-lucide]");
-        if (icon) {
-          icon.setAttribute("data-lucide", "check-circle");
-          window.lucide?.createIcons?.();
-        }
+        await updateJournalItemStatus(itemId, nextStatus);
       } catch (error) {
-        console.error("Failed to mark item done:", error);
+        console.error("Failed to update item status:", error);
+        item.status = previousStatus;
+        card?.classList.toggle("journal-item-card--done", previousStatus === "done");
+        card?.setAttribute("data-status", previousStatus);
+        button.classList.toggle("is-done", previousStatus === "done");
+        button.setAttribute("aria-pressed", String(previousStatus === "done"));
+        button.setAttribute("aria-label", previousStatus === "done" ? "Mark not done" : "Mark as done");
         button.disabled = false;
-        showToast("Couldn't mark as done. Try again.", "error");
+        window.lucide?.createIcons?.();
+        showToast("Couldn't update this item right now. Try again.", "error");
+        return;
       }
+
+      button.disabled = false;
     };
 
     button.addEventListener("click", handler);

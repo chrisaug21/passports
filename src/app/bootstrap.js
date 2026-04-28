@@ -95,7 +95,7 @@ export function renderAppShell(content, options = {}) {
   const { showDashboardLink = false, showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
   const email = session?.user?.email || "";
-  const initials = getUserInitials(email);
+  const initials = getUserInitials({ email });
 
   appRoot.innerHTML = `
     <main class="app-shell">
@@ -185,7 +185,23 @@ export function renderAppShell(content, options = {}) {
   refreshIcons();
 }
 
-function getUserInitials(email) {
+export function updateAccountMenuProfile(profile = {}) {
+  const { session } = sessionStore.getState();
+  const email = session?.user?.email || "";
+  const avatar = document.querySelector(".account-menu__avatar");
+  if (!avatar) return;
+  avatar.textContent = getUserInitials({
+    email,
+    firstName: profile.first_name || "",
+    lastName: profile.last_name || "",
+  });
+}
+
+function getUserInitials({ email, firstName = "", lastName = "" }) {
+  if (firstName) {
+    return `${firstName.charAt(0)}${lastName ? lastName.charAt(0) : ""}`.toUpperCase();
+  }
+
   const localPart = String(email || "").split("@")[0] || "";
   const segments = localPart.split(/[._-]+/).filter(Boolean);
 

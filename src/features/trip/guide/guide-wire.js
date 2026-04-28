@@ -15,6 +15,8 @@ import {
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
 
+const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
+
 let cleanupFns = [];
 
 // Programmatic scrolls on desktop can fight touch momentum. Set on touchstart;
@@ -25,6 +27,7 @@ let touchEndTimer = null;
 // Shared state for tab switching
 let _guideState = null;
 let _currentMode = "itinerary";
+let _todayDayNumber = null;
 let _journalState = {
   hasFetched: false,
   isFetching: false,
@@ -41,6 +44,7 @@ export function teardownGuideView() {
   teardownJournalMode();
   _guideState = null;
   _currentMode = "itinerary";
+  _todayDayNumber = null;
   _journalState = { hasFetched: false, isFetching: false, entries: [], photos: [], profiles: [] };
 }
 
@@ -50,7 +54,8 @@ function isMobileLayout() {
 
 export function wireGuideView(state) {
   _guideState = state;
-  _currentMode = "itinerary";
+  _todayDayNumber = getTodayDayNumber(state.trip);
+  _currentMode = getStoredActiveMode();
 
   wireBackLink(state.tripId);
   wireDashboardLink();
@@ -60,18 +65,24 @@ export function wireGuideView(state) {
   setupScrollTracking();
   setupLazyDays(state);
 
-  const todayDayNumber = getTodayDayNumber(state.trip);
-  if (todayDayNumber) {
-    window.setTimeout(() => scrollOrJumpToDay(todayDayNumber), 100);
+  if (_todayDayNumber) {
+    window.setTimeout(() => scrollOrJumpToDay(_todayDayNumber), 100);
   }
 
   // Desktop: derive initial active state from scroll position.
   // Mobile: scrollOrJumpToDay handles active state; default to day 1 otherwise.
   if (!isMobileLayout()) {
     updateActiveSection();
-  } else if (!todayDayNumber) {
+  } else if (!_todayDayNumber) {
     document.querySelector(".guide-nav-item")?.classList.add("is-active");
   }
+
+  if (_currentMode === "journal" && document.querySelector('[data-guide-tab="journal"]')) {
+    void switchToJournal();
+    return;
+  }
+
+  persistActiveMode("itinerary");
 }
 
 // Exposed so journal-wire can update journal state after saves/uploads
@@ -303,6 +314,7 @@ async function switchToJournal() {
   }
 
   _currentMode = "journal";
+  persistActiveMode("journal");
   renderJournalModeContent();
 }
 
@@ -312,7 +324,25 @@ function switchToItinerary() {
   teardownJournalMode();
   setActiveTab("itinerary");
   _currentMode = "itinerary";
+  persistActiveMode("itinerary");
   renderItineraryModeContent();
+}
+
+function getStoredActiveMode() {
+  try {
+    const value = window.sessionStorage.getItem(GUIDE_ACTIVE_MODE_KEY);
+    return value === "journal" ? "journal" : "itinerary";
+  } catch (_error) {
+    return "itinerary";
+  }
+}
+
+function persistActiveMode(mode) {
+  try {
+    window.sessionStorage.setItem(GUIDE_ACTIVE_MODE_KEY, mode);
+  } catch (_error) {
+    // Ignore sessionStorage failures.
+  }
 }
 
 function setActiveTab(tab) {
@@ -329,13 +359,14 @@ function renderJournalModeContent() {
   if (!nav || !content || !_guideState) return;
 
   // Replace only the nav items, not the <nav> element itself
-  nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip);
+  nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
   content.innerHTML = renderJournalContent(_guideState, _journalState);
 
   window.lucide?.createIcons?.();
   wireNavClicks();
   setupLazyJournalDays();
   wireJournalMode(_guideState, _journalState);
+  restoreDayNavSelection();
 }
 
 function renderItineraryModeContent() {
@@ -344,10 +375,9 @@ function renderItineraryModeContent() {
   if (!nav || !content || !_guideState) return;
 
   const { trip, bases, days, items, viewerRole } = _guideState;
-  const todayDayNumber = getTodayDayNumber(trip);
 
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
-  nav.innerHTML = renderJournalDayNav(days, trip);
+  nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber);
 
   const visibleItems = filterItemsForViewer(items, viewerRole);
   const isMember = viewerRole !== "public";
@@ -390,9 +420,27 @@ function renderItineraryModeContent() {
   wireNavClicks();
   setupLazyDays(_guideState);
 
-  if (todayDayNumber) scrollOrJumpToDay(todayDayNumber);
+  if (_todayDayNumber) scrollOrJumpToDay(_todayDayNumber);
   else if (!isMobileLayout()) updateActiveSection();
   else document.querySelector(".guide-nav-item")?.classList.add("is-active");
+}
+
+function restoreDayNavSelection() {
+  if (!document.querySelector(".guide-nav-item")) return;
+
+  if (!isMobileLayout()) {
+    updateActiveSection();
+    return;
+  }
+
+  if (_todayDayNumber) {
+    document.querySelectorAll(".guide-nav-item").forEach((item) => {
+      item.classList.toggle("is-active", item.dataset.dayNumber === String(_todayDayNumber));
+    });
+    return;
+  }
+
+  document.querySelector(".guide-nav-item")?.classList.add("is-active");
 }
 
 function setupLazyJournalDays() {

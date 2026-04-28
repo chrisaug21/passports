@@ -51,30 +51,24 @@ export async function upsertJournalEntry({ existingId, tripId, userId, dayId, it
   const supabase = getSupabase();
   const now = new Date().toISOString();
 
-  if (existingId) {
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .update({ notes, updated_at: now })
-      .eq("id", existingId)
-      .select(JOURNAL_ENTRY_SELECT)
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
+  const payload = {
+    id: existingId || crypto.randomUUID(),
+    trip_id: tripId,
+    user_id: userId,
+    day_id: dayId || null,
+    item_id: itemId || null,
+    notes,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+  };
 
   const { data, error } = await supabase
     .from("journal_entries")
-    .insert({
-      id: crypto.randomUUID(),
-      trip_id: tripId,
-      user_id: userId,
-      day_id: dayId || null,
-      item_id: itemId || null,
-      notes,
-      created_at: now,
-      updated_at: now,
-    })
+    .upsert(
+      payload,
+      { onConflict: itemId ? "user_id,item_id" : "user_id,day_id" }
+    )
     .select(JOURNAL_ENTRY_SELECT)
     .single();
 
@@ -190,10 +184,10 @@ export async function upsertUserProfile({ userId, firstName, lastName }) {
 // Item status — mark done
 // ---------------------------------------------------------------------------
 
-export async function markItemDone(itemId) {
+export async function updateJournalItemStatus(itemId, status) {
   const { error } = await getSupabase()
     .from("trip_items")
-    .update({ status: "done", updated_at: new Date().toISOString() })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq("id", itemId);
 
   if (error) throw error;

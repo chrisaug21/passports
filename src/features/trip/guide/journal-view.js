@@ -1,7 +1,6 @@
 import {
   formatTimeLabel,
   formatItemTypeLabel,
-  formatStatusLabel,
   getTripDateByDayNumber,
 } from "../../../lib/format.js";
 import {
@@ -10,6 +9,8 @@ import {
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
 import { filterItemsForViewer, sortGuideItems } from "./guide-view.js";
+
+const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
 // ---------------------------------------------------------------------------
 // Attribution helpers
@@ -25,32 +26,29 @@ function hashCode(str) {
 
 export function getDisplayName(userId, members, profiles) {
   const profile = profiles.find((p) => p.id === userId);
-  if (profile?.first_name || profile?.last_name) {
+  if (profile?.first_name) {
     return [profile.first_name, profile.last_name].filter(Boolean).join(" ");
   }
   const member = members.find((m) => m.user_id === userId);
-  return member?.email ? member.email.split("@")[0] : "Member";
+  return member?.email || userId;
 }
 
 export function getAvatarInitial(userId, members, profiles) {
   const profile = profiles.find((p) => p.id === userId);
   if (profile?.first_name) return profile.first_name.charAt(0).toUpperCase();
-  if (profile?.last_name) return profile.last_name.charAt(0).toUpperCase();
   const member = members.find((m) => m.user_id === userId);
-  return member?.email ? member.email.charAt(0).toUpperCase() : "?";
+  return member?.email ? member.email.charAt(0).toUpperCase() : userId.charAt(0).toUpperCase();
 }
 
-export function renderJournalAvatar(userId, members, profiles, currentUserId) {
+export function renderJournalAvatar(userId, members, profiles) {
   const hue = hashCode(userId) % 360;
   const initial = getAvatarInitial(userId, members, profiles);
   const name = getDisplayName(userId, members, profiles);
-  const isCurrentUser = userId === currentUserId;
-  const label = isCurrentUser ? "You" : escapeHtml(name);
 
   return `
     <div class="journal-attribution">
       <div class="journal-avatar" style="--avatar-hue: ${hue}deg" aria-hidden="true">${escapeHtml(initial)}</div>
-      <span class="journal-attribution__name">${label}</span>
+      <span class="journal-attribution__name">${escapeHtml(name)}</span>
     </div>
   `;
 }
@@ -63,34 +61,75 @@ function getDayLabel(day) {
   return day.title ? day.title : `Day ${day.day_number}`;
 }
 
-function renderDayEntryWrite(day, currentUserEntry, currentUserId) {
-  const placeholder = `How was ${escapeHtml(getDayLabel(day))}? Add highlights, notes, or reflections…`;
-  const existingNotes = currentUserEntry?.notes || "";
-
+function renderEntryEditor(ariaLabel, notes, placeholder, savedClass, rows) {
   return `
-    <div class="journal-day-entry journal-day-entry--write"
-      data-journal-day-entry="${escapeHtml(day.id)}"
-      data-entry-id="${escapeHtml(currentUserEntry?.id || "")}"
-    >
+    <div class="journal-entry-editor" data-journal-editor hidden>
       <textarea
-        class="journal-day-entry__textarea"
-        placeholder="${placeholder}"
+        class="journal-entry-textarea"
+        placeholder="${escapeHtml(placeholder)}"
         data-journal-textarea
-        rows="3"
-        aria-label="Journal entry for ${escapeHtml(getDayLabel(day))}"
-      >${escapeHtml(existingNotes)}</textarea>
-      <span class="journal-day-entry__saved" aria-live="polite"></span>
+        rows="${rows}"
+        aria-label="${escapeHtml(ariaLabel)}"
+      >${escapeHtml(notes || "")}</textarea>
+      <div class="journal-entry-editor__actions">
+        <button class="button" data-journal-save type="button">Save</button>
+        <button class="button-link" data-journal-cancel type="button">Cancel</button>
+        <span class="${savedClass}" aria-live="polite"></span>
+      </div>
     </div>
   `;
 }
 
-function renderDayEntryRead(entry, day, members, profiles, currentUserId) {
+function renderEntryDisplay(notes, placeholder, isEditable) {
+  const text = String(notes || "").trim();
+  const content = text
+    ? `<p class="journal-entry-display__text">${escapeHtml(text)}</p>`
+    : `<p class="journal-entry-display__placeholder">${escapeHtml(placeholder)}</p>`;
+
+  if (!isEditable) {
+    return `<div class="journal-entry-display journal-entry-display--read-only">${content}</div>`;
+  }
+
+  return `
+    <button class="journal-entry-display journal-entry-display--editable" data-journal-edit-toggle type="button">
+      ${content}
+    </button>
+  `;
+}
+
+function renderDayEntryWrite(day, currentUserEntry, members, profiles, currentUserId) {
+  const placeholder = "Tap to add a note...";
+  const existingNotes = currentUserEntry?.notes || "";
+
+  return `
+    <div class="journal-day-entry journal-day-entry--editable"
+      data-journal-day-entry="${escapeHtml(day.id)}"
+      data-entry-id="${escapeHtml(currentUserEntry?.id || "")}"
+    >
+      <div class="journal-day-entry__body">
+        ${renderJournalAvatar(currentUserId, members, profiles)}
+        <div class="journal-day-entry__content">
+          ${renderEntryDisplay(existingNotes, placeholder, true)}
+          ${renderEntryEditor(
+            `Journal entry for ${getDayLabel(day)}`,
+            existingNotes,
+            `How was ${getDayLabel(day)}? Add highlights, notes, or reflections…`,
+            "journal-day-entry__saved",
+            3
+          )}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDayEntryRead(entry, day, members, profiles) {
   if (!entry.notes?.trim()) return "";
 
   return `
     <div class="journal-day-entry journal-day-entry--read">
-      ${renderJournalAvatar(entry.user_id, members, profiles, currentUserId)}
-      <p class="journal-day-entry__text">${escapeHtml(entry.notes)}</p>
+      ${renderJournalAvatar(entry.user_id, members, profiles)}
+      ${renderEntryDisplay(entry.notes, `No note for ${getDayLabel(day)}.`, false)}
     </div>
   `;
 }
@@ -105,13 +144,13 @@ export function renderDayJournalArea(day, entries, members, profiles, isWritable
   const parts = [];
 
   if (isWritable) {
-    parts.push(renderDayEntryWrite(day, currentUserEntry, currentUserId));
+    parts.push(renderDayEntryWrite(day, currentUserEntry, members, profiles, currentUserId));
   } else if (currentUserEntry) {
-    parts.push(renderDayEntryRead(currentUserEntry, day, members, profiles, currentUserId));
+    parts.push(renderDayEntryRead(currentUserEntry, day, members, profiles));
   }
 
   otherEntries.forEach((entry) => {
-    parts.push(renderDayEntryRead(entry, day, members, profiles, currentUserId));
+    parts.push(renderDayEntryRead(entry, day, members, profiles));
   });
 
   if (parts.length === 0) return "";
@@ -124,106 +163,74 @@ export function renderDayJournalArea(day, entries, members, profiles, isWritable
 // ---------------------------------------------------------------------------
 
 function renderItemEntryWrite(item, currentUserEntry) {
-  const placeholder = `Add a note about ${escapeHtml(item.title || "this stop")}…`;
+  const placeholder = "Tap to add a note...";
   const existingNotes = currentUserEntry?.notes || "";
 
   return `
-    <div class="journal-item-entry journal-item-entry--write"
+    <div class="journal-item-entry journal-item-entry--editable"
       data-journal-item-entry="${escapeHtml(item.id)}"
       data-entry-id="${escapeHtml(currentUserEntry?.id || "")}"
     >
-      <textarea
-        class="journal-item-entry__textarea"
-        placeholder="${placeholder}"
-        data-journal-textarea
-        rows="2"
-        aria-label="Note about ${escapeHtml(item.title || "this stop")}"
-      >${escapeHtml(existingNotes)}</textarea>
-      <span class="journal-item-entry__saved" aria-live="polite"></span>
+      ${renderEntryDisplay(existingNotes, placeholder, true)}
+      ${renderEntryEditor(
+        `Note about ${item.title || "this stop"}`,
+        existingNotes,
+        `Add a note about ${item.title || "this stop"}…`,
+        "journal-item-entry__saved",
+        2
+      )}
     </div>
   `;
 }
 
-function renderItemEntryRead(entry, members, profiles, currentUserId) {
+function renderItemEntryRead(entry) {
   if (!entry.notes?.trim()) return "";
-
-  return `
-    <div class="journal-item-entry journal-item-entry--read">
-      ${renderJournalAvatar(entry.user_id, members, profiles, currentUserId)}
-      <p class="journal-item-entry__text">${escapeHtml(entry.notes)}</p>
-    </div>
-  `;
+  return `<div class="journal-item-entry journal-item-entry--read">${renderEntryDisplay(entry.notes, "", false)}</div>`;
 }
 
 function renderItemJournalArea(item, entries, photos, members, profiles, isWritable, currentUserId) {
   const itemEntries = entries.filter((e) => e.item_id === item.id);
   const itemPhotos = photos.filter((p) => p.item_id === item.id);
 
-  const currentUserEntry = itemEntries.find((e) => e.user_id === currentUserId) || null;
-  const otherEntries = itemEntries.filter((e) => e.user_id !== currentUserId);
-  const currentUserPhoto = itemPhotos.find((p) => p.user_id === currentUserId) || null;
-  const otherPhotos = itemPhotos.filter((p) => p.user_id !== currentUserId);
-
-  const hasAnyContent =
-    isWritable ||
-    currentUserEntry?.notes ||
-    currentUserPhoto ||
-    otherEntries.some((e) => e.notes) ||
-    otherPhotos.length > 0;
-
-  if (!hasAnyContent) return "";
-
-  const memberRows = [];
-
-  // Current user row
-  const currentEntryHtml = isWritable
-    ? renderItemEntryWrite(item, currentUserEntry)
-    : currentUserEntry?.notes
-      ? renderItemEntryRead(currentUserEntry, members, profiles, currentUserId)
-      : "";
-
-  const currentPhotoHtml = isWritable
-    ? renderItemPhotoSlot(item, currentUserPhoto, true)
-    : currentUserPhoto
-      ? renderItemPhotoRead(currentUserPhoto, members, profiles, currentUserId)
-      : "";
-
-  if (currentEntryHtml || currentPhotoHtml) {
-    memberRows.push(`
-      <div class="journal-member-row">
-        <div class="journal-member-row__note">${currentEntryHtml}</div>
-        ${currentPhotoHtml ? `<div class="journal-member-row__photo">${currentPhotoHtml}</div>` : ""}
-      </div>
-    `);
+  const memberUserIds = new Set();
+  if (isWritable && currentUserId) {
+    memberUserIds.add(currentUserId);
   }
+  itemEntries.forEach((entry) => memberUserIds.add(entry.user_id));
+  itemPhotos.forEach((photo) => memberUserIds.add(photo.user_id));
 
-  // Other members
-  otherEntries.forEach((entry) => {
-    const photo = otherPhotos.find((p) => p.user_id === entry.user_id) || null;
-    const entryHtml = entry.notes ? renderItemEntryRead(entry, members, profiles, currentUserId) : "";
-    const photoHtml = photo ? renderItemPhotoRead(photo, members, profiles, currentUserId) : "";
+  const memberRows = [...memberUserIds].map((memberUserId) => {
+    const entry = itemEntries.find((itemEntry) => itemEntry.user_id === memberUserId) || null;
+    const photo = itemPhotos.find((itemPhoto) => itemPhoto.user_id === memberUserId) || null;
+    const isCurrentUser = memberUserId === currentUserId;
+    const noteHtml =
+      isCurrentUser && isWritable
+        ? renderItemEntryWrite(item, entry)
+        : entry?.notes
+          ? renderItemEntryRead(entry)
+          : "";
+    const photoHtml = isCurrentUser && isWritable
+      ? renderItemPhotoSlot(item, photo, true)
+      : photo
+        ? renderItemPhotoRead(photo)
+        : "";
 
-    if (entryHtml || photoHtml) {
-      memberRows.push(`
-        <div class="journal-member-row">
-          <div class="journal-member-row__note">${entryHtml}</div>
-          ${photoHtml ? `<div class="journal-member-row__photo">${photoHtml}</div>` : ""}
-        </div>
-      `);
+    if (!noteHtml && !photoHtml) {
+      return "";
     }
-  });
 
-  // Other members with photos but no entry for this item
-  otherPhotos
-    .filter((p) => !otherEntries.find((e) => e.user_id === p.user_id))
-    .forEach((photo) => {
-      memberRows.push(`
-        <div class="journal-member-row">
-          <div class="journal-member-row__note"></div>
-          <div class="journal-member-row__photo">${renderItemPhotoRead(photo, members, profiles, currentUserId)}</div>
+    return `
+      <div class="journal-member-row">
+        <div class="journal-member-row__note">
+          ${renderJournalAvatar(memberUserId, members, profiles)}
+          ${noteHtml || ""}
         </div>
-      `);
-    });
+        <div class="journal-member-row__photo${photoHtml ? "" : " journal-member-row__photo--empty"}">
+          ${photoHtml || ""}
+        </div>
+      </div>
+    `;
+  }).filter(Boolean);
 
   if (memberRows.length === 0) return "";
 
@@ -272,7 +279,7 @@ export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
   `;
 }
 
-function renderItemPhotoRead(photo, members, profiles, currentUserId) {
+function renderItemPhotoRead(photo) {
   if (!photo?.public_url) return "";
 
   return `
@@ -283,9 +290,6 @@ function renderItemPhotoRead(photo, members, profiles, currentUserId) {
         alt="Photo"
         loading="lazy"
       />
-      <div class="journal-photo-read__attribution">
-        ${renderJournalAvatar(photo.user_id, members, profiles, currentUserId)}
-      </div>
     </div>
   `;
 }
@@ -304,11 +308,10 @@ function renderDoneToggle(item, showDoneToggle) {
       class="journal-done-toggle${isDone ? " is-done" : ""}"
       data-journal-done-toggle="${escapeHtml(item.id)}"
       type="button"
-      aria-label="${isDone ? "Done" : "Mark as done"}"
+      aria-label="${isDone ? "Mark not done" : "Mark as done"}"
       aria-pressed="${String(isDone)}"
-      ${isDone ? "disabled" : ""}
     >
-      <i data-lucide="${isDone ? "check-circle" : "circle"}" aria-hidden="true"></i>
+      <i data-lucide="check" aria-hidden="true"></i>
     </button>
   `;
 }
@@ -317,7 +320,7 @@ function renderDoneToggle(item, showDoneToggle) {
 // Item card (Journal Mode)
 // ---------------------------------------------------------------------------
 
-function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneToggle, viewerRole) {
+function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneToggle) {
   const isDone = item.status === "done";
 
   let timeLabel = "";
@@ -346,7 +349,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
       ${renderDoneToggle(item, showDoneToggle)}
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
-        <h4 class="guide-item-card__title${isDone ? " journal-item-card__title--done" : ""}">${escapeHtml(item.title || "Untitled stop")}</h4>
+        <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
       </div>
       <div class="guide-item-card__details">
         ${timeLabel ? `<p class="guide-item-card__time">${escapeHtml(timeLabel)}</p>` : ""}
@@ -396,7 +399,7 @@ export function renderJournalDaySection(day, state, journalState) {
   const dayJournalArea = renderDayJournalArea(day, entries, members, profiles, isWritable, userId);
 
   const itemCards = sorted.map((item) =>
-    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneToggle, viewerRole)
+    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneToggle)
   ).join("");
 
   const hasContent = sorted.length > 0 || dayJournalArea;
@@ -411,7 +414,12 @@ export function renderJournalDaySection(day, state, journalState) {
       </div>
       ${day.title ? `<h2 class="guide-day-header__title">${escapeHtml(day.title)}</h2>` : ""}
     </div>
-    ${dayJournalArea}
+    ${dayJournalArea ? `
+      <section class="journal-day-notes" aria-label="Day notes">
+        <p class="journal-day-notes__label">Day notes</p>
+        ${dayJournalArea}
+      </section>
+    ` : ""}
     <div class="guide-day-items">
       ${itemCards}
       ${!hasContent ? `<p class="guide-day-empty muted">Nothing planned for this day yet.</p>` : ""}
@@ -437,10 +445,11 @@ export function renderProfilePromptBanner() {
 // Journal day nav (same structure as itinerary nav)
 // ---------------------------------------------------------------------------
 
-export function renderJournalDayNav(days, trip) {
+export function renderJournalDayNav(days, trip, todayDayNumber) {
   const items = days
     .map((day) => {
       let dateLabel = "";
+      const isToday = todayDayNumber === day.day_number;
       if (trip.start_date) {
         const date = getTripDateByDayNumber(trip.start_date, day.day_number);
         if (date) {
@@ -450,7 +459,7 @@ export function renderJournalDayNav(days, trip) {
 
       return `
         <button
-          class="guide-nav-item"
+          class="guide-nav-item${isToday ? " is-today" : ""}"
           data-day-number="${day.day_number}"
           data-guide-nav-day="${day.day_number}"
           type="button"
@@ -466,20 +475,53 @@ export function renderJournalDayNav(days, trip) {
   return items;
 }
 
+function shouldShowProfilePrompt(state, journalState) {
+  if (!state.userId || state.viewerRole === "public") {
+    return false;
+  }
+
+  try {
+    if (window.sessionStorage.getItem(JOURNAL_PROFILE_PROMPT_DISMISSED_KEY) === "true") {
+      return false;
+    }
+  } catch (_error) {
+    // Ignore sessionStorage failures.
+  }
+
+  const currentUserProfile = journalState.profiles.find((p) => p.id === state.userId)
+    || state.currentUserProfile
+    || null;
+
+  return !currentUserProfile || (!currentUserProfile.first_name && !currentUserProfile.last_name);
+}
+
+function renderJournalStatTiles(state, journalState) {
+  const tiles = [
+    { label: "Days", count: Number(state.trip.trip_length) || 0 },
+    { label: "Bases", count: state.bases.length },
+    { label: "Done", count: state.items.filter((item) => item.status === "done").length },
+    { label: "Journal entries", count: journalState.entries.length },
+  ];
+
+  return `
+    <section class="trip-stat-tiles guide-trip-stat-tiles" aria-label="Journal stats">
+      ${tiles.map((tile) => `
+        <article class="panel trip-stat-tile">
+          <h3>${tile.count}</h3>
+          <p>${tile.label}</p>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Full Journal Mode content (guide-content area)
 // ---------------------------------------------------------------------------
 
 export function renderJournalContent(state, journalState) {
   const { days } = state;
-  const { profiles } = journalState;
-  const { userId, members } = state;
-
-  const currentUserProfile = profiles.find((p) => p.id === userId) || null;
-  const needsProfilePrompt =
-    userId &&
-    state.viewerRole !== "public" &&
-    (!currentUserProfile || (!currentUserProfile.first_name && !currentUserProfile.last_name));
+  const needsProfilePrompt = shouldShowProfilePrompt(state, journalState);
 
   const daySections = days
     .map((day, index) => {
@@ -499,6 +541,7 @@ export function renderJournalContent(state, journalState) {
     .join("");
 
   return `
+    ${renderJournalStatTiles(state, journalState)}
     ${needsProfilePrompt ? renderProfilePromptBanner() : ""}
     ${daySections}
   `;

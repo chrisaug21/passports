@@ -51,6 +51,7 @@ async function checkViewerRole(tripId, userId, ownerId) {
 export async function loadGuidePage(tripId) {
   const { session } = sessionStore.getState();
   const userId = session?.user?.id || null;
+  const userEmail = session?.user?.email || "";
 
   try {
     const bundle = await fetchTripDetailBundle(tripId);
@@ -62,9 +63,9 @@ export async function loadGuidePage(tripId) {
       return;
     }
 
-    let members = [];
-    if (viewerRole !== "public") {
-      members = await fetchTripMembersWithEmails(tripId);
+    const members = await fetchTripMembersWithEmails(tripId).catch(() => []);
+    if (userId && userEmail && !members.find((member) => member.user_id === userId)) {
+      members.push({ user_id: userId, email: userEmail, role: viewerRole });
     }
 
     // Pre-fetch the current user's profile so the profile prompt check is immediate
@@ -82,6 +83,7 @@ export async function loadGuidePage(tripId) {
       members,
       viewerRole,
       userId,
+      userEmail,
       currentUserProfile,
     };
 

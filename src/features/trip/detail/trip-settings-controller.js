@@ -112,6 +112,28 @@ function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
   window.lucide?.createIcons?.();
 }
 
+async function copyTextToClipboard(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+
+  const didCopy = document.execCommand("copy");
+  textarea.remove();
+
+  if (!didCopy) {
+    throw new Error("Clipboard copy failed");
+  }
+}
+
 function wireTripSettingsShareLink(trip) {
   const form = document.querySelector("#trip-settings-form");
   const isPublicInput = form?.querySelector('[name="isPublic"]');
@@ -170,7 +192,7 @@ function wireTripSettingsShareLink(trip) {
     }
 
     try {
-      await navigator.clipboard.writeText(buildTripGuideUrl(trip.id));
+      await copyTextToClipboard(buildTripGuideUrl(trip.id));
       syncButtonState({ isCopied: true });
       clearShareLinkFeedbackResetTimer();
       shareLinkFeedbackResetTimer = window.setTimeout(() => {

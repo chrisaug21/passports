@@ -2,6 +2,7 @@ import { sessionStore } from "../../state/session-store.js";
 import { fetchUserProfile, upsertUserProfile } from "../../services/journal-service.js";
 import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
+import { updateAccountMenuProfile } from "../../app/bootstrap.js";
 
 // ---------------------------------------------------------------------------
 // Profile modal — render, open, wire, close
@@ -16,6 +17,7 @@ export function openProfileModal({ onSaved } = {}) {
 
   const { session } = sessionStore.getState();
   const userId = session?.user?.id;
+  const email = session?.user?.email || "";
 
   if (!userId) return;
 
@@ -23,7 +25,7 @@ export function openProfileModal({ onSaved } = {}) {
   modal.id = "profile-modal";
   modal.className = "modal-shell";
   modal.setAttribute("aria-hidden", "false");
-  modal.innerHTML = renderProfileModalHTML({ firstName: "", lastName: "", isSaving: false });
+  modal.innerHTML = renderProfileModalHTML({ firstName: "", lastName: "", email, isSaving: false });
   document.body.append(modal);
   document.body.classList.add("modal-open");
   window.lucide?.createIcons?.();
@@ -41,7 +43,7 @@ export function openProfileModal({ onSaved } = {}) {
   wireProfileModal(userId);
 }
 
-function renderProfileModalHTML({ firstName, lastName, isSaving }) {
+function renderProfileModalHTML({ firstName, lastName, email, isSaving }) {
   return `
     <div class="modal-backdrop" data-close-profile-modal></div>
     <section class="panel modal-card modal-card--editor" role="dialog" aria-modal="true" aria-label="Your Profile">
@@ -59,6 +61,10 @@ function renderProfileModalHTML({ firstName, lastName, isSaving }) {
             <span>Last name</span>
             <input name="lastName" type="text" maxlength="80" value="${escapeHtml(lastName)}" placeholder="Last name" autocomplete="family-name" />
           </label>
+          <div class="field">
+            <span>Email</span>
+            <p class="profile-modal__email">${escapeHtml(email)}</p>
+          </div>
           <p id="profile-modal-status" class="profile-modal__status" aria-live="polite"></p>
         </div>
         <div class="modal-card__actions modal-card__actions--end">
@@ -106,6 +112,7 @@ function wireProfileModal(userId) {
         statusEl.classList.add("is-success");
       }
 
+      updateAccountMenuProfile(profile);
       _onProfileSaved?.(profile);
 
       window.setTimeout(() => close(), 1000);
