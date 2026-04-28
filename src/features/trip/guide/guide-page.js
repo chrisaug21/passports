@@ -63,7 +63,19 @@ export async function loadGuidePage(tripId) {
       return;
     }
 
-    const members = await fetchTripMembersWithEmails(tripId).catch(() => []);
+    let members;
+    try {
+      members = await fetchTripMembersWithEmails(tripId);
+    } catch (error) {
+      console.error("Failed to load trip members for journal attribution:", error);
+      throw error;
+    }
+
+    if (!Array.isArray(members) || members.length === 0) {
+      console.error("Trip members missing; skipping guide render to avoid empty journal attribution state.");
+      throw new Error("Trip members are required to load journal attribution.");
+    }
+
     if (userId && userEmail && !members.find((member) => member.user_id === userId)) {
       members.push({ user_id: userId, email: userEmail, role: viewerRole });
     }

@@ -24,7 +24,8 @@ export async function fetchJournalData(tripId, memberUserIds) {
     supabase
       .from("journal_item_photos")
       .select(JOURNAL_PHOTO_SELECT)
-      .eq("trip_id", tripId),
+      .eq("trip_id", tripId)
+      .is("deleted_at", null),
   ]);
 
   if (entriesResult.error) throw entriesResult.error;
@@ -63,10 +64,13 @@ export async function upsertJournalEntry({ existingId, tripId, userId, dayId, it
     day_id: dayId || null,
     item_id: itemId || null,
     notes,
-    created_at: now,
     updated_at: now,
     deleted_at: null,
   };
+
+  if (!existingId) {
+    payload.created_at = now;
+  }
 
   const { data, error } = await supabase
     .from("journal_entries")
@@ -145,7 +149,7 @@ export async function deleteJournalPhoto({ photoId, storagePath }) {
 
   const { error: dbError } = await getSupabase()
     .from("journal_item_photos")
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", photoId);
 
   if (dbError) throw dbError;

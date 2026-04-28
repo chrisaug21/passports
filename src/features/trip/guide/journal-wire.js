@@ -21,6 +21,7 @@ const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 const JOURNAL_REVERT_STATUS = "confirmed";
 
 let _journalCleanupFns = [];
+let _saveCounter = 0;
 
 export function teardownJournalMode() {
   _journalCleanupFns.forEach((fn) => fn());
@@ -190,10 +191,13 @@ function wireEntryContainer({
   const persistEntry = async ({ shouldCloseEditor = true } = {}) => {
     const notes = textarea.value.trim();
     const savedEl = container.querySelector(savedSelector);
+    const previousEntryId = savedEntryId || null;
+    _saveCounter += 1;
+    const currentSaveToken = _saveCounter;
 
     try {
       const result = await upsertJournalEntry({
-        existingId: savedEntryId || null,
+        existingId: previousEntryId,
         tripId: state.tripId,
         userId,
         dayId: entryKind === "day" ? targetId : null,
@@ -201,7 +205,9 @@ function wireEntryContainer({
         notes,
       });
 
-      updateLocalJournalEntry(journalState.entries, result, savedEntryId);
+      if (currentSaveToken !== _saveCounter) return;
+
+      updateLocalJournalEntry(journalState.entries, result, previousEntryId);
       savedEntryId = result.id;
       lastSavedValue = notes;
       container.dataset.entryId = result.id;
@@ -212,6 +218,7 @@ function wireEntryContainer({
         closeEntryEditor(container);
       }
     } catch (error) {
+      if (currentSaveToken !== _saveCounter) return;
       console.error(`Failed to save ${entryKind} journal entry:`, error);
       showToast(saveErrorMessage, "error");
     }
@@ -419,11 +426,6 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
   if (slot) slot.classList.add("is-uploading");
 
   try {
-    if (existingPhoto) {
-      await deleteJournalPhoto({ photoId: existingPhoto.id, storagePath: existingPhoto.storage_path });
-      journalState.photos = journalState.photos.filter((p) => p.id !== existingPhoto.id);
-    }
-
     const blob = await compressJournalPhoto(file);
     const photo = await uploadJournalPhoto({
       tripId: state.tripId,
@@ -432,8 +434,19 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
       blob,
     });
 
+    if (existingPhoto) {
+      journalState.photos = journalState.photos.filter((p) => p.id !== existingPhoto.id);
+    }
     journalState.photos.push(photo);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
+
+    if (existingPhoto) {
+      try {
+        await deleteJournalPhoto({ photoId: existingPhoto.id, storagePath: existingPhoto.storage_path });
+      } catch (deleteError) {
+        console.error("Old photo cleanup failed after replacement:", deleteError);
+      }
+    }
   } catch (error) {
     console.error("Photo replace failed:", error);
     showToast("Couldn't replace photo. Try again.", "error");

@@ -298,6 +298,9 @@ async function switchToJournal() {
 
     try {
       const memberUserIds = _guideState.members.map((m) => m.user_id);
+      if (memberUserIds.length === 0) {
+        throw new Error("Journal data fetch requires trip members for attribution.");
+      }
       const data = await fetchJournalData(_guideState.tripId, memberUserIds);
       _journalState.entries = data.entries;
       _journalState.photos = data.photos;
@@ -307,6 +310,8 @@ async function switchToJournal() {
       console.error("Failed to load journal data:", error);
       _journalState.isFetching = false;
       setActiveTab("itinerary");
+      _currentMode = "itinerary";
+      persistActiveMode("itinerary");
       return;
     }
 

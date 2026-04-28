@@ -628,17 +628,22 @@ export async function updateTripSettings({
     }
   }
 
+  const tripUpdate = {
+    title,
+    description: description || null,
+    start_date: startDate || null,
+    trip_length: tripLength,
+    is_public: Boolean(isPublic),
+    updated_at: now,
+  };
+
+  if (typeof isJournalPublic !== "undefined") {
+    tripUpdate.is_journal_public = Boolean(isPublic) ? Boolean(isJournalPublic) : false;
+  }
+
   const { data, error } = await supabase
     .from("trips")
-    .update({
-      title,
-      description: description || null,
-      start_date: startDate || null,
-      trip_length: tripLength,
-      is_public: Boolean(isPublic),
-      is_journal_public: Boolean(isPublic) ? Boolean(isJournalPublic) : false,
-      updated_at: now,
-    })
+    .update(tripUpdate)
     .eq("id", tripId)
     .select(
       `
