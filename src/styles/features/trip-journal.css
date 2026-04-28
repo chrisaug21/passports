@@ -515,10 +515,6 @@
   background: var(--color-surface-muted);
 }
 
-.profile-modal__save {
-  min-width: 6.5rem;
-}
-
 .profile-modal__status {
   font-size: 0.85rem;
   font-weight: 600;
@@ -574,8 +570,14 @@
   }
 
   .journal-member-row__photo {
+    width: auto;
     justify-content: flex-start;
     min-height: 0;
+  }
+
+  .journal-photo-read {
+    width: auto;
+    justify-content: flex-start;
   }
 
   .journal-photo-slot,

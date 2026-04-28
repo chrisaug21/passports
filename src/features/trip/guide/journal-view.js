@@ -14,6 +14,16 @@ import { filterItemsForViewer, sortGuideItems } from "./guide-view.js";
 
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
+function getJournalTripMode(trip) {
+  const derivedStatus = deriveTripStatus(trip);
+  const isCompleted = trip.status === "done" || derivedStatus === "past";
+
+  return {
+    isEnabled: trip.status === "active" || isCompleted,
+    isReadOnly: isCompleted,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Attribution helpers
 // ---------------------------------------------------------------------------
@@ -89,11 +99,11 @@ function renderEntryDisplay(notes, placeholder, isEditable) {
     : `<p class="journal-entry-display__placeholder">${escapeHtml(placeholder)}</p>`;
 
   if (!isEditable) {
-    return `<div class="journal-entry-display journal-entry-display--read-only">${content}</div>`;
+    return `<div class="journal-entry-display journal-entry-display--read-only" data-journal-placeholder="${escapeHtml(placeholder)}">${content}</div>`;
   }
 
   return `
-    <button class="journal-entry-display journal-entry-display--editable" data-journal-edit-toggle type="button">
+    <button class="journal-entry-display journal-entry-display--editable" data-journal-edit-toggle data-journal-placeholder="${escapeHtml(placeholder)}" type="button">
       ${content}
     </button>
   `;
@@ -385,7 +395,8 @@ export function renderJournalDaySection(day, state, journalState) {
   const sorted = sortGuideItems(dayItems);
 
   const isMember = viewerRole !== "public";
-  const isWritable = isMember && Boolean(userId) && trip.status === "active";
+  const { isReadOnly } = getJournalTripMode(trip);
+  const isWritable = isMember && Boolean(userId) && trip.status === "active" && !isReadOnly;
   const showDoneToggle = isWritable;
 
   let dateLabel = "";

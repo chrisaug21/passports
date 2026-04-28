@@ -363,8 +363,8 @@ export function renderGuideDayNav(days, trip, todayDayNumber) {
 // ---------------------------------------------------------------------------
 
 function renderJournalTabButton(trip, viewerRole) {
-  const status = trip.status;
-  const isJournalEnabled = status === "active" || status === "done";
+  const derivedStatus = deriveTripStatus(trip);
+  const isJournalEnabled = trip.status === "active" || trip.status === "done" || derivedStatus === "past";
 
   if (viewerRole === "public") {
     if (!trip.is_journal_public) return "";
@@ -375,7 +375,7 @@ function renderJournalTabButton(trip, viewerRole) {
     return `<button class="guide-hero__tab" role="tab" aria-selected="false" data-guide-tab="journal" type="button">Journal</button>`;
   }
 
-  return `<button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when your trip is Active" type="button">Journal</button>`;
+  return `<button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when your trip is Active or complete" type="button">Journal</button>`;
 }
 
 function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole) {

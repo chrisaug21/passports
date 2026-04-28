@@ -8,6 +8,7 @@ import {
 } from "../../../services/journal-service.js";
 import { openProfileModal } from "../../shared/profile-modal.js";
 import { showToast } from "../../shared/toast.js";
+import { escapeHtml } from "../detail/trip-detail-ui.js";
 import {
   renderJournalDaySection,
   renderItemPhotoSlot,
@@ -127,18 +128,11 @@ function updateLocalJournalEntry(entries, nextEntry, previousEntryId = null) {
 
 function updateDisplayText(displayEl, notes) {
   if (!displayEl) return;
-  const textEl = displayEl.querySelector(".journal-entry-display__text");
-  const placeholderEl = displayEl.querySelector(".journal-entry-display__placeholder");
   const nextNotes = String(notes || "").trim();
-
-  if (textEl) {
-    textEl.textContent = nextNotes;
-    textEl.hidden = nextNotes.length === 0;
-  }
-
-  if (placeholderEl) {
-    placeholderEl.hidden = nextNotes.length > 0;
-  }
+  const placeholder = displayEl.dataset.journalPlaceholder || "Tap to add a note...";
+  displayEl.innerHTML = nextNotes
+    ? `<p class="journal-entry-display__text">${escapeHtml(nextNotes)}</p>`
+    : `<p class="journal-entry-display__placeholder">${escapeHtml(placeholder)}</p>`;
 }
 
 function openEntryEditor(container) {
