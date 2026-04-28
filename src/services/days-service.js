@@ -10,7 +10,7 @@ export async function updateTripDayTitle({ dayId, title }) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", dayId)
-    .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
+    .select("id, trip_id, base_id, day_number, title, location_name, sort_order")
     .single();
 
   if (error) {

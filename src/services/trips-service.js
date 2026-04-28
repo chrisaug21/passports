@@ -269,7 +269,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trip_days")
-      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
+      .select("id, trip_id, base_id, day_number, title, location_name, sort_order")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("day_number", { ascending: true }),
@@ -744,7 +744,7 @@ export async function softDeleteTripBase(baseId) {
 async function fetchActiveTripDaysForAllocation(tripId) {
   const { data, error } = await getSupabase()
     .from("trip_days")
-    .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order, created_at")
+    .select("id, trip_id, base_id, day_number, title, location_name, sort_order, created_at")
     .eq("trip_id", tripId)
     .is("deleted_at", null)
     .order("day_number", { ascending: true });
@@ -800,7 +800,7 @@ export async function saveTripDayAllocations({ tripId, allocations }) {
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .in("id", ids)
-      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order");
+      .select("id, trip_id, base_id, day_number, title, location_name, sort_order");
 
     if (error) {
       throw error;
