@@ -28,7 +28,8 @@ export function sortGuideItems(items) {
 
 export function filterItemsForViewer(items, viewerRole) {
   if (viewerRole !== "public") {
-    return items.filter((i) => i.status !== "idea");
+    const MEMBER_SHOWN = new Set(["option", "shortlisted", "confirmed", "reserved", "done"]);
+    return items.filter((i) => MEMBER_SHOWN.has(i.status));
   }
   // public: DB already enforces confirmed/reserved/done; filter defensively
   const PUBLIC_SHOWN = new Set(["confirmed", "reserved", "done"]);
@@ -333,7 +334,7 @@ function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, 
 // Day nav (sidebar on desktop, pills on mobile)
 // ---------------------------------------------------------------------------
 
-function renderGuideDayNav(days, trip, todayDayNumber) {
+export function renderGuideDayNav(days, trip, todayDayNumber) {
   const items = days
     .map((day) => {
       const dateLabel = trip.start_date ? formatNavDayDate(trip.start_date, day.day_number) : "";
@@ -361,10 +362,28 @@ function renderGuideDayNav(days, trip, todayDayNumber) {
 // Hero section (spec §4)
 // ---------------------------------------------------------------------------
 
-function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus) {
+function renderJournalTabButton(trip, viewerRole) {
+  const derivedStatus = deriveTripStatus(trip);
+  const isJournalEnabled = trip.status === "active" || trip.status === "done" || derivedStatus === "past";
+
+  if (viewerRole === "public") {
+    if (!trip.is_journal_public) return "";
+    return `<button class="guide-hero__tab" role="tab" aria-selected="false" data-guide-tab="journal" type="button">Journal</button>`;
+  }
+
+  if (isJournalEnabled) {
+    return `<button class="guide-hero__tab" role="tab" aria-selected="false" data-guide-tab="journal" type="button">Journal</button>`;
+  }
+
+  return `<button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when your trip is Active or complete" type="button">Journal</button>`;
+}
+
+function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole) {
   const baseNames = bases.length > 1
     ? bases.map((b) => b.name || b.location_name || "").filter(Boolean).join(" → ")
     : "";
+
+  const journalTab = renderJournalTabButton(trip, viewerRole);
 
   return `
     <div class="guide-hero">
@@ -391,8 +410,8 @@ function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedSt
         </div>
         ${isMember ? renderMemberAvatars(members) : ""}
         <div class="guide-hero__tabs" role="tablist" aria-label="View mode">
-          <button class="guide-hero__tab is-active" role="tab" aria-selected="true" type="button">Itinerary</button>
-          <button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when trip is Active" type="button">Journal</button>
+          <button class="guide-hero__tab is-active" role="tab" aria-selected="true" data-guide-tab="itinerary" type="button">Itinerary</button>
+          ${journalTab}
         </div>
       </div>
     </div>
@@ -466,7 +485,7 @@ export function renderGuideView(state) {
     .join("");
 
   return `
-    ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus)}
+    ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole)}
     <div class="guide-body">
       ${renderGuideDayNav(days, trip, todayDayNumber)}
       <div class="guide-content">

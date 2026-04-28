@@ -58,6 +58,11 @@
   background: var(--color-action);
   color: white;
   padding: 0.9rem 1.2rem;
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
   font-weight: 600;
   transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
 }

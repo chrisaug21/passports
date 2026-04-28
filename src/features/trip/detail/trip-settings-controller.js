@@ -112,6 +112,28 @@ function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
   window.lucide?.createIcons?.();
 }
 
+async function copyTextToClipboard(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+
+  const didCopy = document.execCommand("copy");
+  textarea.remove();
+
+  if (!didCopy) {
+    throw new Error("Clipboard copy failed");
+  }
+}
+
 function wireTripSettingsShareLink(trip) {
   const form = document.querySelector("#trip-settings-form");
   const isPublicInput = form?.querySelector('[name="isPublic"]');
@@ -141,9 +163,20 @@ function wireTripSettingsShareLink(trip) {
     }
   };
 
+  const journalToggleRow = form?.querySelector(".trip-settings-form__sharing-row--journal");
+  const journalPublicInput = form?.querySelector("[data-journal-public-toggle]");
+
   isPublicInput.addEventListener("change", () => {
     clearShareLinkFeedbackResetTimer();
     syncButtonState();
+
+    // When is_public turns off, disable and uncheck is_journal_public
+    if (journalPublicInput && journalToggleRow) {
+      const isOn = isPublicInput.checked;
+      journalPublicInput.disabled = !isOn;
+      journalToggleRow.classList.toggle("is-disabled", !isOn);
+      if (!isOn) journalPublicInput.checked = false;
+    }
   });
 
   shareLinkButton.addEventListener("click", async (event) => {
@@ -159,7 +192,7 @@ function wireTripSettingsShareLink(trip) {
     }
 
     try {
-      await navigator.clipboard.writeText(buildTripGuideUrl(trip.id));
+      await copyTextToClipboard(buildTripGuideUrl(trip.id));
       syncButtonState({ isCopied: true });
       clearShareLinkFeedbackResetTimer();
       shareLinkFeedbackResetTimer = window.setTimeout(() => {
@@ -289,6 +322,24 @@ export function renderTripSettingsForm(trip, isSaving) {
                     <i data-lucide="link" aria-hidden="true"></i>
                   </span>
                 </button>
+              </div>
+
+              <div class="trip-settings-form__sharing-row trip-settings-form__sharing-row--journal${trip.is_public ? "" : " is-disabled"}">
+                <div class="trip-settings-form__sharing-label-group">
+                  <span class="trip-settings-form__sharing-label">Share journal</span>
+                  <span class="field-hint">Let anyone with the link read your trip journal</span>
+                </div>
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Share journal">
+                  <input
+                    name="isJournalPublic"
+                    type="checkbox"
+                    class="toggle-switch__input"
+                    ${trip.is_journal_public ? "checked" : ""}
+                    ${trip.is_public ? "" : "disabled"}
+                    data-journal-public-toggle
+                  />
+                  <span class="toggle-switch__track" aria-hidden="true"></span>
+                </label>
               </div>
             </div>
 
@@ -430,13 +481,15 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         return;
       }
 
+      const isPublic = formData.get("isPublic") === "on";
       const nextSettings = {
         tripId: trip.id,
         title,
         description: String(formData.get("description") || "").trim(),
         startDate,
         tripLength,
-        isPublic: formData.get("isPublic") === "on",
+        isPublic,
+        isJournalPublic: isPublic && formData.get("isJournalPublic") === "on",
       };
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 

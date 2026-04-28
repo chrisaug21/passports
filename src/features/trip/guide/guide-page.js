@@ -9,6 +9,7 @@ import {
   renderGuideErrorView,
 } from "./guide-view.js";
 import { wireGuideView, teardownGuideView } from "./guide-wire.js";
+import { fetchUserProfile } from "../../../services/journal-service.js";
 
 // ---------------------------------------------------------------------------
 // Initial render — loading shell (called synchronously by router)
@@ -50,6 +51,7 @@ async function checkViewerRole(tripId, userId, ownerId) {
 export async function loadGuidePage(tripId) {
   const { session } = sessionStore.getState();
   const userId = session?.user?.id || null;
+  const userEmail = session?.user?.email || "";
 
   try {
     const bundle = await fetchTripDetailBundle(tripId);
@@ -61,9 +63,27 @@ export async function loadGuidePage(tripId) {
       return;
     }
 
-    let members = [];
-    if (viewerRole !== "public") {
+    let members;
+    try {
       members = await fetchTripMembersWithEmails(tripId);
+    } catch (error) {
+      console.error("Failed to load trip members for journal attribution:", error);
+      throw error;
+    }
+
+    if (!Array.isArray(members) || members.length === 0) {
+      console.error("Trip members missing; skipping guide render to avoid empty journal attribution state.");
+      throw new Error("Trip members are required to load journal attribution.");
+    }
+
+    if (userId && userEmail && !members.find((member) => member.user_id === userId)) {
+      members.push({ user_id: userId, email: userEmail, role: viewerRole });
+    }
+
+    // Pre-fetch the current user's profile so the profile prompt check is immediate
+    let currentUserProfile = null;
+    if (userId) {
+      currentUserProfile = await fetchUserProfile(userId).catch(() => null);
     }
 
     const state = {
@@ -75,6 +95,8 @@ export async function loadGuidePage(tripId) {
       members,
       viewerRole,
       userId,
+      userEmail,
+      currentUserProfile,
     };
 
     const root = document.querySelector("#guide-view-root");

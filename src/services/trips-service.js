@@ -251,6 +251,7 @@ export async function fetchTripDetailBundle(tripId) {
           start_date,
           status,
           is_public,
+          is_journal_public,
           cover_photo_url,
           created_at,
           updated_at,
@@ -268,7 +269,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trip_days")
-      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order")
+      .select("id, trip_id, base_id, day_number, title, location_name, sort_order")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("day_number", { ascending: true }),
@@ -574,6 +575,7 @@ export async function updateTripSettings({
   startDate,
   tripLength,
   isPublic,
+  isJournalPublic,
 }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
@@ -626,16 +628,22 @@ export async function updateTripSettings({
     }
   }
 
+  const tripUpdate = {
+    title,
+    description: description || null,
+    start_date: startDate || null,
+    trip_length: tripLength,
+    is_public: Boolean(isPublic),
+    updated_at: now,
+  };
+
+  if (typeof isJournalPublic !== "undefined") {
+    tripUpdate.is_journal_public = Boolean(isPublic) ? Boolean(isJournalPublic) : false;
+  }
+
   const { data, error } = await supabase
     .from("trips")
-    .update({
-      title,
-      description: description || null,
-      start_date: startDate || null,
-      trip_length: tripLength,
-      is_public: Boolean(isPublic),
-      updated_at: now,
-    })
+    .update(tripUpdate)
     .eq("id", tripId)
     .select(
       `
@@ -647,6 +655,7 @@ export async function updateTripSettings({
         start_date,
         status,
         is_public,
+        is_journal_public,
         cover_photo_url,
         created_at,
         updated_at,
@@ -740,7 +749,7 @@ export async function softDeleteTripBase(baseId) {
 async function fetchActiveTripDaysForAllocation(tripId) {
   const { data, error } = await getSupabase()
     .from("trip_days")
-    .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order, created_at")
+    .select("id, trip_id, base_id, day_number, title, location_name, sort_order, created_at")
     .eq("trip_id", tripId)
     .is("deleted_at", null)
     .order("day_number", { ascending: true });
@@ -796,7 +805,7 @@ export async function saveTripDayAllocations({ tripId, allocations }) {
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .in("id", ids)
-      .select("id, trip_id, base_id, day_number, title, location_name, journal_notes, sort_order");
+      .select("id, trip_id, base_id, day_number, title, location_name, sort_order");
 
     if (error) {
       throw error;

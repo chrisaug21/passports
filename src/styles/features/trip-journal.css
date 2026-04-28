@@ -1,0 +1,585 @@
+/* ============================================================
+   Journal Mode — trip-journal.css
+   ============================================================ */
+
+/* ---------------------------------------------------------------------------
+   Profile prompt banner
+   --------------------------------------------------------------------------- */
+
+.journal-profile-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-structure-soft);
+  border: 1px solid var(--color-structure-tint);
+  border-radius: var(--radius-control);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.journal-profile-prompt__link {
+  border: none;
+  background: none;
+  color: var(--color-structure);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.journal-profile-prompt__link:hover {
+  opacity: 0.8;
+}
+
+.journal-profile-prompt__dismiss {
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Attribution — avatar + name
+   --------------------------------------------------------------------------- */
+
+.journal-attribution {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.journal-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: white;
+  background: hsl(var(--avatar-hue, 220deg) 60% 45%);
+  flex-shrink: 0;
+}
+
+.journal-attribution__name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Day-level journal entries
+   --------------------------------------------------------------------------- */
+
+.journal-day-entries {
+  display: grid;
+  gap: 1rem;
+}
+
+.journal-day-entry {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.journal-day-notes {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-structure-tint);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--color-structure-soft), var(--color-surface-strong));
+}
+
+.journal-day-notes__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-structure);
+}
+
+.journal-day-entry__body,
+.journal-day-entry--read {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.journal-day-entry__content {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.journal-entry-textarea {
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  padding: 0.65rem 0.8rem;
+  transition: border-color 140ms ease;
+  box-sizing: border-box;
+}
+
+.journal-entry-textarea:focus {
+  outline: none;
+  border-color: var(--color-structure);
+  box-shadow: 0 0 0 3px var(--color-structure-tint);
+}
+
+.journal-entry-textarea::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.journal-entry-display {
+  width: 100%;
+  text-align: left;
+  border-radius: var(--radius-control);
+}
+
+.journal-entry-display--editable {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.journal-entry-display--read-only {
+  padding: 0;
+}
+
+.journal-entry-display__text,
+.journal-entry-display__placeholder {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.journal-entry-display__text {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.journal-item-entry .journal-entry-display__text {
+  font-size: 0.83rem;
+  color: var(--color-text-muted);
+}
+
+.journal-entry-display__placeholder {
+  font-size: 0.88rem;
+  color: var(--color-text-subtle);
+}
+
+.journal-entry-editor {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.journal-entry-display[hidden],
+.journal-entry-editor[hidden] {
+  display: none;
+}
+
+.journal-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.journal-entry-actions__save {
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--color-action);
+  color: var(--color-surface-strong);
+  min-height: 1.875rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.journal-entry-actions__save:hover,
+.journal-entry-actions__save:focus-visible {
+  background: var(--color-action-strong);
+}
+
+.journal-entry-actions__cancel {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0;
+  min-height: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.journal-entry-actions__cancel:hover,
+.journal-entry-actions__cancel:focus-visible {
+  color: var(--color-text);
+}
+
+.journal-day-entry__saved {
+  font-size: 0.75rem;
+  color: var(--color-action-strong);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  height: 1em;
+}
+
+.journal-day-entry__saved.is-visible {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Item-level journal area
+   --------------------------------------------------------------------------- */
+
+.journal-item-card__journal {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.journal-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding-top: 0.5rem;
+}
+
+.journal-member-row + .journal-member-row {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.journal-member-row__note {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 5.625rem;
+}
+
+.journal-member-row__photo {
+  width: 120px;
+  min-height: 5.625rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.journal-member-row__photo--empty {
+  visibility: hidden;
+}
+
+/* Item entry write */
+.journal-item-entry {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.journal-item-entry__saved {
+  font-size: 0.72rem;
+  color: var(--color-action-strong);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  height: 1em;
+}
+
+.journal-item-entry__saved.is-visible {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Item photos
+   --------------------------------------------------------------------------- */
+
+.journal-photo-slot {
+  position: relative;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.journal-photo-slot.is-uploading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.journal-photo-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.65rem 0.5rem;
+  width: 100%;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.journal-photo-add:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-structure);
+  color: var(--color-structure);
+}
+
+.journal-photo-add svg {
+  width: 18px;
+  height: 18px;
+}
+
+.journal-photo-slot__img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+.journal-photo-slot__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.journal-photo-slot--has-photo:hover .journal-photo-slot__overlay,
+.journal-photo-slot--has-photo:focus-within .journal-photo-slot__overlay {
+  opacity: 1;
+}
+
+.journal-photo-slot__action {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.journal-photo-slot__action:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.journal-photo-slot__action--remove:hover {
+  background: rgba(192, 83, 83, 0.6);
+}
+
+.journal-photo-slot__action svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Read-only photo */
+.journal-photo-read {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.journal-photo-read__img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+/* ---------------------------------------------------------------------------
+   Done toggle
+   --------------------------------------------------------------------------- */
+
+.journal-done-toggle {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: var(--color-surface-strong);
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  z-index: 1;
+}
+
+.journal-done-toggle:hover {
+  color: var(--color-action);
+  border-color: var(--color-action);
+}
+
+.journal-done-toggle.is-done {
+  background: var(--color-action-strong);
+  color: var(--color-surface-strong);
+  border-color: var(--color-action-strong);
+}
+
+.journal-done-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+   Done item treatment
+   --------------------------------------------------------------------------- */
+
+.journal-item-card--done {
+  opacity: 0.85;
+  border-left-color: var(--color-status-done-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Trip Settings — Share journal toggle row
+   --------------------------------------------------------------------------- */
+
+.trip-settings-form__sharing-row--journal {
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.trip-settings-form__sharing-row--journal.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.trip-settings-form__sharing-label-group {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.trip-settings-form__sharing-label-group .field-hint {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Profile modal
+   --------------------------------------------------------------------------- */
+
+.profile-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.profile-modal-form .item-editor-form__content {
+  padding-bottom: 0;
+}
+
+.profile-modal__status {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: transparent;
+  margin: 0;
+  min-height: 1.2em;
+  transition: color 200ms ease;
+}
+
+.profile-modal__status.is-success {
+  color: var(--color-action-strong);
+}
+
+.profile-modal__email {
+  margin: 0;
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+}
+
+/* Account menu Profile button */
+.account-menu__profile {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: background 120ms ease;
+}
+
+.account-menu__profile:hover {
+  background: var(--color-surface-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile responsive tweaks
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 639px) {
+  .journal-member-row {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-member-row__photo {
+    width: auto;
+    justify-content: flex-start;
+    min-height: 0;
+  }
+
+  .journal-photo-read {
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .journal-photo-slot,
+  .journal-photo-read__img,
+  .journal-photo-slot__img {
+    width: 100px;
+    height: 75px;
+  }
+
+  .journal-member-row__note {
+    min-height: 0;
+  }
+}

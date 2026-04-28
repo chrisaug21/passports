@@ -4,12 +4,15 @@ import { initializeSupabase } from "../lib/supabase.js";
 import { renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
+import { openProfileModal } from "../features/shared/profile-modal.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
+import { fetchUserProfile } from "../services/journal-service.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
+let profileRequestToken = 0;
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -93,8 +96,9 @@ function renderBootstrapLoadingScreen() {
 export function renderAppShell(content, options = {}) {
   const { showDashboardLink = false, showNewTripButton = false } = options;
   const { session } = sessionStore.getState();
+  const userId = session?.user?.id || "";
   const email = session?.user?.email || "";
-  const initials = getUserInitials(email);
+  const initials = getUserInitials({ email });
 
   appRoot.innerHTML = `
     <main class="app-shell">
@@ -128,6 +132,7 @@ export function renderAppShell(content, options = {}) {
                   </summary>
                   <div class="account-menu__panel">
                     <p class="account-menu__email">${escapeHtml(email)}</p>
+                    <button class="account-menu__profile" id="open-profile-modal" type="button">Profile</button>
                     <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                   </div>
                 </details>
@@ -147,6 +152,13 @@ export function renderAppShell(content, options = {}) {
 
   if (session) {
     bindAccountMenuListeners();
+    void hydrateAccountMenuProfile({ userId, email });
+
+    document.querySelector("#open-profile-modal")?.addEventListener("click", () => {
+      document.querySelector("#account-menu").open = false;
+      openProfileModal();
+    });
+
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
 
@@ -177,15 +189,37 @@ export function renderAppShell(content, options = {}) {
   refreshIcons();
 }
 
-function getUserInitials(email) {
-  const localPart = String(email || "").split("@")[0] || "";
-  const segments = localPart.split(/[._-]+/).filter(Boolean);
+export function updateAccountMenuProfile(profile = {}) {
+  const { session } = sessionStore.getState();
+  const email = session?.user?.email || "";
+  const avatar = document.querySelector(".account-menu__avatar");
+  if (!avatar) return;
+  avatar.textContent = getUserInitials({
+    email,
+    firstName: profile.first_name || "",
+    lastName: profile.last_name || "",
+  });
+}
 
-  if (segments.length >= 2) {
-    return `${segments[0][0] || ""}${segments[1][0] || ""}`.toUpperCase();
+async function hydrateAccountMenuProfile({ userId, email }) {
+  if (!userId) return;
+  const token = ++profileRequestToken;
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    if (token !== profileRequestToken) return;
+    updateAccountMenuProfile(profile || { email });
+  } catch (_error) {
+    if (token !== profileRequestToken) return;
+    updateAccountMenuProfile({ email });
   }
+}
 
-  return localPart.slice(0, 2).toUpperCase() || "U";
+function getUserInitials({ email, firstName = "", lastName = "" }) {
+  if (firstName) {
+    return `${firstName.charAt(0)}${lastName ? lastName.charAt(0) : ""}`.toUpperCase();
+  }
+  return String(email || "").charAt(0).toUpperCase() || "U";
 }
 
 function bindAccountMenuListeners() {
