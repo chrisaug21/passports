@@ -14,6 +14,7 @@ import {
 } from "./journal-view.js";
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
+import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
 
@@ -92,6 +93,24 @@ export function getJournalState() {
 
 export function getGuideState() {
   return _guideState;
+}
+
+async function ensureMembersLoaded() {
+  if (!_guideState || _guideState.viewerRole === "public" || _guideState.members.length > 0) {
+    return;
+  }
+
+  const members = await fetchTripMembersWithEmails(_guideState.tripId);
+  if (!Array.isArray(members)) {
+    _guideState.members = [];
+    return;
+  }
+
+  if (_guideState.userId && _guideState.userEmail && !members.find((member) => member.user_id === _guideState.userId)) {
+    members.push({ user_id: _guideState.userId, email: _guideState.userEmail, role: _guideState.viewerRole });
+  }
+
+  _guideState.members = members;
 }
 
 // ---------------------------------------------------------------------------
@@ -297,10 +316,8 @@ async function switchToJournal() {
     _journalState.isFetching = true;
 
     try {
+      await ensureMembersLoaded();
       const memberUserIds = _guideState.members.map((m) => m.user_id);
-      if (memberUserIds.length === 0) {
-        throw new Error("Journal data fetch requires trip members for attribution.");
-      }
       const data = await fetchJournalData(_guideState.tripId, memberUserIds);
       _journalState.entries = data.entries;
       _journalState.photos = data.photos;

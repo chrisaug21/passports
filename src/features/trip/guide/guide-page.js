@@ -30,8 +30,12 @@ export function renderGuidePage() {
 // ---------------------------------------------------------------------------
 
 async function checkViewerRole(tripId, userId, ownerId) {
-  if (!userId) return "public";
-  if (userId === ownerId) return "owner";
+  if (!userId) {
+    return "public";
+  }
+  if (userId === ownerId) {
+    return "owner";
+  }
 
   const { data } = await getSupabase()
     .from("trip_members")
@@ -63,17 +67,14 @@ export async function loadGuidePage(tripId) {
       return;
     }
 
-    let members;
-    try {
-      members = await fetchTripMembersWithEmails(tripId);
-    } catch (error) {
-      console.error("Failed to load trip members for journal attribution:", error);
-      throw error;
-    }
-
-    if (!Array.isArray(members) || members.length === 0) {
-      console.error("Trip members missing; skipping guide render to avoid empty journal attribution state.");
-      throw new Error("Trip members are required to load journal attribution.");
+    let members = [];
+    if (viewerRole !== "public") {
+      try {
+        members = await fetchTripMembersWithEmails(tripId);
+      } catch (error) {
+        console.error("Failed to load trip members for guide view:", error);
+        throw error;
+      }
     }
 
     if (userId && userEmail && !members.find((member) => member.user_id === userId)) {
