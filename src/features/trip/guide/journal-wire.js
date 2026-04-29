@@ -11,6 +11,7 @@ import { showToast } from "../../shared/toast.js";
 import { escapeHtml } from "../detail/trip-detail-ui.js";
 import {
   renderJournalDaySection,
+  renderJournalStatTiles,
   renderItemPhotoSlot,
 } from "./journal-view.js";
 
@@ -350,6 +351,18 @@ function wireItemPhotos(state, journalState, userId) {
   });
 }
 
+function refreshJournalStatTiles(state, journalState) {
+  const statTiles = document.querySelector("[data-journal-stat-tiles]");
+  if (!statTiles) return;
+
+  const temp = document.createElement("div");
+  temp.innerHTML = renderJournalStatTiles(state, journalState).trim();
+  const nextStatTiles = temp.firstElementChild;
+  if (!nextStatTiles) return;
+
+  statTiles.replaceWith(nextStatTiles);
+}
+
 function selectPhotoFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -401,6 +414,7 @@ async function handlePhotoAdd({ itemId, state, journalState, userId }) {
     });
 
     journalState.photos.push(photo);
+    refreshJournalStatTiles(state, journalState);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
   } catch (error) {
     console.error("Photo upload failed:", error);
@@ -438,6 +452,7 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
       journalState.photos = journalState.photos.filter((p) => p.id !== existingPhoto.id);
     }
     journalState.photos.push(photo);
+    refreshJournalStatTiles(state, journalState);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
 
     if (existingPhoto) {
@@ -466,6 +481,7 @@ async function handlePhotoRemove({ itemId, state, journalState }) {
   try {
     await deleteJournalPhoto({ photoId: existingPhoto.id, storagePath: existingPhoto.storage_path });
     journalState.photos = journalState.photos.filter((p) => p.id !== existingPhoto.id);
+    refreshJournalStatTiles(state, journalState);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
   } catch (error) {
     console.error("Photo remove failed:", error);

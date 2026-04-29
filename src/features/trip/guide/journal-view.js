@@ -509,19 +509,21 @@ function shouldShowProfilePrompt(state, journalState) {
   return !currentUserProfile || (!currentUserProfile.first_name && !currentUserProfile.last_name);
 }
 
-function renderJournalStatTiles(state, journalState) {
+export function renderJournalStatTiles(state, journalState) {
   const doneItems = state.items.filter((item) => item.status === "done");
   const itemTypeTiles = getTripStatTiles(state.trip, state.bases, doneItems)
     .filter((tile) => tile.label !== "Days" && tile.label !== "Bases");
+  const photoCount = journalState.photos.length;
   const tiles = [
     { label: getCountLabel(Number(state.trip.trip_length) || 0, "Day", "Days"), count: Number(state.trip.trip_length) || 0 },
     { label: getCountLabel(state.bases.length, "Base", "Bases"), count: state.bases.length },
     ...itemTypeTiles,
     { label: "Journal entries", count: journalState.entries.length },
+    ...(photoCount > 0 ? [{ label: getCountLabel(photoCount, "Photo", "Photos"), count: photoCount }] : []),
   ];
 
   return `
-    <section class="trip-stat-tiles guide-trip-stat-tiles" aria-label="Journal stats">
+    <section class="trip-stat-tiles guide-trip-stat-tiles" data-journal-stat-tiles aria-label="Journal stats">
       ${tiles.map((tile) => `
         <article class="panel trip-stat-tile">
           <h3>${tile.count}</h3>
