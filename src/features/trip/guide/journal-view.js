@@ -17,10 +17,10 @@ const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
 function getJournalTripMode(trip) {
   const derivedStatus = deriveTripStatus(trip);
-  const isCompleted = trip.status === "done" || derivedStatus === "past";
+  const isCompleted = derivedStatus === "past";
 
   return {
-    isEnabled: trip.status === "active" || isCompleted,
+    isEnabled: derivedStatus === "traveling" || isCompleted,
     isReadOnly: false,
   };
 }
