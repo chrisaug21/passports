@@ -14,15 +14,6 @@ const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
 let profileRequestToken = 0;
 
-function summarizeSession(session) {
-  return {
-    hasSession: Boolean(session),
-    userId: session?.user?.id || null,
-    email: session?.user?.email || null,
-    expiresAt: session?.expires_at || null,
-  };
-}
-
 function refreshIcons() {
   if (window.lucide?.createIcons) {
     window.lucide.createIcons();
@@ -34,15 +25,9 @@ export async function bootstrapApp() {
     appRoot.innerHTML = renderBootstrapLoadingScreen();
 
     const env = await initializeEnv();
-    console.info("[guide-debug] public config loaded", {
-      hasSupabaseUrl: Boolean(env?.supabaseUrl),
-      hasSupabaseAnonKey: Boolean(env?.supabaseAnonKey),
-    });
     initializeSupabase(env);
-    console.info("[guide-debug] supabase client initialized");
 
     const session = await getSession();
-    console.info("[guide-debug] initial session resolved", summarizeSession(session));
     sessionStore.setSession(session);
 
     onAuthStateChange((event, nextSession) => {
@@ -50,12 +35,6 @@ export async function bootstrapApp() {
       const previousUserId = previousSession?.user?.id || "";
       const nextUserId = nextSession?.user?.id || "";
       const isSameSignedInUser = previousUserId && previousUserId === nextUserId;
-      console.info("[guide-debug] auth state change", {
-        event,
-        previous: summarizeSession(previousSession),
-        next: summarizeSession(nextSession),
-        isSameSignedInUser,
-      });
       sessionStore.setSession(nextSession);
 
       if (
