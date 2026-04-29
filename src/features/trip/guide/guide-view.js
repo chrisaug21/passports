@@ -364,7 +364,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber) {
 
 function renderJournalTabButton(trip, viewerRole) {
   const derivedStatus = deriveTripStatus(trip);
-  const isJournalEnabled = trip.status === "active" || trip.status === "done" || derivedStatus === "past";
+  const isJournalEnabled = derivedStatus === "traveling" || derivedStatus === "past";
   const disabledJournalTab = `<button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when your trip is Active or complete" type="button">Journal</button>`;
 
   if (viewerRole === "public") {
