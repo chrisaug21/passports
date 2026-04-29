@@ -440,11 +440,29 @@ Low priority until you have active Traveler-role users who aren't Bailey.
 
 - Always use `apply_migration` for schema changes (not `execute_sql`)
 - Verify column existence with `execute_sql` after any migration — do not trust success response alone
-- All UPDATE policies need explicit `WITH CHECK (true)` unless post-update row restriction is intentional
-- All new tables need RLS enabled + policies for authenticated and anon roles
 - Soft delete everywhere: `deleted_at timestamptz` — never hard delete (exception: storage files get hard-deleted from bucket, DB row gets soft-deleted)
 - `update_updated_at()` is the correct trigger function name (not `update_updated_at_column`, not `moddatetime`)
 - Storage policies live on `storage.objects` and must be created separately from table RLS
+
+### RLS Policy Rules — Authenticated by Default
+
+All new tables get RLS enabled with policies scoped to the `authenticated` role by default. Anon policies are only added when a table or endpoint is explicitly intended to be public.
+
+**Authenticated policies — known patterns:**
+- `trips` SELECT must include an owner check: `owner_id = auth.uid()` OR membership via `is_trip_member(id)`
+- `trip_members` INSERT must use `WITH CHECK (true)` to avoid planner recursion (the USING clause already gates who can insert)
+- All UPDATE policies must have explicit `WITH CHECK (true)` unless post-update row restriction is intentional — omitting it causes soft-delete and field-update operations to silently fail with 42501
+
+**Anon policies — only for these tables (public Guide View):**
+- `trips` — `is_public = true AND deleted_at IS NULL`
+- `trip_bases`, `trip_days` — parent trip must be public
+- `trip_items` — parent trip must be public AND `status IN ('confirmed','reserved','done')` only
+- `trip_photos` — parent trip must be public
+- `journal_entries`, `journal_item_photos` — parent trip must be public AND `is_journal_public = true`
+- `user_profiles` — fully public (needed for attribution display)
+- `storage.objects` for `trip-photos`, `journal-photos` buckets — public read
+
+**Never add anon policies to:** `trip_members`, `trip_reactions`, `trip_todos`, `trip_packing_items`, `trip_tidbits`, `invite_codes`, or any other table not listed above.
 
 ---
 

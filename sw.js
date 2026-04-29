@@ -1,10 +1,19 @@
 // Keep this in sync with APP_VERSION in src/config/constants.js.
-const version = "v0.4.10";
+const version = "1.0.0";
 const cacheName = `passports-shell-${version}`;
 const appShell = [
   "/",
   "/index.html",
   "/manifest.json",
+  "/site.webmanifest",
+  "/favicon.ico",
+  "/favicon-16x16.png",
+  "/favicon-32x32.png",
+  "/apple-touch-icon.png",
+  "/android-chrome-192x192.png",
+  "/android-chrome-512x512.png",
+  "/passports-logo.svg",
+  "/passports-square-logo.svg",
   "/src/styles/main.css",
   "/src/app/app.js",
 ];

@@ -105,8 +105,8 @@ export function renderAppShell(content, options = {}) {
       <header class="topbar">
         <div class="topbar__left">
           <button class="topbar__brand" id="topbar-home" type="button" aria-label="Go to dashboard">
-            <span class="topbar__wordmark-wrap">
-              <span class="topbar__wordmark">Passports</span>
+            <span class="topbar__brand-lockup">
+              <img class="topbar__logo" src="/passports-logo.svg" alt="Passports" />
               <span class="topbar__version">${APP_VERSION}</span>
             </span>
           </button>

@@ -106,20 +106,17 @@
   padding: 0;
 }
 
-.topbar__wordmark-wrap {
+.topbar__brand-lockup {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 0.55rem;
 }
 
-.topbar__wordmark {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0;
-  color: var(--color-structure);
+.topbar__logo {
+  display: block;
+  width: auto;
+  height: 28px;
+  max-width: min(160px, 42vw);
 }
 
 .topbar__dashboard-link {
@@ -148,6 +145,13 @@
   font-size: 0.625rem;
   font-weight: 500;
   line-height: 1.1;
+}
+
+@media (max-width: 599px) {
+  .topbar__logo {
+    height: 24px;
+    max-width: min(136px, 38vw);
+  }
 }
 
 .topbar__actions {
