@@ -820,8 +820,8 @@
   .guide-day-nav.is-sticky-active {
     position: fixed;
     top: var(--guide-day-nav-top-offset, 0px);
-    left: 0;
-    width: 100vw;
+    left: var(--guide-day-nav-left, 0px);
+    width: var(--guide-day-nav-width, 100%);
     padding-inline: 0.75rem;
     box-sizing: border-box;
     background: var(--color-bg);

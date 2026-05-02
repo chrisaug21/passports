@@ -22,6 +22,14 @@ const SHARE_LINK_FEEDBACK_DURATION_MS = 2000;
 const shareLinkFeedbackResetTimers = new Map();
 
 function clearShareLinkFeedbackResetTimer(key) {
+  if (key == null) {
+    shareLinkFeedbackResetTimers.forEach((timerId, timerKey) => {
+      window.clearTimeout(timerId);
+      shareLinkFeedbackResetTimers.delete(timerKey);
+    });
+    return;
+  }
+
   const timerId = shareLinkFeedbackResetTimers.get(key);
   if (timerId) {
     window.clearTimeout(timerId);

@@ -532,8 +532,8 @@ function syncMobileDayNavOffset() {
   if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
     navShell.style.removeProperty("--guide-day-nav-top-offset");
     navShell.style.removeProperty("--guide-day-nav-shell-height");
-    navShell.style.removeProperty("--guide-day-nav-fixed-left");
-    navShell.style.removeProperty("--guide-day-nav-fixed-width");
+    nav?.style.removeProperty("--guide-day-nav-left");
+    nav?.style.removeProperty("--guide-day-nav-width");
     nav?.classList.remove("is-sticky-active");
     return;
   }
@@ -558,8 +558,8 @@ function syncMobileDayNavOffset() {
   navShell.style.setProperty("--guide-day-nav-shell-height", `${Math.ceil(navShell.getBoundingClientRect().height)}px`);
   if (nav) {
     const rect = navShell.getBoundingClientRect();
-    navShell.style.setProperty("--guide-day-nav-fixed-left", `${Math.round(rect.left)}px`);
-    navShell.style.setProperty("--guide-day-nav-fixed-width", `${Math.round(rect.width)}px`);
+    nav.style.setProperty("--guide-day-nav-left", `${Math.round(rect.left)}px`);
+    nav.style.setProperty("--guide-day-nav-width", `${Math.round(rect.width)}px`);
   }
 }
 
