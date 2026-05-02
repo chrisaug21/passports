@@ -490,7 +490,9 @@ export function renderGuideView(state) {
   return `
     ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole)}
     <div class="guide-body">
-      ${renderGuideDayNav(days, trip, todayDayNumber)}
+      <div class="guide-day-nav-shell">
+        ${renderGuideDayNav(days, trip, todayDayNumber)}
+      </div>
       <div class="guide-content">
         <section class="trip-stat-tiles guide-trip-stat-tiles" aria-label="Trip stats">
           ${statTiles.map((tile) => `

@@ -30,6 +30,17 @@ function normalizePath(pathname) {
   return "/";
 }
 
+function normalizeNavigationTarget(target) {
+  const url = new URL(String(target || "/"), window.location.origin);
+  const pathname = normalizePath(url.pathname);
+
+  if (pathname === "/") {
+    return "/";
+  }
+
+  return `${pathname}${url.search}${url.hash}`;
+}
+
 export function startRouter() {
   window.addEventListener("popstate", () => {
     renderRoute();
@@ -37,9 +48,10 @@ export function startRouter() {
 }
 
 export function navigate(pathname) {
-  const target = normalizePath(pathname);
+  const target = normalizeNavigationTarget(pathname);
+  const currentTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
-  if (window.location.pathname !== target) {
+  if (currentTarget !== target) {
     window.history.pushState({}, "", target);
   }
 

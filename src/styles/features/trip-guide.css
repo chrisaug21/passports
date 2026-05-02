@@ -238,6 +238,10 @@
   margin-top: 2rem;
 }
 
+.guide-day-nav-shell {
+  align-self: start;
+}
+
 /* ---------------------------------------------------------------------------
    Day nav — desktop sidebar (spec §5)
    --------------------------------------------------------------------------- */
@@ -747,21 +751,23 @@
     margin-top: 0;
   }
 
-  /* Mobile: sticky pill row */
+  .guide-day-nav-shell {
+    margin-bottom: 1.5rem;
+  }
+
   .guide-day-nav {
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    display: flex;
     flex-direction: row;
+    width: 100%;
+    box-sizing: border-box;
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
     padding: 0.75rem 1rem;
     background: var(--color-bg);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
     scrollbar-width: none;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
   }
 
   .guide-day-nav::-webkit-scrollbar {
@@ -803,6 +809,36 @@
 
   .guide-hero__content {
     padding: 1rem 1.25rem 1.25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .guide-day-nav-shell {
+    min-height: var(--guide-day-nav-shell-height, auto);
+  }
+
+  .guide-day-nav.is-sticky-active {
+    position: fixed;
+    top: var(--guide-day-nav-top-offset, 0px);
+    left: var(--guide-day-nav-left, 0px);
+    width: var(--guide-day-nav-width, 100%);
+    padding-inline: 0.75rem;
+    box-sizing: border-box;
+    background: transparent;
+    z-index: 30;
+  }
+
+  .guide-day-nav.is-sticky-active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc((100vw - 100%) / -2);
+    width: 100vw;
+    background: var(--color-bg);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.06);
+    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.04);
+    z-index: -1;
   }
 }
 

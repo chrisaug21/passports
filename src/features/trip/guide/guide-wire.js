@@ -17,6 +17,7 @@ import { fetchJournalData } from "../../../services/journal-service.js";
 import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
+const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 768;
 
 let cleanupFns = [];
 
@@ -37,6 +38,9 @@ let _journalState = {
   profiles: [],
 };
 
+let dayNavOffsetRafId = null;
+let dayNavStickyRafId = null;
+
 export function teardownGuideView() {
   cleanupFns.forEach((fn) => fn());
   cleanupFns = [];
@@ -47,6 +51,14 @@ export function teardownGuideView() {
   _currentMode = "itinerary";
   _todayDayNumber = null;
   _journalState = { hasFetched: false, isFetching: false, entries: [], photos: [], profiles: [] };
+  if (dayNavOffsetRafId) {
+    cancelAnimationFrame(dayNavOffsetRafId);
+    dayNavOffsetRafId = null;
+  }
+  if (dayNavStickyRafId) {
+    cancelAnimationFrame(dayNavStickyRafId);
+    dayNavStickyRafId = null;
+  }
 }
 
 function isMobileLayout() {
@@ -64,6 +76,8 @@ export function wireGuideView(state) {
   wireNavClicks();
   setupTouchScrollTracking();
   setupScrollTracking();
+  setupDayNavStickyOffsetTracking();
+  setupMobileDayNavStickyState();
   setupLazyDays(state);
 
   if (_todayDayNumber) {
@@ -150,10 +164,16 @@ function scrollOrJumpToDay(dayNumber) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
       item.classList.toggle("is-active", item.dataset.dayNumber === String(dayNumber));
     });
-    document.getElementById(`guide-day-${dayNumber}`)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+
+    syncMobileDayNavOffset();
+    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight();
+    const section = document.getElementById(`guide-day-${dayNumber}`);
+    if (!section) {
+      return;
+    }
+
+    const top = section.getBoundingClientRect().top + window.scrollY - stickyOffset;
+    window.scrollTo({ top, behavior: "smooth" });
   } else {
     scrollToDay(dayNumber);
   }
@@ -354,20 +374,34 @@ function switchToItinerary() {
 }
 
 function getStoredActiveMode() {
-  try {
-    const value = window.sessionStorage.getItem(GUIDE_ACTIVE_MODE_KEY);
-    return value === "journal" ? "journal" : "itinerary";
-  } catch (_error) {
-    return "itinerary";
-  }
+  const hashMode = getModeFromHash(window.location.hash);
+  return hashMode || "itinerary";
 }
 
 function persistActiveMode(mode) {
+  syncGuideModeHash(mode);
+
   try {
     window.sessionStorage.setItem(GUIDE_ACTIVE_MODE_KEY, mode);
   } catch (_error) {
     // Ignore sessionStorage failures.
   }
+}
+
+function getModeFromHash(hashValue) {
+  return String(hashValue || "").toLowerCase() === "#journal" ? "journal" : null;
+}
+
+function syncGuideModeHash(mode) {
+  const url = new URL(window.location.href);
+  const nextHash = mode === "journal" ? "#journal" : "";
+
+  if (url.hash === nextHash) {
+    return;
+  }
+
+  url.hash = nextHash;
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function setActiveTab(tab) {
@@ -466,6 +500,141 @@ function restoreDayNavSelection() {
   }
 
   document.querySelector(".guide-nav-item")?.classList.add("is-active");
+}
+
+function getGuideDayNavOffset() {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  if (!navShell) {
+    return 0;
+  }
+
+  const rawValue = navShell.style.getPropertyValue("--guide-day-nav-top-offset");
+  const parsedValue = Number.parseFloat(rawValue);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function getGuideDayNavHeight() {
+  const nav = document.querySelector(".guide-day-nav");
+  if (!nav) {
+    return 0;
+  }
+
+  return Math.ceil(nav.getBoundingClientRect().height);
+}
+
+function syncMobileDayNavOffset() {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  const nav = navShell?.querySelector(".guide-day-nav");
+  if (!navShell) {
+    return;
+  }
+
+  if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
+    navShell.style.removeProperty("--guide-day-nav-top-offset");
+    navShell.style.removeProperty("--guide-day-nav-shell-height");
+    nav?.style.removeProperty("--guide-day-nav-left");
+    nav?.style.removeProperty("--guide-day-nav-width");
+    nav?.classList.remove("is-sticky-active");
+    return;
+  }
+
+  let offset = 0;
+
+  document.querySelectorAll(".topbar, [data-guide-fixed-header]").forEach((element) => {
+    const computedStyle = window.getComputedStyle(element);
+    if (!["fixed", "sticky"].includes(computedStyle.position)) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.bottom <= 0) {
+      return;
+    }
+
+    offset = Math.max(offset, Math.ceil(rect.bottom));
+  });
+
+  navShell.style.setProperty("--guide-day-nav-top-offset", `${offset}px`);
+  navShell.style.setProperty("--guide-day-nav-shell-height", `${Math.ceil(navShell.getBoundingClientRect().height)}px`);
+  if (nav) {
+    const rect = navShell.getBoundingClientRect();
+    nav.style.setProperty("--guide-day-nav-left", `${Math.round(rect.left)}px`);
+    nav.style.setProperty("--guide-day-nav-width", `${Math.round(rect.width)}px`);
+  }
+}
+
+function setupDayNavStickyOffsetTracking() {
+  syncMobileDayNavOffset();
+
+  const queueSync = () => {
+    if (dayNavOffsetRafId) {
+      return;
+    }
+
+    dayNavOffsetRafId = requestAnimationFrame(() => {
+      dayNavOffsetRafId = null;
+      syncMobileDayNavOffset();
+    });
+  };
+
+  window.addEventListener("resize", queueSync);
+  window.addEventListener("scroll", queueSync, { passive: true });
+
+  cleanupFns.push(() => {
+    window.removeEventListener("resize", queueSync);
+    window.removeEventListener("scroll", queueSync);
+    if (dayNavOffsetRafId) {
+      cancelAnimationFrame(dayNavOffsetRafId);
+      dayNavOffsetRafId = null;
+    }
+  });
+}
+
+function updateMobileDayNavStickyState() {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  const nav = navShell?.querySelector(".guide-day-nav");
+  if (!navShell || !nav) {
+    return;
+  }
+
+  if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
+    nav.classList.remove("is-sticky-active");
+    navShell.style.removeProperty("--guide-day-nav-shell-height");
+    return;
+  }
+
+  syncMobileDayNavOffset();
+  const topOffset = getGuideDayNavOffset();
+  const rect = navShell.getBoundingClientRect();
+  const isStickyActive = rect.top <= topOffset;
+  nav.classList.toggle("is-sticky-active", isStickyActive);
+}
+
+function setupMobileDayNavStickyState() {
+  updateMobileDayNavStickyState();
+
+  const queueStickyUpdate = () => {
+    if (dayNavStickyRafId) {
+      return;
+    }
+
+    dayNavStickyRafId = requestAnimationFrame(() => {
+      dayNavStickyRafId = null;
+      updateMobileDayNavStickyState();
+    });
+  };
+
+  window.addEventListener("resize", queueStickyUpdate);
+  window.addEventListener("scroll", queueStickyUpdate, { passive: true });
+
+  cleanupFns.push(() => {
+    window.removeEventListener("resize", queueStickyUpdate);
+    window.removeEventListener("scroll", queueStickyUpdate);
+    if (dayNavStickyRafId) {
+      cancelAnimationFrame(dayNavStickyRafId);
+      dayNavStickyRafId = null;
+    }
+  });
 }
 
 function setupLazyJournalDays() {

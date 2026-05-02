@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.0.3";
+export const APP_VERSION = "1.0.13";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
