@@ -225,7 +225,7 @@ function renderItemJournalArea(item, entries, photos, members, profiles, isWrita
     const photoHtml = isCurrentUser && isWritable
       ? renderItemPhotoSlot(item, photo, true)
       : photo
-        ? renderItemPhotoRead(item, photo, isWritable ? "long-press" : "click")
+        ? renderItemPhotoRead(item, photo)
         : "";
 
     if (!noteHtml && !photoHtml) {

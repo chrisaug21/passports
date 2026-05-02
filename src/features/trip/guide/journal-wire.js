@@ -359,13 +359,38 @@ function wirePhotoLightbox(state, journalState) {
     const photoId = button.dataset.journalPhotoOpen;
     if (!photoId) return;
     button.dataset.journalLightboxBound = "true";
+    let lastOpenAt = 0;
 
-    const handleOpen = () => {
+    const open = () => {
+      const now = Date.now();
+      if (now - lastOpenAt < 250) {
+        return;
+      }
+
+      lastOpenAt = now;
       openJournalLightbox({ photoId, state, journalState });
     };
 
-    button.addEventListener("click", handleOpen);
-    _journalCleanupFns.push(() => button.removeEventListener("click", handleOpen));
+    const handlePointerUp = (event) => {
+      if (!(event instanceof PointerEvent)) {
+        return;
+      }
+
+      if (event.pointerType === "touch" || event.pointerType === "pen") {
+        open();
+      }
+    };
+
+    const handleClick = () => {
+      open();
+    };
+
+    button.addEventListener("pointerup", handlePointerUp);
+    button.addEventListener("click", handleClick);
+    _journalCleanupFns.push(() => {
+      button.removeEventListener("pointerup", handlePointerUp);
+      button.removeEventListener("click", handleClick);
+    });
   });
 }
 

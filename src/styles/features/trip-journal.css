@@ -402,8 +402,6 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 10px;
-  display: grid;
-  place-items: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease;
@@ -415,11 +413,17 @@
 }
 
 .journal-photo-slot__actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem;
+  width: max-content;
+  max-width: calc(100% - 1rem);
   pointer-events: auto;
 }
 
