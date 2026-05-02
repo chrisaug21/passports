@@ -166,7 +166,7 @@ function scrollOrJumpToDay(dayNumber) {
     });
 
     syncMobileDayNavOffset();
-    const stickyOffset = getGuideDayNavOffset();
+    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight();
     const section = document.getElementById(`guide-day-${dayNumber}`);
     if (!section) {
       return;
@@ -511,6 +511,15 @@ function getGuideDayNavOffset() {
   const rawValue = navShell.style.getPropertyValue("--guide-day-nav-top-offset");
   const parsedValue = Number.parseFloat(rawValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function getGuideDayNavHeight() {
+  const nav = document.querySelector(".guide-day-nav");
+  if (!nav) {
+    return 0;
+  }
+
+  return Math.ceil(nav.getBoundingClientRect().height);
 }
 
 function syncMobileDayNavOffset() {
