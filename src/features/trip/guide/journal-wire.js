@@ -19,12 +19,18 @@ const AUTOSAVE_DELAY_MS = 500;
 const SAVED_FEEDBACK_MS = 2000;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
+const LIGHTBOX_LONG_PRESS_MS = 500;
 let _journalCleanupFns = [];
 let _saveCounter = 0;
+let _activePhotoUploadCount = 0;
+let _openLightboxPhotoId = "";
+let _lightboxEscapeHandler = null;
 
 export function teardownJournalMode() {
   _journalCleanupFns.forEach((fn) => fn());
   _journalCleanupFns = [];
+  closeJournalLightbox();
+  _activePhotoUploadCount = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -39,7 +45,12 @@ export function wireJournalMode(state, journalState) {
   wireDayEntries(state, journalState, userId);
   wireItemEntries(state, journalState, userId);
   wireItemPhotos(state, journalState, userId);
+  wirePhotoLightbox(state, journalState);
   wireDoneToggles(state, journalState);
+}
+
+export function hasActiveJournalInteractionInProgress() {
+  return _activePhotoUploadCount > 0 || Boolean(document.querySelector("[data-journal-editor]:not([hidden])"));
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +360,90 @@ function wireItemPhotos(state, journalState, userId) {
   });
 }
 
+function wirePhotoLightbox(state, journalState) {
+  document.querySelectorAll("[data-journal-photo-open]").forEach((button) => {
+    if (button.dataset.journalLightboxBound === "true") return;
+    const photoId = button.dataset.journalPhotoOpen;
+    const openMode = button.dataset.journalPhotoOpenMode || "click";
+    if (!photoId) return;
+    button.dataset.journalLightboxBound = "true";
+
+    if (openMode === "long-press") {
+      let pressTimer = 0;
+      let suppressClick = false;
+
+      const clearPressTimer = () => {
+        if (pressTimer) {
+          window.clearTimeout(pressTimer);
+          pressTimer = 0;
+        }
+      };
+
+      const handlePointerDown = (event) => {
+        if (!(event instanceof PointerEvent) || event.pointerType === "mouse") {
+          return;
+        }
+
+        clearPressTimer();
+        pressTimer = window.setTimeout(() => {
+          suppressClick = true;
+          openJournalLightbox({ photoId, state, journalState });
+          clearPressTimer();
+        }, LIGHTBOX_LONG_PRESS_MS);
+      };
+
+      const handlePointerUp = () => {
+        clearPressTimer();
+      };
+
+      const handleClick = (event) => {
+        if (suppressClick) {
+          suppressClick = false;
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+
+        if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+          openJournalLightbox({ photoId, state, journalState });
+        }
+      };
+
+      const handleContextMenu = (event) => {
+        if (window.matchMedia("(hover: none)").matches) {
+          event.preventDefault();
+        }
+      };
+
+      button.addEventListener("pointerdown", handlePointerDown);
+      button.addEventListener("pointerup", handlePointerUp);
+      button.addEventListener("pointerleave", handlePointerUp);
+      button.addEventListener("pointercancel", handlePointerUp);
+      button.addEventListener("click", handleClick);
+      button.addEventListener("contextmenu", handleContextMenu);
+
+      _journalCleanupFns.push(() => {
+        button.removeEventListener("pointerdown", handlePointerDown);
+        button.removeEventListener("pointerup", handlePointerUp);
+        button.removeEventListener("pointerleave", handlePointerUp);
+        button.removeEventListener("pointercancel", handlePointerUp);
+        button.removeEventListener("click", handleClick);
+        button.removeEventListener("contextmenu", handleContextMenu);
+        clearPressTimer();
+      });
+
+      return;
+    }
+
+    const handleOpen = () => {
+      openJournalLightbox({ photoId, state, journalState });
+    };
+
+    button.addEventListener("click", handleOpen);
+    _journalCleanupFns.push(() => button.removeEventListener("click", handleOpen));
+  });
+}
+
 function refreshJournalStatTiles(state, journalState) {
   const statTiles = document.querySelector("[data-journal-stat-tiles]");
   if (!statTiles) return;
@@ -430,6 +525,7 @@ async function handlePhotoAdd({ itemId, state, journalState, userId }) {
 
   const slot = document.querySelector(`[data-journal-photo-slot="${CSS.escape(itemId)}"]`);
   if (slot) slot.classList.add("is-uploading");
+  _activePhotoUploadCount += 1;
 
   try {
     const blob = await compressJournalPhoto(file);
@@ -447,10 +543,12 @@ async function handlePhotoAdd({ itemId, state, journalState, userId }) {
     console.error("Photo upload failed:", error);
     showToast("Photo upload failed. Try again.", "error");
     if (slot) slot.classList.remove("is-uploading");
+  } finally {
+    _activePhotoUploadCount = Math.max(0, _activePhotoUploadCount - 1);
   }
 }
 
-async function handlePhotoReplace({ itemId, state, journalState, userId }) {
+async function handlePhotoReplace({ itemId, state, journalState, userId, closeLightboxOnSuccess = false }) {
   const file = await selectPhotoFile();
   if (!file) return;
 
@@ -465,6 +563,7 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
 
   const slot = document.querySelector(`[data-journal-photo-slot="${CSS.escape(itemId)}"]`);
   if (slot) slot.classList.add("is-uploading");
+  _activePhotoUploadCount += 1;
 
   try {
     const blob = await compressJournalPhoto(file);
@@ -481,6 +580,7 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
     journalState.photos.push(photo);
     refreshJournalStatTiles(state, journalState);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
+    rerenderJournalLightboxIfOpen(state, journalState);
 
     if (existingPhoto) {
       try {
@@ -489,14 +589,20 @@ async function handlePhotoReplace({ itemId, state, journalState, userId }) {
         console.error("Old photo cleanup failed after replacement:", deleteError);
       }
     }
+
+    if (closeLightboxOnSuccess) {
+      closeJournalLightbox();
+    }
   } catch (error) {
     console.error("Photo replace failed:", error);
     showToast("Couldn't replace photo. Try again.", "error");
     if (slot) slot.classList.remove("is-uploading");
+  } finally {
+    _activePhotoUploadCount = Math.max(0, _activePhotoUploadCount - 1);
   }
 }
 
-async function handlePhotoRemove({ itemId, state, journalState }) {
+async function handlePhotoRemove({ itemId, state, journalState, closeLightboxOnSuccess = false }) {
   const { session } = sessionStore.getState();
   const userId = session?.user?.id;
   const existingPhoto = journalState.photos.find(
@@ -510,6 +616,10 @@ async function handlePhotoRemove({ itemId, state, journalState }) {
     journalState.photos = journalState.photos.filter((p) => p.id !== existingPhoto.id);
     refreshJournalStatTiles(state, journalState);
     refreshItemPhotoSlot({ itemId, state, journalState, userId });
+    rerenderJournalLightboxIfOpen(state, journalState);
+    if (closeLightboxOnSuccess) {
+      closeJournalLightbox();
+    }
   } catch (error) {
     console.error("Photo remove failed:", error);
     showToast("Couldn't remove photo. Try again.", "error");
@@ -535,6 +645,7 @@ function refreshItemPhotoSlot({ itemId, state, journalState, userId }) {
     slotEl.replaceWith(newSlot);
     window.lucide?.createIcons?.();
     wireItemPhotos(state, journalState, userId);
+    wirePhotoLightbox(state, journalState);
   }
 }
 
@@ -608,4 +719,188 @@ function wireDoneToggles(state, journalState) {
     button.addEventListener("click", handler);
     _journalCleanupFns.push(() => button.removeEventListener("click", handler));
   });
+}
+
+function openJournalLightbox({ photoId, state, journalState }) {
+  _openLightboxPhotoId = photoId;
+  renderJournalLightbox(state, journalState);
+}
+
+function closeJournalLightbox() {
+  document.querySelector(".journal-lightbox")?.remove();
+  document.body.classList.remove("journal-lightbox-open");
+  if (_lightboxEscapeHandler) {
+    document.removeEventListener("keydown", _lightboxEscapeHandler);
+    _lightboxEscapeHandler = null;
+  }
+  _openLightboxPhotoId = "";
+}
+
+function rerenderJournalLightboxIfOpen(state, journalState) {
+  if (_openLightboxPhotoId) {
+    renderJournalLightbox(state, journalState);
+  }
+}
+
+function getPhotoItem(state, photo) {
+  return state.items.find((item) => item.id === photo?.item_id) || null;
+}
+
+function getLightboxPhotos(state, journalState, currentPhotoId) {
+  const currentPhoto = journalState.photos.find((photo) => photo.id === currentPhotoId) || null;
+  if (!currentPhoto) {
+    return [];
+  }
+
+  const currentItem = getPhotoItem(state, currentPhoto);
+  const dayId = currentItem?.day_id || null;
+
+  if (!dayId) {
+    return [currentPhoto];
+  }
+
+  const dayItemIds = new Set(
+    state.items
+      .filter((item) => item.day_id === dayId)
+      .map((item) => item.id)
+  );
+
+  return journalState.photos
+    .filter((photo) => dayItemIds.has(photo.item_id))
+    .sort((a, b) => {
+      const left = Date.parse(a.created_at || a.updated_at || "") || 0;
+      const right = Date.parse(b.created_at || b.updated_at || "") || 0;
+      return left - right;
+    });
+}
+
+function canEditLightboxPhoto(state, photo) {
+  return Boolean(
+    photo
+    && state.viewerRole !== "public"
+    && state.userId
+    && photo.user_id === state.userId
+  );
+}
+
+function renderJournalLightbox(state, journalState) {
+  const photos = getLightboxPhotos(state, journalState, _openLightboxPhotoId);
+  const currentIndex = photos.findIndex((photo) => photo.id === _openLightboxPhotoId);
+  const currentPhoto = currentIndex >= 0 ? photos[currentIndex] : null;
+
+  if (!currentPhoto?.public_url) {
+    closeJournalLightbox();
+    return;
+  }
+
+  const item = getPhotoItem(state, currentPhoto);
+  const canEdit = canEditLightboxPhoto(state, currentPhoto);
+  const hasMultiple = photos.length > 1;
+  const existingLightbox = document.querySelector(".journal-lightbox");
+  const lightbox = existingLightbox || document.createElement("div");
+
+  lightbox.className = "journal-lightbox";
+  lightbox.innerHTML = `
+    <div class="journal-lightbox__backdrop" data-journal-lightbox-close></div>
+    <section class="journal-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Photo viewer">
+      <button class="journal-lightbox__close" data-journal-lightbox-close type="button" aria-label="Close photo viewer">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="journal-lightbox__stage">
+        ${hasMultiple ? `
+          <button class="journal-lightbox__nav journal-lightbox__nav--prev" data-journal-lightbox-prev type="button" aria-label="Previous photo">
+            <i data-lucide="chevron-left" aria-hidden="true"></i>
+          </button>
+        ` : ""}
+        <div class="journal-lightbox__media-shell">
+          <img class="journal-lightbox__image" src="${escapeHtml(currentPhoto.public_url)}" alt="${escapeHtml(item?.title || "Journal photo")}" />
+        </div>
+        ${hasMultiple ? `
+          <button class="journal-lightbox__nav journal-lightbox__nav--next" data-journal-lightbox-next type="button" aria-label="Next photo">
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        ` : ""}
+      </div>
+      <div class="journal-lightbox__meta">
+        <p class="journal-lightbox__title">${escapeHtml(item?.title || "Journal photo")}</p>
+        ${hasMultiple ? `<p class="journal-lightbox__count">${currentIndex + 1} of ${photos.length}</p>` : ""}
+      </div>
+      ${canEdit ? `
+        <div class="journal-lightbox__toolbar">
+          <button class="journal-lightbox__toolbar-button" data-journal-lightbox-replace="${escapeHtml(item?.id || "")}" type="button">
+            <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            <span>Replace</span>
+          </button>
+          <button class="journal-lightbox__toolbar-button journal-lightbox__toolbar-button--danger" data-journal-lightbox-remove="${escapeHtml(item?.id || "")}" type="button">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+            <span>Delete</span>
+          </button>
+          <button class="journal-lightbox__toolbar-button" data-journal-lightbox-close type="button">
+            <i data-lucide="x" aria-hidden="true"></i>
+            <span>Close</span>
+          </button>
+        </div>
+      ` : ""}
+    </section>
+  `;
+
+  if (!existingLightbox) {
+    document.body.append(lightbox);
+  }
+
+  document.body.classList.add("journal-lightbox-open");
+  window.lucide?.createIcons?.();
+
+  lightbox.querySelectorAll("[data-journal-lightbox-close]").forEach((button) => {
+    button.addEventListener("click", closeJournalLightbox, { once: true });
+  });
+
+  lightbox.querySelector(".journal-lightbox__dialog")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  lightbox.querySelector("[data-journal-lightbox-prev]")?.addEventListener("click", () => {
+    const nextPhoto = photos[currentIndex - 1] || photos[photos.length - 1];
+    _openLightboxPhotoId = nextPhoto.id;
+    renderJournalLightbox(state, journalState);
+  });
+
+  lightbox.querySelector("[data-journal-lightbox-next]")?.addEventListener("click", () => {
+    const nextPhoto = photos[currentIndex + 1] || photos[0];
+    _openLightboxPhotoId = nextPhoto.id;
+    renderJournalLightbox(state, journalState);
+  });
+
+  lightbox.querySelector("[data-journal-lightbox-replace]")?.addEventListener("click", () => {
+    if (!item?.id) return;
+    void handlePhotoReplace({
+      itemId: item.id,
+      state,
+      journalState,
+      userId: state.userId,
+      closeLightboxOnSuccess: true,
+    });
+  });
+
+  lightbox.querySelector("[data-journal-lightbox-remove]")?.addEventListener("click", () => {
+    if (!item?.id) return;
+    void handlePhotoRemove({
+      itemId: item.id,
+      state,
+      journalState,
+      closeLightboxOnSuccess: true,
+    });
+  });
+
+  if (_lightboxEscapeHandler) {
+    document.removeEventListener("keydown", _lightboxEscapeHandler);
+  }
+
+  _lightboxEscapeHandler = (event) => {
+    if (event.key === "Escape") {
+      closeJournalLightbox();
+    }
+  };
+
+  document.addEventListener("keydown", _lightboxEscapeHandler);
 }

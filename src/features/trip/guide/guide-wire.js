@@ -12,12 +12,18 @@ import {
   renderJournalDayNav,
   renderJournalDaySection,
 } from "./journal-view.js";
-import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
-import { fetchJournalData } from "../../../services/journal-service.js";
+import {
+  wireJournalMode,
+  teardownJournalMode,
+  hasActiveJournalInteractionInProgress,
+} from "./journal-wire.js";
+import { fetchJournalRefreshData } from "../../../services/journal-service.js";
 import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
+import { showToast } from "../../shared/toast.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
 const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 768;
+const JOURNAL_BACKGROUND_REFRESH_MS = 60 * 1000;
 
 let cleanupFns = [];
 
@@ -33,6 +39,7 @@ let _todayDayNumber = null;
 let _journalState = {
   hasFetched: false,
   isFetching: false,
+  isManualReloading: false,
   entries: [],
   photos: [],
   profiles: [],
@@ -40,6 +47,7 @@ let _journalState = {
 
 let dayNavOffsetRafId = null;
 let dayNavStickyRafId = null;
+let journalRefreshIntervalId = 0;
 
 export function teardownGuideView() {
   cleanupFns.forEach((fn) => fn());
@@ -50,7 +58,8 @@ export function teardownGuideView() {
   _guideState = null;
   _currentMode = "itinerary";
   _todayDayNumber = null;
-  _journalState = { hasFetched: false, isFetching: false, entries: [], photos: [], profiles: [] };
+  _journalState = { hasFetched: false, isFetching: false, isManualReloading: false, entries: [], photos: [], profiles: [] };
+  clearJournalBackgroundRefresh();
   if (dayNavOffsetRafId) {
     cancelAnimationFrame(dayNavOffsetRafId);
     dayNavOffsetRafId = null;
@@ -337,14 +346,8 @@ async function switchToJournal() {
 
     try {
       await ensureMembersLoaded();
-      const memberUserIds = _guideState.members.map((m) => m.user_id);
-      const doneUserIds = _guideState.items
-        .map((item) => item.done_by)
-        .filter(Boolean);
-      const data = await fetchJournalData(_guideState.tripId, memberUserIds, doneUserIds);
-      _journalState.entries = data.entries;
-      _journalState.photos = data.photos;
-      _journalState.profiles = data.profiles;
+      const data = await fetchLatestJournalState();
+      applyJournalRefreshData(data);
       _journalState.hasFetched = true;
     } catch (error) {
       console.error("Failed to load journal data:", error);
@@ -361,12 +364,14 @@ async function switchToJournal() {
   _currentMode = "journal";
   persistActiveMode("journal");
   renderJournalModeContent();
+  setupJournalBackgroundRefresh();
 }
 
 function switchToItinerary() {
   if (!_guideState) return;
 
   teardownJournalMode();
+  clearJournalBackgroundRefresh();
   setActiveTab("itinerary");
   _currentMode = "itinerary";
   persistActiveMode("itinerary");
@@ -425,6 +430,7 @@ function renderJournalModeContent() {
   wireNavClicks();
   setupLazyJournalDays();
   wireJournalMode(_guideState, _journalState);
+  wireJournalRefreshButton();
   restoreDayNavSelection();
 }
 
@@ -666,4 +672,106 @@ function setupLazyJournalDays() {
 
   placeholders.forEach((el) => observer.observe(el));
   cleanupFns.push(() => observer.disconnect());
+}
+
+async function fetchLatestJournalState() {
+  if (!_guideState) {
+    return null;
+  }
+
+  await ensureMembersLoaded();
+  const memberUserIds = _guideState.members.map((member) => member.user_id);
+  const doneUserIds = _guideState.items
+    .map((item) => item.done_by)
+    .filter(Boolean);
+
+  return fetchJournalRefreshData(_guideState.tripId, memberUserIds, doneUserIds);
+}
+
+function applyJournalRefreshData(data) {
+  if (!_guideState || !data) {
+    return;
+  }
+
+  _journalState.entries = data.entries || [];
+  _journalState.photos = data.photos || [];
+  _journalState.profiles = data.profiles || [];
+
+  const itemStateById = new Map((data.itemStates || []).map((item) => [item.id, item]));
+  _guideState.items = _guideState.items.map((item) => {
+    const nextState = itemStateById.get(item.id);
+    if (!nextState) {
+      return item;
+    }
+
+    return {
+      ...item,
+      is_done: nextState.is_done,
+      done_by: nextState.done_by,
+      done_at: nextState.done_at,
+    };
+  });
+}
+
+function wireJournalRefreshButton() {
+  const button = document.querySelector("[data-journal-refresh]");
+  if (!button || button.dataset.journalRefreshBound === "true") {
+    return;
+  }
+
+  button.dataset.journalRefreshBound = "true";
+  button.addEventListener("click", () => {
+    void refreshJournalData({ isManual: true });
+  });
+}
+
+async function refreshJournalData({ isManual = false } = {}) {
+  if (!_guideState || _currentMode !== "journal" || _journalState.isFetching) {
+    return;
+  }
+
+  if (!isManual && hasActiveJournalInteractionInProgress()) {
+    return;
+  }
+
+  _journalState.isFetching = true;
+
+  if (isManual) {
+    _journalState.isManualReloading = true;
+    renderJournalModeContent();
+  }
+
+  try {
+    const data = await fetchLatestJournalState();
+    applyJournalRefreshData(data);
+  } catch (error) {
+    console.error("Failed to refresh journal data:", error);
+
+    if (isManual) {
+      showToast("Couldn't reload the journal right now. Try again.", "error");
+    }
+  } finally {
+    _journalState.isFetching = false;
+
+    if (isManual) {
+      _journalState.isManualReloading = false;
+    }
+
+    renderJournalModeContent();
+  }
+}
+
+function setupJournalBackgroundRefresh() {
+  clearJournalBackgroundRefresh();
+
+  journalRefreshIntervalId = window.setInterval(() => {
+    void refreshJournalData({ isManual: false });
+  }, JOURNAL_BACKGROUND_REFRESH_MS);
+}
+
+function clearJournalBackgroundRefresh() {
+  if (journalRefreshIntervalId) {
+    window.clearInterval(journalRefreshIntervalId);
+    journalRefreshIntervalId = 0;
+  }
 }

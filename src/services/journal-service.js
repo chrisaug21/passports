@@ -3,6 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, created_at, updated_at";
 const JOURNAL_PHOTO_SELECT = "id, trip_id, user_id, item_id, storage_path, public_url, created_at, updated_at";
 const USER_PROFILE_SELECT = "id, first_name, last_name, updated_at";
+const JOURNAL_ITEM_STATE_SELECT = "id, is_done, done_by, done_at";
 
 export const JOURNAL_PHOTO_BUCKET = "journal-photos";
 export const JOURNAL_PHOTO_MAX_PX = 1200;
@@ -47,6 +48,27 @@ export async function fetchJournalData(tripId, memberUserIds, doneUserIds = []) 
     entries: entriesResult.data || [],
     photos: photosResult.data || [],
     profiles: profilesResult.data || [],
+  };
+}
+
+export async function fetchJournalRefreshData(tripId, memberUserIds, doneUserIds = []) {
+  const supabase = getSupabase();
+  const [journalData, itemStatesResult] = await Promise.all([
+    fetchJournalData(tripId, memberUserIds, doneUserIds),
+    supabase
+      .from("trip_items")
+      .select(JOURNAL_ITEM_STATE_SELECT)
+      .eq("trip_id", tripId)
+      .is("deleted_at", null),
+  ]);
+
+  if (itemStatesResult.error) {
+    throw itemStatesResult.error;
+  }
+
+  return {
+    ...journalData,
+    itemStates: itemStatesResult.data || [],
   };
 }
 
