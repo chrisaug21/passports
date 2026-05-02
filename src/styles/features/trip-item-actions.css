@@ -120,10 +120,6 @@
   background: var(--color-action-bright);
 }
 
-.status-dot--done {
-  background: var(--color-status-done);
-}
-
 .item-status-meta {
   display: inline-flex;
   align-items: center;
@@ -152,10 +148,6 @@
 
 .item-status-meta--reserved {
   color: var(--color-action-bright);
-}
-
-.item-status-meta--done {
-  color: var(--color-status-done);
 }
 
 .anchor-indicator {

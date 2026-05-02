@@ -314,7 +314,7 @@ function renderItemPhotoRead(photo) {
 function renderDoneToggle(item, showDoneToggle) {
   if (!showDoneToggle) return "";
 
-  const isDone = item.status === "done";
+  const isDone = item.is_done === true;
 
   return `
     <button
@@ -324,8 +324,24 @@ function renderDoneToggle(item, showDoneToggle) {
       aria-label="${isDone ? "Mark not done" : "Mark as done"}"
       aria-pressed="${String(isDone)}"
     >
-      <i data-lucide="check" aria-hidden="true"></i>
+      <span class="journal-done-toggle__icon" aria-hidden="true">
+        <i data-lucide="check" aria-hidden="true"></i>
+      </span>
+      <span class="journal-done-toggle__label">${isDone ? "Done" : "Mark done"}</span>
     </button>
+  `;
+}
+
+function renderDoneAttribution(item, members, profiles) {
+  if (item.is_done !== true || !item.done_by) {
+    return "";
+  }
+
+  return `
+    <div class="journal-item-card__done-by" aria-label="Marked done by">
+      <span class="journal-item-card__done-by-label">Done by</span>
+      ${renderJournalAvatar(item.done_by, members, profiles)}
+    </div>
   `;
 }
 
@@ -334,7 +350,7 @@ function renderDoneToggle(item, showDoneToggle) {
 // ---------------------------------------------------------------------------
 
 function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneToggle) {
-  const isDone = item.status === "done";
+  const isDone = item.is_done === true;
 
   let timeLabel = "";
   if (item.time_start) {
@@ -351,15 +367,19 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
   }
 
   const journalArea = renderItemJournalArea(item, entries, photos, members, profiles, isWritable, currentUserId);
+  const doneAttribution = renderDoneAttribution(item, members, profiles);
 
   return `
     <article
       class="guide-item-card journal-item-card${isDone ? " journal-item-card--done" : ""}"
-      data-status="${escapeHtml(item.status)}"
       data-item-type="${escapeHtml(item.item_type)}"
       data-item-id="${escapeHtml(item.id)}"
+      data-is-done="${String(isDone)}"
     >
-      ${renderDoneToggle(item, showDoneToggle)}
+      <div class="journal-item-card__topbar">
+        ${renderDoneToggle(item, showDoneToggle)}
+        ${doneAttribution}
+      </div>
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
         <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
@@ -510,7 +530,7 @@ function shouldShowProfilePrompt(state, journalState) {
 }
 
 export function renderJournalStatTiles(state, journalState) {
-  const doneItems = state.items.filter((item) => item.status === "done");
+  const doneItems = state.items.filter((item) => item.is_done === true);
   const itemTypeTiles = getTripStatTiles(state.trip, state.bases, doneItems)
     .filter((tile) => tile.label !== "Days" && tile.label !== "Bases");
   const photoCount = journalState.photos.length;

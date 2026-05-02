@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.0.1";
+export const APP_VERSION = "1.0.2";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -9,7 +9,7 @@ export const DEFAULT_BASE_TIMEZONE = "America/New_York";
 
 export const ITEM_TYPES = ["meal", "activity", "transport", "lodging"];
 
-export const ITEM_STATUSES = ["idea", "option", "shortlisted", "confirmed", "reserved", "done"];
+export const ITEM_STATUSES = ["idea", "option", "shortlisted", "confirmed", "reserved"];
 
 export const MEAL_SLOTS = ["breakfast", "brunch", "lunch", "dinner"];
 

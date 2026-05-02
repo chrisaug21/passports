@@ -21,7 +21,7 @@ export function renderAnchorIndicator() {
 }
 
 export function getTripStatTiles(trip, bases, items) {
-  const confirmedStatuses = new Set(["confirmed", "reserved", "done"]);
+  const confirmedStatuses = new Set(["confirmed", "reserved"]);
   const mealCount = items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length;
   const activityCount = items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length;
   const stayCount = items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length;
