@@ -817,10 +817,15 @@
   .guide-day-nav.is-sticky-active {
     position: fixed;
     top: var(--guide-day-nav-top-offset, 0px);
-    left: var(--guide-day-nav-fixed-left, 0px);
-    width: var(--guide-day-nav-fixed-width, 100%);
-    z-index: 20;
-    box-shadow: 0 8px 24px rgba(27, 43, 66, 0.08);
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding-inline: 0.75rem;
+    box-sizing: border-box;
+    background: var(--color-bg);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
+    z-index: 30;
+    box-shadow: 0 6px 16px rgba(27, 43, 66, 0.06);
   }
 }
 
