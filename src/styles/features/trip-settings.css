@@ -81,10 +81,9 @@
 .trip-settings-form__sharing-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-start;
+  gap: 0.6rem;
   min-height: var(--touch-target);
-  width: 100%;
 }
 
 .trip-settings-form__sharing-toggle {
@@ -109,7 +108,6 @@
   gap: 0.45rem;
   justify-content: flex-start;
   flex-shrink: 0;
-  margin-left: auto;
   min-width: 44px;
   padding: 0;
   border: 0;
