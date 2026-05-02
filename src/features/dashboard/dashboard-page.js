@@ -104,6 +104,8 @@ export function renderDashboardPage() {
 }
 
 export function wireDashboardPage() {
+  const trips = tripStore.getTrips();
+
   document.querySelector("#open-create-trip-modal")?.addEventListener("click", openCreateTripModal);
   document.querySelector("#empty-create-trip-button")?.addEventListener("click", openCreateTripModal);
   document.querySelector("#retry-dashboard-load")?.addEventListener("click", () => {
