@@ -551,6 +551,8 @@ function wireDoneToggles(state, journalState) {
     const handler = async () => {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item) return;
+      const { session } = sessionStore.getState();
+      const sessionUserId = session?.user?.id || null;
 
       const card = button.closest("[data-item-id]");
       const previousIsDone = item.is_done === true;
@@ -558,7 +560,7 @@ function wireDoneToggles(state, journalState) {
       const previousDoneAt = item.done_at || null;
       const nextIsDone = !previousIsDone;
       const nextDoneAt = nextIsDone ? new Date().toISOString() : null;
-      const nextDoneBy = nextIsDone ? state.userId || null : null;
+      const nextDoneBy = nextIsDone ? sessionUserId || state.userId || null : null;
 
       item.is_done = nextIsDone;
       item.done_by = nextDoneBy;

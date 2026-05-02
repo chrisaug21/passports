@@ -7,7 +7,7 @@ import { deriveTripStatus } from "../../../lib/derive.js";
 import {
   escapeHtml,
   getCountLabel,
-  getTripStatTiles,
+  getDoneTripStatTiles,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -352,7 +352,6 @@ function renderDoneAttribution(item, members, profiles) {
 
 function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneUi) {
   const isDone = item.is_done === true;
-  const showDoneState = showDoneUi && isDone;
 
   let timeLabel = "";
   if (item.time_start) {
@@ -381,10 +380,10 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
 
   return `
     <article
-      class="guide-item-card journal-item-card${showDoneState ? " journal-item-card--done" : ""}"
+      class="guide-item-card journal-item-card${isDone ? " journal-item-card--done" : ""}"
       data-item-type="${escapeHtml(item.item_type)}"
       data-item-id="${escapeHtml(item.id)}"
-      data-is-done="${String(showDoneState)}"
+      data-is-done="${String(isDone)}"
     >
       <div class="guide-item-card__header">
         <div class="journal-item-card__title-group">
@@ -539,8 +538,7 @@ function shouldShowProfilePrompt(state, journalState) {
 }
 
 export function renderJournalStatTiles(state, journalState) {
-  const doneItems = state.items.filter((item) => item.is_done === true);
-  const itemTypeTiles = getTripStatTiles(state.trip, state.bases, doneItems)
+  const itemTypeTiles = getDoneTripStatTiles(state.trip, state.bases, state.items)
     .filter((tile) => tile.label !== "Days" && tile.label !== "Bases");
   const photoCount = journalState.photos.length;
   const tiles = [
