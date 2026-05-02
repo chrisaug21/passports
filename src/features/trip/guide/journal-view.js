@@ -225,7 +225,7 @@ function renderItemJournalArea(item, entries, photos, members, profiles, isWrita
     const photoHtml = isCurrentUser && isWritable
       ? renderItemPhotoSlot(item, photo, true)
       : photo
-        ? renderItemPhotoRead(photo)
+        ? renderItemPhotoRead(item, photo)
         : "";
 
     if (!noteHtml && !photoHtml) {
@@ -254,6 +254,33 @@ function renderItemJournalArea(item, entries, photos, members, profiles, isWrita
 // Item photos
 // ---------------------------------------------------------------------------
 
+function renderPhotoPreviewButton(item, photo, { isWritable, showExpandHint = false }) {
+  const previewClassName = isWritable
+    ? "journal-photo-slot__preview"
+    : "journal-photo-read__preview";
+
+  return `
+    <button
+      class="${previewClassName}"
+      data-journal-photo-open="${escapeHtml(photo.id)}"
+      type="button"
+      aria-label="${escapeHtml(`Open photo for ${item.title || "this stop"}`)}"
+    >
+      <img
+        class="${isWritable ? "journal-photo-slot__img" : "journal-photo-read__img"}"
+        src="${escapeHtml(photo.public_url)}"
+        alt="${escapeHtml(isWritable ? `Your photo for ${item.title || "this stop"}` : "Photo")}"
+        loading="lazy"
+      />
+      ${showExpandHint ? `
+        <span class="${isWritable ? "journal-photo-slot__expand" : "journal-photo-read__expand"}" aria-hidden="true">
+          <i data-lucide="expand" aria-hidden="true"></i>
+        </span>
+      ` : ""}
+    </button>
+  `;
+}
+
 export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
   if (!isWritable) return "";
 
@@ -264,19 +291,19 @@ export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
         data-photo-id="${escapeHtml(existingPhoto.id)}"
         data-storage-path="${escapeHtml(existingPhoto.storage_path)}"
       >
-        <img
-          class="journal-photo-slot__img"
-          src="${escapeHtml(existingPhoto.public_url)}"
-          alt="Your photo for ${escapeHtml(item.title || "this stop")}"
-          loading="lazy"
-        />
+        ${renderPhotoPreviewButton(item, existingPhoto, { isWritable: true })}
         <div class="journal-photo-slot__overlay">
-          <button class="journal-photo-slot__action" data-journal-photo-replace="${escapeHtml(item.id)}" type="button" aria-label="Replace photo">
-            <i data-lucide="refresh-cw" aria-hidden="true"></i>
-          </button>
-          <button class="journal-photo-slot__action journal-photo-slot__action--remove" data-journal-photo-remove="${escapeHtml(item.id)}" type="button" aria-label="Remove photo">
-            <i data-lucide="trash-2" aria-hidden="true"></i>
-          </button>
+          <div class="journal-photo-slot__actions">
+            <button class="journal-photo-slot__action" data-journal-photo-open="${escapeHtml(existingPhoto.id)}" type="button" aria-label="Open photo">
+              <i data-lucide="expand" aria-hidden="true"></i>
+            </button>
+            <button class="journal-photo-slot__action" data-journal-photo-replace="${escapeHtml(item.id)}" type="button" aria-label="Replace photo">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            </button>
+            <button class="journal-photo-slot__action journal-photo-slot__action--remove" data-journal-photo-remove="${escapeHtml(item.id)}" type="button" aria-label="Remove photo">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -292,17 +319,12 @@ export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
   `;
 }
 
-function renderItemPhotoRead(photo) {
+function renderItemPhotoRead(item, photo) {
   if (!photo?.public_url) return "";
 
   return `
     <div class="journal-photo-read">
-      <img
-        class="journal-photo-read__img"
-        src="${escapeHtml(photo.public_url)}"
-        alt="Photo"
-        loading="lazy"
-      />
+      ${renderPhotoPreviewButton(item, photo, { isWritable: false, showExpandHint: true })}
     </div>
   `;
 }

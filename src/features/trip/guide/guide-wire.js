@@ -337,7 +337,7 @@ async function switchToJournal() {
 
     try {
       await ensureMembersLoaded();
-      const memberUserIds = _guideState.members.map((m) => m.user_id);
+      const memberUserIds = _guideState.members.map((member) => member.user_id);
       const doneUserIds = _guideState.items
         .map((item) => item.done_by)
         .filter(Boolean);
