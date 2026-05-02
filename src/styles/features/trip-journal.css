@@ -524,8 +524,8 @@
   color: var(--color-text-muted);
 }
 
-.journal-item-card--done .guide-item-card__title,
-.journal-item-card--done .guide-item-card__notes {
+.journal-item-card--done[data-show-done-ui="true"] .guide-item-card__title,
+.journal-item-card--done[data-show-done-ui="true"] .guide-item-card__notes {
   text-decoration: line-through;
   text-decoration-color: rgba(10, 142, 103, 0.35);
 }

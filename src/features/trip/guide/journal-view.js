@@ -384,6 +384,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
       data-item-type="${escapeHtml(item.item_type)}"
       data-item-id="${escapeHtml(item.id)}"
       data-is-done="${String(isDone)}"
+      data-show-done-ui="${String(showDoneUi)}"
     >
       <div class="guide-item-card__header">
         <div class="journal-item-card__title-group">
