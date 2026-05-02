@@ -111,11 +111,26 @@ export function wireDashboardPage() {
   });
   document.querySelectorAll("[data-trip-card]").forEach((card) => {
     const tripId = card.getAttribute("data-trip-id");
+    const trip = trips.find((entry) => String(entry.id) === String(tripId));
 
     const openTrip = () => {
-      if (tripId) {
-        navigate(`/app/trip/${tripId}`);
+      if (!tripId || !trip) {
+        return;
       }
+
+      const derivedStatus = deriveTripStatus(trip);
+
+      if (derivedStatus === "traveling") {
+        navigate(`/app/trip/${tripId}/guide`);
+        return;
+      }
+
+      if (derivedStatus === "past") {
+        navigate(`/app/trip/${tripId}/guide#journal`);
+        return;
+      }
+
+      navigate(`/app/trip/${tripId}`);
     };
 
     card.addEventListener("click", openTrip);

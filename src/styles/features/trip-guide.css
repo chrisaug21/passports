@@ -747,11 +747,7 @@
     margin-top: 0;
   }
 
-  /* Mobile: sticky pill row */
   .guide-day-nav {
-    position: sticky;
-    top: 0;
-    z-index: 10;
     flex-direction: row;
     max-height: none;
     overflow-x: auto;
@@ -803,6 +799,14 @@
 
   .guide-hero__content {
     padding: 1rem 1.25rem 1.25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .guide-day-nav {
+    position: sticky;
+    top: var(--guide-day-nav-top-offset, 0px);
+    z-index: 10;
   }
 }
 

@@ -19,12 +19,13 @@ import {
 } from "./trip-detail-ui.js";
 
 const SHARE_LINK_FEEDBACK_DURATION_MS = 2000;
-let shareLinkFeedbackResetTimer = null;
+const shareLinkFeedbackResetTimers = new Map();
 
-function clearShareLinkFeedbackResetTimer() {
-  if (shareLinkFeedbackResetTimer) {
-    window.clearTimeout(shareLinkFeedbackResetTimer);
-    shareLinkFeedbackResetTimer = null;
+function clearShareLinkFeedbackResetTimer(key) {
+  const timerId = shareLinkFeedbackResetTimers.get(key);
+  if (timerId) {
+    window.clearTimeout(timerId);
+    shareLinkFeedbackResetTimers.delete(key);
   }
 }
 
@@ -80,8 +81,12 @@ function wireTripSettingsDatePreview() {
   updatePreview();
 }
 
-function buildTripGuideUrl(tripId) {
-  return new URL(`/app/trip/${tripId}/guide`, window.location.origin).toString();
+function buildTripGuideUrl(tripId, mode = "itinerary") {
+  const url = new URL(`/app/trip/${tripId}/guide`, window.location.origin);
+  if (mode === "journal") {
+    url.hash = "journal";
+  }
+  return url.toString();
 }
 
 function updateShareLinkHint(hint, message) {
@@ -92,7 +97,9 @@ function updateShareLinkHint(hint, message) {
   hint.textContent = message;
 }
 
-function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
+function updateShareLinkButtonState(button, { isVisible, isEnabled, isCopied = false, labelText }) {
+  button.hidden = !isVisible;
+
   const icon = button.querySelector("[data-share-link-icon]");
   const label = button.querySelector("[data-share-link-label]");
 
@@ -106,7 +113,7 @@ function updateShareLinkButtonState(button, { isEnabled, isCopied = false }) {
   }
 
   if (label) {
-    label.textContent = isCopied ? "Copied!" : "Copy share link";
+    label.textContent = isCopied ? "Copied!" : labelText;
   }
 
   window.lucide?.createIcons?.();
@@ -137,75 +144,128 @@ async function copyTextToClipboard(value) {
 function wireTripSettingsShareLink(trip) {
   const form = document.querySelector("#trip-settings-form");
   const isPublicInput = form?.querySelector('[name="isPublic"]');
-  const shareLinkButton = form?.querySelector("[data-copy-share-link]");
-  const shareLinkHint = form?.querySelector("[data-share-link-hint]");
-  const savedShareHint = "Anyone with the link can view your itinerary.";
+  const journalPublicInput = form?.querySelector("[data-journal-public-toggle]");
+  const journalToggleRow = form?.querySelector(".trip-settings-form__sharing-row--journal");
+  const publicShareLinkButton = form?.querySelector("[data-copy-share-link]");
+  const journalShareLinkButton = form?.querySelector("[data-copy-journal-share-link]");
+  const publicShareLinkHint = form?.querySelector("[data-share-link-hint]");
+  const journalShareLinkHint = form?.querySelector("[data-journal-share-link-hint]");
+  const publicSavedShareHint = "Anyone with the link can view your itinerary.";
+  const journalSavedShareHint = "Let anyone with the link read your trip journal.";
   const unsavedShareHint = "Save changes to enable sharing";
 
-  if (!trip?.id || !isPublicInput || !shareLinkButton) {
+  if (!trip?.id || !isPublicInput || !publicShareLinkButton || !journalPublicInput || !journalToggleRow || !journalShareLinkButton) {
     return;
   }
 
-  clearShareLinkFeedbackResetTimer();
-  updateShareLinkHint(shareLinkHint, savedShareHint);
+  clearShareLinkFeedbackResetTimer("public");
+  clearShareLinkFeedbackResetTimer("journal");
+  updateShareLinkHint(publicShareLinkHint, publicSavedShareHint);
+  updateShareLinkHint(journalShareLinkHint, journalSavedShareHint);
 
-  const syncButtonState = ({ isCopied = false } = {}) => {
-    const hasPersistedShareLink = Boolean(trip.is_public);
-    const hasUnsavedShareIntent = isPublicInput.checked && !hasPersistedShareLink;
+  const syncSharingUi = ({ publicCopied = false, journalCopied = false } = {}) => {
+    const isPublicChecked = isPublicInput.checked;
+    const isJournalChecked = isPublicChecked && journalPublicInput.checked;
+    const hasPersistedPublicShareLink = Boolean(trip.is_public);
+    const hasPersistedJournalShareLink = Boolean(trip.is_public && trip.is_journal_public);
+    const hasUnsavedPublicShareIntent = isPublicChecked && !hasPersistedPublicShareLink;
+    const hasUnsavedJournalShareIntent = isJournalChecked && !hasPersistedJournalShareLink;
 
-    updateShareLinkButtonState(shareLinkButton, {
-      isEnabled: hasPersistedShareLink || hasUnsavedShareIntent,
-      isCopied: hasPersistedShareLink && isCopied,
+    updateShareLinkButtonState(publicShareLinkButton, {
+      isVisible: isPublicChecked,
+      isEnabled: hasPersistedPublicShareLink || hasUnsavedPublicShareIntent,
+      isCopied: hasPersistedPublicShareLink && publicCopied,
+      labelText: "Copy link",
     });
 
-    if (!hasUnsavedShareIntent) {
-      updateShareLinkHint(shareLinkHint, savedShareHint);
+    updateShareLinkButtonState(journalShareLinkButton, {
+      isVisible: isJournalChecked,
+      isEnabled: hasPersistedJournalShareLink || hasUnsavedJournalShareIntent,
+      isCopied: hasPersistedJournalShareLink && journalCopied,
+      labelText: "Copy link",
+    });
+
+    if (!hasUnsavedPublicShareIntent) {
+      updateShareLinkHint(publicShareLinkHint, publicSavedShareHint);
+    }
+
+    if (!hasUnsavedJournalShareIntent) {
+      updateShareLinkHint(journalShareLinkHint, journalSavedShareHint);
     }
   };
 
-  const journalToggleRow = form?.querySelector(".trip-settings-form__sharing-row--journal");
-  const journalPublicInput = form?.querySelector("[data-journal-public-toggle]");
-
   isPublicInput.addEventListener("change", () => {
-    clearShareLinkFeedbackResetTimer();
-    syncButtonState();
+    clearShareLinkFeedbackResetTimer("public");
+    clearShareLinkFeedbackResetTimer("journal");
 
-    // When is_public turns off, disable and uncheck is_journal_public
-    if (journalPublicInput && journalToggleRow) {
-      const isOn = isPublicInput.checked;
-      journalPublicInput.disabled = !isOn;
-      journalToggleRow.classList.toggle("is-disabled", !isOn);
-      if (!isOn) journalPublicInput.checked = false;
+    const isOn = isPublicInput.checked;
+    journalPublicInput.disabled = !isOn;
+    journalToggleRow.classList.toggle("is-disabled", !isOn);
+    if (!isOn) {
+      journalPublicInput.checked = false;
     }
+
+    syncSharingUi();
   });
 
-  shareLinkButton.addEventListener("click", async (event) => {
-    event.preventDefault();
-
-    if (!isPublicInput.checked) {
-      return;
-    }
-
-    if (!trip.is_public) {
-      updateShareLinkHint(shareLinkHint, unsavedShareHint);
-      return;
-    }
-
-    try {
-      await copyTextToClipboard(buildTripGuideUrl(trip.id));
-      syncButtonState({ isCopied: true });
-      clearShareLinkFeedbackResetTimer();
-      shareLinkFeedbackResetTimer = window.setTimeout(() => {
-        syncButtonState();
-        shareLinkFeedbackResetTimer = null;
-      }, SHARE_LINK_FEEDBACK_DURATION_MS);
-    } catch (error) {
-      console.error(error);
-      showToast("Couldn't copy. Try again.", "error");
-    }
+  journalPublicInput.addEventListener("change", () => {
+    clearShareLinkFeedbackResetTimer("journal");
+    syncSharingUi();
   });
 
-  syncButtonState();
+  const wireCopyButton = ({ key, button, input, persistedValue, hint, savedHint, urlMode, copiedStateKey }) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+
+      if (!input.checked) {
+        return;
+      }
+
+      if (!persistedValue()) {
+        updateShareLinkHint(hint, unsavedShareHint);
+        return;
+      }
+
+      try {
+        await copyTextToClipboard(buildTripGuideUrl(trip.id, urlMode));
+        syncSharingUi({ [copiedStateKey]: true });
+        clearShareLinkFeedbackResetTimer(key);
+        const timerId = window.setTimeout(() => {
+          syncSharingUi();
+          shareLinkFeedbackResetTimers.delete(key);
+        }, SHARE_LINK_FEEDBACK_DURATION_MS);
+        shareLinkFeedbackResetTimers.set(key, timerId);
+      } catch (error) {
+        console.error(error);
+        updateShareLinkHint(hint, savedHint);
+        showToast("Couldn't copy. Try again.", "error");
+      }
+    });
+  };
+
+  wireCopyButton({
+    key: "public",
+    button: publicShareLinkButton,
+    input: isPublicInput,
+    persistedValue: () => Boolean(trip.is_public),
+    hint: publicShareLinkHint,
+    savedHint: publicSavedShareHint,
+    urlMode: "itinerary",
+    copiedStateKey: "publicCopied",
+  });
+
+  wireCopyButton({
+    key: "journal",
+    button: journalShareLinkButton,
+    input: journalPublicInput,
+    persistedValue: () => Boolean(trip.is_public && trip.is_journal_public),
+    hint: journalShareLinkHint,
+    savedHint: journalSavedShareHint,
+    urlMode: "journal",
+    copiedStateKey: "journalCopied",
+  });
+
+  syncSharingUi();
 }
 
 function formatRemovedDayLabels(dayNumbers) {
@@ -303,31 +363,47 @@ export function renderTripSettingsForm(trip, isSaving) {
 
             <div class="trip-settings-form__sharing">
               <div class="trip-settings-form__sharing-row">
-                <span class="trip-settings-form__sharing-label">Public trip</span>
+                <div class="trip-settings-form__sharing-label-group">
+                  <div class="trip-settings-form__sharing-heading">
+                    <button
+                      class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
+                      data-copy-share-link
+                      type="button"
+                      aria-disabled="${trip.is_public ? "false" : "true"}"
+                      ${trip.is_public ? "" : "hidden"}
+                    >
+                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
+                      <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
+                        <i data-lucide="link" aria-hidden="true"></i>
+                      </span>
+                    </button>
+                    <span class="trip-settings-form__sharing-label">Public trip</span>
+                  </div>
+                  <p class="field-hint trip-settings-form__sharing-hint" data-share-link-hint>Anyone with the link can view your itinerary.</p>
+                </div>
                 <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Public trip">
                   <input name="isPublic" type="checkbox" class="toggle-switch__input" ${trip.is_public ? "checked" : ""} />
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>
               </div>
-              <div class="trip-settings-form__sharing-meta">
-                <p class="field-hint trip-settings-form__sharing-hint" data-share-link-hint>Anyone with the link can view your itinerary.</p>
-                <button
-                  class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
-                  data-copy-share-link
-                  type="button"
-                  aria-disabled="${trip.is_public ? "false" : "true"}"
-                >
-                  <span class="trip-settings-share-link__label" data-share-link-label>Copy share link</span>
-                  <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
-                    <i data-lucide="link" aria-hidden="true"></i>
-                  </span>
-                </button>
-              </div>
-
               <div class="trip-settings-form__sharing-row trip-settings-form__sharing-row--journal${trip.is_public ? "" : " is-disabled"}">
                 <div class="trip-settings-form__sharing-label-group">
-                  <span class="trip-settings-form__sharing-label">Share journal</span>
-                  <span class="field-hint">Let anyone with the link read your trip journal</span>
+                  <div class="trip-settings-form__sharing-heading">
+                    <button
+                      class="trip-settings-share-link${trip.is_journal_public ? "" : " is-disabled"}"
+                      data-copy-journal-share-link
+                      type="button"
+                      aria-disabled="${trip.is_journal_public ? "false" : "true"}"
+                      ${trip.is_journal_public ? "" : "hidden"}
+                    >
+                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
+                      <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
+                        <i data-lucide="link" aria-hidden="true"></i>
+                      </span>
+                    </button>
+                    <span class="trip-settings-form__sharing-label">Share journal</span>
+                  </div>
+                  <span class="field-hint trip-settings-form__sharing-hint" data-journal-share-link-hint>Let anyone with the link read your trip journal.</span>
                 </div>
                 <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Share journal">
                   <input
