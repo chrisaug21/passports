@@ -543,7 +543,7 @@ export function renderJournalStatTiles(state, journalState) {
   const photoCount = journalState.photos.length;
   const tiles = [
     { label: getCountLabel(Number(state.trip.trip_length) || 0, "Day", "Days"), count: Number(state.trip.trip_length) || 0 },
-    { label: getCountLabel(state.bases.length, "Base", "Bases"), count: state.bases.length },
+    ...(state.bases.length > 1 ? [{ label: getCountLabel(state.bases.length, "Base", "Bases"), count: state.bases.length }] : []),
     ...itemTypeTiles,
     { label: "Journal entries", count: journalState.entries.length },
     ...(photoCount > 0 ? [{ label: getCountLabel(photoCount, "Photo", "Photos"), count: photoCount }] : []),
