@@ -365,6 +365,7 @@ export function renderTripSettingsForm(trip, isSaving) {
               <div class="trip-settings-form__sharing-row">
                 <div class="trip-settings-form__sharing-label-group">
                   <div class="trip-settings-form__sharing-heading">
+                    <span class="trip-settings-form__sharing-label">Public trip</span>
                     <button
                       class="trip-settings-share-link${trip.is_public ? "" : " is-disabled"}"
                       data-copy-share-link
@@ -377,7 +378,6 @@ export function renderTripSettingsForm(trip, isSaving) {
                       </span>
                       <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                     </button>
-                    <span class="trip-settings-form__sharing-label">Public trip</span>
                   </div>
                   <p class="field-hint trip-settings-form__sharing-hint" data-share-link-hint>Anyone with the link can view your itinerary.</p>
                 </div>
@@ -389,6 +389,7 @@ export function renderTripSettingsForm(trip, isSaving) {
               <div class="trip-settings-form__sharing-row trip-settings-form__sharing-row--journal${trip.is_public ? "" : " is-disabled"}">
                 <div class="trip-settings-form__sharing-label-group">
                   <div class="trip-settings-form__sharing-heading">
+                    <span class="trip-settings-form__sharing-label">Share journal</span>
                     <button
                       class="trip-settings-share-link${trip.is_journal_public ? "" : " is-disabled"}"
                       data-copy-journal-share-link
@@ -401,7 +402,6 @@ export function renderTripSettingsForm(trip, isSaving) {
                       </span>
                       <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                     </button>
-                    <span class="trip-settings-form__sharing-label">Share journal</span>
                   </div>
                   <span class="field-hint trip-settings-form__sharing-hint" data-journal-share-link-hint>Let anyone with the link read your trip journal.</span>
                 </div>

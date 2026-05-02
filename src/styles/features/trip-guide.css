@@ -811,10 +811,16 @@
 
 @media (max-width: 767px) {
   .guide-day-nav-shell {
-    position: sticky;
+    min-height: var(--guide-day-nav-shell-height, auto);
+  }
+
+  .guide-day-nav.is-sticky-active {
+    position: fixed;
     top: var(--guide-day-nav-top-offset, 0px);
-    z-index: 10;
-    background: var(--color-bg);
+    left: var(--guide-day-nav-fixed-left, 0px);
+    width: var(--guide-day-nav-fixed-width, 100%);
+    z-index: 20;
+    box-shadow: 0 8px 24px rgba(27, 43, 66, 0.08);
   }
 }
 

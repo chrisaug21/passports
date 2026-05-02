@@ -39,6 +39,7 @@ let _journalState = {
 };
 
 let dayNavOffsetRafId = null;
+let dayNavStickyRafId = null;
 
 export function teardownGuideView() {
   cleanupFns.forEach((fn) => fn());
@@ -53,6 +54,10 @@ export function teardownGuideView() {
   if (dayNavOffsetRafId) {
     cancelAnimationFrame(dayNavOffsetRafId);
     dayNavOffsetRafId = null;
+  }
+  if (dayNavStickyRafId) {
+    cancelAnimationFrame(dayNavStickyRafId);
+    dayNavStickyRafId = null;
   }
 }
 
@@ -72,6 +77,7 @@ export function wireGuideView(state) {
   setupTouchScrollTracking();
   setupScrollTracking();
   setupDayNavStickyOffsetTracking();
+  setupMobileDayNavStickyState();
   setupLazyDays(state);
 
   if (_todayDayNumber) {
@@ -509,12 +515,17 @@ function getGuideDayNavOffset() {
 
 function syncMobileDayNavOffset() {
   const navShell = document.querySelector(".guide-day-nav-shell");
+  const nav = navShell?.querySelector(".guide-day-nav");
   if (!navShell) {
     return;
   }
 
   if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
     navShell.style.removeProperty("--guide-day-nav-top-offset");
+    navShell.style.removeProperty("--guide-day-nav-shell-height");
+    navShell.style.removeProperty("--guide-day-nav-fixed-left");
+    navShell.style.removeProperty("--guide-day-nav-fixed-width");
+    nav?.classList.remove("is-sticky-active");
     return;
   }
 
@@ -535,6 +546,12 @@ function syncMobileDayNavOffset() {
   });
 
   navShell.style.setProperty("--guide-day-nav-top-offset", `${offset}px`);
+  navShell.style.setProperty("--guide-day-nav-shell-height", `${Math.ceil(navShell.getBoundingClientRect().height)}px`);
+  if (nav) {
+    const rect = navShell.getBoundingClientRect();
+    navShell.style.setProperty("--guide-day-nav-fixed-left", `${Math.round(rect.left)}px`);
+    navShell.style.setProperty("--guide-day-nav-fixed-width", `${Math.round(rect.width)}px`);
+  }
 }
 
 function setupDayNavStickyOffsetTracking() {
@@ -560,6 +577,53 @@ function setupDayNavStickyOffsetTracking() {
     if (dayNavOffsetRafId) {
       cancelAnimationFrame(dayNavOffsetRafId);
       dayNavOffsetRafId = null;
+    }
+  });
+}
+
+function updateMobileDayNavStickyState() {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  const nav = navShell?.querySelector(".guide-day-nav");
+  if (!navShell || !nav) {
+    return;
+  }
+
+  if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
+    nav.classList.remove("is-sticky-active");
+    navShell.style.removeProperty("--guide-day-nav-shell-height");
+    return;
+  }
+
+  syncMobileDayNavOffset();
+  const topOffset = getGuideDayNavOffset();
+  const rect = navShell.getBoundingClientRect();
+  const isStickyActive = rect.top <= topOffset;
+  nav.classList.toggle("is-sticky-active", isStickyActive);
+}
+
+function setupMobileDayNavStickyState() {
+  updateMobileDayNavStickyState();
+
+  const queueStickyUpdate = () => {
+    if (dayNavStickyRafId) {
+      return;
+    }
+
+    dayNavStickyRafId = requestAnimationFrame(() => {
+      dayNavStickyRafId = null;
+      updateMobileDayNavStickyState();
+    });
+  };
+
+  window.addEventListener("resize", queueStickyUpdate);
+  window.addEventListener("scroll", queueStickyUpdate, { passive: true });
+
+  cleanupFns.push(() => {
+    window.removeEventListener("resize", queueStickyUpdate);
+    window.removeEventListener("scroll", queueStickyUpdate);
+    if (dayNavStickyRafId) {
+      cancelAnimationFrame(dayNavStickyRafId);
+      dayNavStickyRafId = null;
     }
   });
 }
