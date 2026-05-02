@@ -756,13 +756,16 @@
   }
 
   .guide-day-nav {
+    display: flex;
     flex-direction: row;
+    width: 100%;
+    box-sizing: border-box;
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
     padding: 0.75rem 1rem;
     background: var(--color-bg);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
     scrollbar-width: none;
     gap: 0.5rem;
   }
@@ -818,14 +821,13 @@
     position: fixed;
     top: var(--guide-day-nav-top-offset, 0px);
     left: 0;
-    right: 0;
-    width: 100%;
+    width: 100vw;
     padding-inline: 0.75rem;
     box-sizing: border-box;
     background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.07);
     z-index: 30;
-    box-shadow: 0 6px 16px rgba(27, 43, 66, 0.06);
+    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.05);
   }
 }
 
