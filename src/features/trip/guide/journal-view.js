@@ -337,11 +337,12 @@ function renderDoneAttribution(item, members, profiles) {
     return "";
   }
 
+  const name = getDisplayName(item.done_by, members, profiles);
+
   return `
-    <div class="journal-item-card__done-by" aria-label="Marked done by">
-      <span class="journal-item-card__done-by-label">Done by</span>
-      ${renderJournalAvatar(item.done_by, members, profiles)}
-    </div>
+    <p class="journal-item-card__done-by" aria-label="Marked done by">
+      by ${escapeHtml(name)}
+    </p>
   `;
 }
 
@@ -349,8 +350,9 @@ function renderDoneAttribution(item, members, profiles) {
 // Item card (Journal Mode)
 // ---------------------------------------------------------------------------
 
-function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneToggle) {
+function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneUi) {
   const isDone = item.is_done === true;
+  const showDoneState = showDoneUi && isDone;
 
   let timeLabel = "";
   if (item.time_start) {
@@ -367,22 +369,29 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
   }
 
   const journalArea = renderItemJournalArea(item, entries, photos, members, profiles, isWritable, currentUserId);
-  const doneAttribution = renderDoneAttribution(item, members, profiles);
+  const doneAttribution = showDoneUi ? renderDoneAttribution(item, members, profiles) : "";
+  const doneHeaderBlock = showDoneUi
+    ? `
+      <div class="journal-item-card__done-block">
+        ${renderDoneToggle(item, isWritable)}
+        ${doneAttribution}
+      </div>
+    `
+    : "";
 
   return `
     <article
-      class="guide-item-card journal-item-card${isDone ? " journal-item-card--done" : ""}"
+      class="guide-item-card journal-item-card${showDoneState ? " journal-item-card--done" : ""}"
       data-item-type="${escapeHtml(item.item_type)}"
       data-item-id="${escapeHtml(item.id)}"
-      data-is-done="${String(isDone)}"
+      data-is-done="${String(showDoneState)}"
     >
-      <div class="journal-item-card__topbar">
-        ${renderDoneToggle(item, showDoneToggle)}
-        ${doneAttribution}
-      </div>
       <div class="guide-item-card__header">
-        ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
-        <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
+        <div class="journal-item-card__title-group">
+          ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
+          <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
+        </div>
+        ${doneHeaderBlock}
       </div>
       <div class="guide-item-card__details">
         ${timeLabel ? `<p class="guide-item-card__time">${escapeHtml(timeLabel)}</p>` : ""}
@@ -418,7 +427,7 @@ export function renderJournalDaySection(day, state, journalState) {
   const isMember = viewerRole !== "public";
   const { isReadOnly } = getJournalTripMode(trip);
   const isWritable = isMember && Boolean(userId) && !isReadOnly;
-  const showDoneToggle = isWritable;
+  const showDoneUi = isMember && Boolean(userId);
 
   let dateLabel = "";
   let dowLabel = "";
@@ -433,7 +442,7 @@ export function renderJournalDaySection(day, state, journalState) {
   const dayJournalArea = renderDayJournalArea(day, entries, members, profiles, isWritable, userId);
 
   const itemCards = sorted.map((item) =>
-    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneToggle)
+    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneUi)
   ).join("");
 
   const hasContent = sorted.length > 0 || dayJournalArea;

@@ -363,6 +363,8 @@ function refreshJournalStatTiles(state, journalState) {
 
 function updateDoneAttribution(card, item, state, journalState) {
   if (!card) return;
+  const doneBlock = card.querySelector(".journal-item-card__done-block");
+  if (!doneBlock) return;
 
   const existing = card.querySelector(".journal-item-card__done-by");
   if (existing) {
@@ -376,30 +378,16 @@ function updateDoneAttribution(card, item, state, journalState) {
   const memberUserId = item.done_by;
   const profile = journalState.profiles.find((entry) => entry.id === memberUserId) || null;
   const member = state.members.find((entry) => entry.user_id === memberUserId) || null;
-  const initial = profile?.first_name
-    ? profile.first_name.charAt(0).toUpperCase()
-    : member?.email
-      ? member.email.charAt(0).toUpperCase()
-      : memberUserId.charAt(0).toUpperCase();
   const name = profile?.first_name
     ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
     : member?.email || memberUserId;
-  const hue = memberUserId.split("").reduce((accumulator, character) => (
-    (Math.imul(31, accumulator) + character.charCodeAt(0)) | 0
-  ), 0);
 
-  const wrapper = document.createElement("div");
+  const wrapper = document.createElement("p");
   wrapper.className = "journal-item-card__done-by";
   wrapper.setAttribute("aria-label", "Marked done by");
-  wrapper.innerHTML = `
-    <span class="journal-item-card__done-by-label">Done by</span>
-    <div class="journal-attribution">
-      <div class="journal-avatar" style="--avatar-hue: ${Math.abs(hue) % 360}deg" aria-hidden="true">${escapeHtml(initial)}</div>
-      <span class="journal-attribution__name">${escapeHtml(name)}</span>
-    </div>
-  `;
+  wrapper.textContent = `by ${name}`;
 
-  card.querySelector(".journal-item-card__topbar")?.append(wrapper);
+  doneBlock.append(wrapper);
 }
 
 function selectPhotoFile() {
