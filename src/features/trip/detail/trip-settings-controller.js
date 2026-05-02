@@ -372,10 +372,10 @@ export function renderTripSettingsForm(trip, isSaving) {
                       aria-disabled="${trip.is_public ? "false" : "true"}"
                       ${trip.is_public ? "" : "hidden"}
                     >
-                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                       <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
                         <i data-lucide="link" aria-hidden="true"></i>
                       </span>
+                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                     </button>
                     <span class="trip-settings-form__sharing-label">Public trip</span>
                   </div>
@@ -396,10 +396,10 @@ export function renderTripSettingsForm(trip, isSaving) {
                       aria-disabled="${trip.is_journal_public ? "false" : "true"}"
                       ${trip.is_journal_public ? "" : "hidden"}
                     >
-                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                       <span class="trip-settings-share-link__icon" data-share-link-icon aria-hidden="true">
                         <i data-lucide="link" aria-hidden="true"></i>
                       </span>
+                      <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                     </button>
                     <span class="trip-settings-form__sharing-label">Share journal</span>
                   </div>

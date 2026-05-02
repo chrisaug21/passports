@@ -238,6 +238,10 @@
   margin-top: 2rem;
 }
 
+.guide-day-nav-shell {
+  align-self: start;
+}
+
 /* ---------------------------------------------------------------------------
    Day nav — desktop sidebar (spec §5)
    --------------------------------------------------------------------------- */
@@ -747,6 +751,10 @@
     margin-top: 0;
   }
 
+  .guide-day-nav-shell {
+    margin-bottom: 1.5rem;
+  }
+
   .guide-day-nav {
     flex-direction: row;
     max-height: none;
@@ -757,7 +765,6 @@
     border-bottom: 1px solid var(--color-border);
     scrollbar-width: none;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
   }
 
   .guide-day-nav::-webkit-scrollbar {
@@ -803,10 +810,11 @@
 }
 
 @media (max-width: 767px) {
-  .guide-day-nav {
+  .guide-day-nav-shell {
     position: sticky;
     top: var(--guide-day-nav-top-offset, 0px);
     z-index: 10;
+    background: var(--color-bg);
   }
 }
 

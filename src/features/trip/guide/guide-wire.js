@@ -497,24 +497,24 @@ function restoreDayNavSelection() {
 }
 
 function getGuideDayNavOffset() {
-  const nav = document.querySelector(".guide-day-nav");
-  if (!nav) {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  if (!navShell) {
     return 0;
   }
 
-  const rawValue = nav.style.getPropertyValue("--guide-day-nav-top-offset");
+  const rawValue = navShell.style.getPropertyValue("--guide-day-nav-top-offset");
   const parsedValue = Number.parseFloat(rawValue);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
 function syncMobileDayNavOffset() {
-  const nav = document.querySelector(".guide-day-nav");
-  if (!nav) {
+  const navShell = document.querySelector(".guide-day-nav-shell");
+  if (!navShell) {
     return;
   }
 
   if (window.innerWidth >= GUIDE_MOBILE_STICKY_BREAKPOINT_PX) {
-    nav.style.removeProperty("--guide-day-nav-top-offset");
+    navShell.style.removeProperty("--guide-day-nav-top-offset");
     return;
   }
 
@@ -534,7 +534,7 @@ function syncMobileDayNavOffset() {
     offset = Math.max(offset, Math.ceil(rect.bottom));
   });
 
-  nav.style.setProperty("--guide-day-nav-top-offset", `${offset}px`);
+  navShell.style.setProperty("--guide-day-nav-top-offset", `${offset}px`);
 }
 
 function setupDayNavStickyOffsetTracking() {
