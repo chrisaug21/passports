@@ -12,7 +12,7 @@ export const JOURNAL_PHOTO_QUALITY = 0.82;
 // Fetch all journal data for a trip (entries, photos, profiles)
 // ---------------------------------------------------------------------------
 
-export async function fetchJournalData(tripId, memberUserIds) {
+export async function fetchJournalData(tripId, memberUserIds, doneUserIds = []) {
   const supabase = getSupabase();
 
   const [entriesResult, photosResult] = await Promise.all([
@@ -32,6 +32,7 @@ export async function fetchJournalData(tripId, memberUserIds) {
   if (photosResult.error) throw photosResult.error;
 
   const authorUserIds = new Set(memberUserIds);
+  doneUserIds.forEach((userId) => authorUserIds.add(userId));
   (entriesResult.data || []).forEach((entry) => authorUserIds.add(entry.user_id));
   (photosResult.data || []).forEach((photo) => authorUserIds.add(photo.user_id));
 
@@ -190,16 +191,22 @@ export async function upsertUserProfile({ userId, firstName, lastName }) {
 }
 
 // ---------------------------------------------------------------------------
-// Item status — mark done
+// Item completion — mark done
 // ---------------------------------------------------------------------------
 
-export async function updateJournalItemStatus(itemId, status) {
-  const { error } = await getSupabase()
+export async function updateJournalItemCompletion({ itemId, isDone, doneBy, doneAt }) {
+  const { data, error } = await getSupabase()
     .from("trip_items")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({
+      is_done: Boolean(isDone),
+      done_by: isDone ? doneBy || null : null,
+      done_at: isDone ? doneAt || null : null,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", itemId);
 
   if (error) throw error;
+  return data;
 }
 
 // ---------------------------------------------------------------------------

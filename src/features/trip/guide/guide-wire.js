@@ -318,7 +318,10 @@ async function switchToJournal() {
     try {
       await ensureMembersLoaded();
       const memberUserIds = _guideState.members.map((m) => m.user_id);
-      const data = await fetchJournalData(_guideState.tripId, memberUserIds);
+      const doneUserIds = _guideState.items
+        .map((item) => item.done_by)
+        .filter(Boolean);
+      const data = await fetchJournalData(_guideState.tripId, memberUserIds, doneUserIds);
       _journalState.entries = data.entries;
       _journalState.photos = data.photos;
       _journalState.profiles = data.profiles;

@@ -509,11 +509,6 @@
   color: var(--color-action-strong);
 }
 
-.guide-item-card__status-badge--done {
-  background: rgba(196, 168, 130, 0.2);
-  color: var(--color-status-done);
-}
-
 /* Card header */
 .guide-item-card__header {
   display: flex;

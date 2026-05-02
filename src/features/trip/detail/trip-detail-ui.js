@@ -21,7 +21,7 @@ export function renderAnchorIndicator() {
 }
 
 export function getTripStatTiles(trip, bases, items) {
-  const confirmedStatuses = new Set(["confirmed", "reserved", "done"]);
+  const confirmedStatuses = new Set(["confirmed", "reserved"]);
   const mealCount = items.filter((item) => item.item_type === "meal" && confirmedStatuses.has(item.status)).length;
   const activityCount = items.filter((item) => item.item_type === "activity" && confirmedStatuses.has(item.status)).length;
   const stayCount = items.filter((item) => item.item_type === "lodging" && confirmedStatuses.has(item.status)).length;
@@ -42,6 +42,38 @@ export function getTripStatTiles(trip, bases, items) {
       count: transportCounts[mode],
     })),
     { label: getCountLabel(ideaCount, "Idea", "Ideas"), count: ideaCount },
+  ].filter((tile) => tile.count > 0);
+
+  if (tiles.length === 0) {
+    return [
+      { label: "Days", count: Number(trip.trip_length) || 0 },
+      ...(shouldShowBaseTile ? [{ label: "Bases", count: bases.length }] : []),
+    ];
+  }
+
+  return tiles;
+}
+
+export function getDoneTripStatTiles(trip, bases, items) {
+  const doneItems = items.filter((item) => item.is_done === true);
+  const mealCount = doneItems.filter((item) => item.item_type === "meal").length;
+  const activityCount = doneItems.filter((item) => item.item_type === "activity").length;
+  const stayCount = doneItems.filter((item) => item.item_type === "lodging").length;
+  const shouldShowBaseTile = bases.length >= 2;
+  const transportCounts = TRANSPORT_MODES.reduce((counts, mode) => ({
+    ...counts,
+    [mode]: doneItems.filter((item) => item.item_type === "transport" && item.transport_mode === mode).length,
+  }), {});
+  const tiles = [
+    ...(shouldShowBaseTile ? [{ label: getCountLabel(bases.length, "Base", "Bases"), count: bases.length }] : []),
+    { label: getCountLabel(Number(trip.trip_length) || 0, "Day", "Days"), count: Number(trip.trip_length) || 0 },
+    { label: getCountLabel(mealCount, "Meal", "Eats"), count: mealCount },
+    { label: getCountLabel(activityCount, "Activity", "Activities"), count: activityCount },
+    { label: getCountLabel(stayCount, "Stay", "Stays"), count: stayCount },
+    ...TRANSPORT_MODES.map((mode) => ({
+      label: getTransportCountLabel(transportCounts[mode], mode),
+      count: transportCounts[mode],
+    })),
   ].filter((tile) => tile.count > 0);
 
   if (tiles.length === 0) {

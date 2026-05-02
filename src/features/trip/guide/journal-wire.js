@@ -3,7 +3,7 @@ import {
   upsertJournalEntry,
   uploadJournalPhoto,
   deleteJournalPhoto,
-  updateJournalItemStatus,
+  updateJournalItemCompletion,
   compressJournalPhoto,
 } from "../../../services/journal-service.js";
 import { openProfileModal } from "../../shared/profile-modal.js";
@@ -19,8 +19,6 @@ const AUTOSAVE_DELAY_MS = 500;
 const SAVED_FEEDBACK_MS = 2000;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
-const JOURNAL_REVERT_STATUS = "confirmed";
-
 let _journalCleanupFns = [];
 let _saveCounter = 0;
 
@@ -363,6 +361,35 @@ function refreshJournalStatTiles(state, journalState) {
   statTiles.replaceWith(nextStatTiles);
 }
 
+function updateDoneAttribution(card, item, state, journalState) {
+  if (!card) return;
+  const doneBlock = card.querySelector(".journal-item-card__done-block");
+  if (!doneBlock) return;
+
+  const existing = card.querySelector(".journal-item-card__done-by");
+  if (existing) {
+    existing.remove();
+  }
+
+  if (item.is_done !== true || !item.done_by) {
+    return;
+  }
+
+  const memberUserId = item.done_by;
+  const profile = journalState.profiles.find((entry) => entry.id === memberUserId) || null;
+  const member = state.members.find((entry) => entry.user_id === memberUserId) || null;
+  const name = profile?.first_name
+    ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
+    : member?.email || memberUserId;
+
+  const wrapper = document.createElement("p");
+  wrapper.className = "journal-item-card__done-by";
+  wrapper.setAttribute("aria-label", "Marked done by");
+  wrapper.textContent = `by ${name}`;
+
+  doneBlock.append(wrapper);
+}
+
 function selectPhotoFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -524,31 +551,51 @@ function wireDoneToggles(state, journalState) {
     const handler = async () => {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item) return;
+      const { session } = sessionStore.getState();
+      const sessionUserId = session?.user?.id || null;
 
-      const previousStatus = item.status;
-      const nextStatus = previousStatus === "done" ? JOURNAL_REVERT_STATUS : "done";
       const card = button.closest("[data-item-id]");
-      const isDone = nextStatus === "done";
+      const previousIsDone = item.is_done === true;
+      const previousDoneBy = item.done_by || null;
+      const previousDoneAt = item.done_at || null;
+      const nextIsDone = !previousIsDone;
+      const nextDoneAt = nextIsDone ? new Date().toISOString() : null;
+      const nextDoneBy = nextIsDone ? sessionUserId || state.userId || null : null;
 
-      item.status = nextStatus;
-      card?.classList.toggle("journal-item-card--done", isDone);
-      card?.setAttribute("data-status", nextStatus);
-      button.classList.toggle("is-done", isDone);
-      button.setAttribute("aria-pressed", String(isDone));
-      button.setAttribute("aria-label", isDone ? "Mark not done" : "Mark as done");
+      item.is_done = nextIsDone;
+      item.done_by = nextDoneBy;
+      item.done_at = nextDoneAt;
+      card?.classList.toggle("journal-item-card--done", nextIsDone);
+      card?.setAttribute("data-is-done", String(nextIsDone));
+      button.classList.toggle("is-done", nextIsDone);
+      button.setAttribute("aria-pressed", String(nextIsDone));
+      button.setAttribute("aria-label", nextIsDone ? "Mark not done" : "Mark as done");
+      button.querySelector(".journal-done-toggle__label").textContent = nextIsDone ? "Done" : "Mark done";
+      updateDoneAttribution(card, item, state, journalState);
+      refreshJournalStatTiles(state, journalState);
       window.lucide?.createIcons?.();
       button.disabled = true;
 
       try {
-        await updateJournalItemStatus(itemId, nextStatus);
+        await updateJournalItemCompletion({
+          itemId,
+          isDone: nextIsDone,
+          doneBy: nextDoneBy,
+          doneAt: nextDoneAt,
+        });
       } catch (error) {
-        console.error("Failed to update item status:", error);
-        item.status = previousStatus;
-        card?.classList.toggle("journal-item-card--done", previousStatus === "done");
-        card?.setAttribute("data-status", previousStatus);
-        button.classList.toggle("is-done", previousStatus === "done");
-        button.setAttribute("aria-pressed", String(previousStatus === "done"));
-        button.setAttribute("aria-label", previousStatus === "done" ? "Mark not done" : "Mark as done");
+        console.error("Failed to update item completion:", error);
+        item.is_done = previousIsDone;
+        item.done_by = previousDoneBy;
+        item.done_at = previousDoneAt;
+        card?.classList.toggle("journal-item-card--done", previousIsDone);
+        card?.setAttribute("data-is-done", String(previousIsDone));
+        button.classList.toggle("is-done", previousIsDone);
+        button.setAttribute("aria-pressed", String(previousIsDone));
+        button.setAttribute("aria-label", previousIsDone ? "Mark not done" : "Mark as done");
+        button.querySelector(".journal-done-toggle__label").textContent = previousIsDone ? "Done" : "Mark done";
+        updateDoneAttribution(card, item, state, journalState);
+        refreshJournalStatTiles(state, journalState);
         button.disabled = false;
         window.lucide?.createIcons?.();
         showToast("Couldn't update this item right now. Try again.", "error");

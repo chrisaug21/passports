@@ -28,11 +28,11 @@ export function sortGuideItems(items) {
 
 export function filterItemsForViewer(items, viewerRole) {
   if (viewerRole !== "public") {
-    const MEMBER_SHOWN = new Set(["option", "shortlisted", "confirmed", "reserved", "done"]);
+    const MEMBER_SHOWN = new Set(["option", "shortlisted", "confirmed", "reserved"]);
     return items.filter((i) => MEMBER_SHOWN.has(i.status));
   }
-  // public: DB already enforces confirmed/reserved/done; filter defensively
-  const PUBLIC_SHOWN = new Set(["confirmed", "reserved", "done"]);
+  // public: DB already enforces confirmed/reserved visibility; filter defensively
+  const PUBLIC_SHOWN = new Set(["confirmed", "reserved"]);
   return items.filter((i) => PUBLIC_SHOWN.has(i.status));
 }
 
