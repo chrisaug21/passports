@@ -254,8 +254,7 @@ function renderItemJournalArea(item, entries, photos, members, profiles, isWrita
 // Item photos
 // ---------------------------------------------------------------------------
 
-function renderPhotoPreviewButton(item, photo, { isWritable, openMode }) {
-  const isLongPress = openMode === "long-press";
+function renderPhotoPreviewButton(item, photo, { isWritable, showExpandHint = false }) {
   const previewClassName = isWritable
     ? "journal-photo-slot__preview"
     : "journal-photo-read__preview";
@@ -264,9 +263,8 @@ function renderPhotoPreviewButton(item, photo, { isWritable, openMode }) {
     <button
       class="${previewClassName}"
       data-journal-photo-open="${escapeHtml(photo.id)}"
-      data-journal-photo-open-mode="${escapeHtml(openMode)}"
       type="button"
-      aria-label="${escapeHtml(isLongPress ? `Open photo for ${item.title || "this stop"} by long press` : `Open photo for ${item.title || "this stop"}`)}"
+      aria-label="${escapeHtml(`Open photo for ${item.title || "this stop"}`)}"
     >
       <img
         class="${isWritable ? "journal-photo-slot__img" : "journal-photo-read__img"}"
@@ -274,9 +272,11 @@ function renderPhotoPreviewButton(item, photo, { isWritable, openMode }) {
         alt="${escapeHtml(isWritable ? `Your photo for ${item.title || "this stop"}` : "Photo")}"
         loading="lazy"
       />
-      <span class="${isWritable ? "journal-photo-slot__expand" : "journal-photo-read__expand"}" aria-hidden="true">
-        <i data-lucide="expand" aria-hidden="true"></i>
-      </span>
+      ${showExpandHint ? `
+        <span class="${isWritable ? "journal-photo-slot__expand" : "journal-photo-read__expand"}" aria-hidden="true">
+          <i data-lucide="expand" aria-hidden="true"></i>
+        </span>
+      ` : ""}
     </button>
   `;
 }
@@ -291,17 +291,19 @@ export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
         data-photo-id="${escapeHtml(existingPhoto.id)}"
         data-storage-path="${escapeHtml(existingPhoto.storage_path)}"
       >
-        ${renderPhotoPreviewButton(item, existingPhoto, { isWritable: true, openMode: "long-press" })}
+        ${renderPhotoPreviewButton(item, existingPhoto, { isWritable: true })}
         <div class="journal-photo-slot__overlay">
-          <button class="journal-photo-slot__action journal-photo-slot__action--expand" data-journal-photo-open="${escapeHtml(existingPhoto.id)}" data-journal-photo-open-mode="click" type="button" aria-label="Open photo">
-            <i data-lucide="expand" aria-hidden="true"></i>
-          </button>
-          <button class="journal-photo-slot__action" data-journal-photo-replace="${escapeHtml(item.id)}" type="button" aria-label="Replace photo">
-            <i data-lucide="refresh-cw" aria-hidden="true"></i>
-          </button>
-          <button class="journal-photo-slot__action journal-photo-slot__action--remove" data-journal-photo-remove="${escapeHtml(item.id)}" type="button" aria-label="Remove photo">
-            <i data-lucide="trash-2" aria-hidden="true"></i>
-          </button>
+          <div class="journal-photo-slot__actions">
+            <button class="journal-photo-slot__action" data-journal-photo-open="${escapeHtml(existingPhoto.id)}" type="button" aria-label="Open photo">
+              <i data-lucide="expand" aria-hidden="true"></i>
+            </button>
+            <button class="journal-photo-slot__action" data-journal-photo-replace="${escapeHtml(item.id)}" type="button" aria-label="Replace photo">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            </button>
+            <button class="journal-photo-slot__action journal-photo-slot__action--remove" data-journal-photo-remove="${escapeHtml(item.id)}" type="button" aria-label="Remove photo">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -317,12 +319,12 @@ export function renderItemPhotoSlot(item, existingPhoto, isWritable) {
   `;
 }
 
-function renderItemPhotoRead(item, photo, openMode = "click") {
+function renderItemPhotoRead(item, photo) {
   if (!photo?.public_url) return "";
 
   return `
     <div class="journal-photo-read">
-      ${renderPhotoPreviewButton(item, photo, { isWritable: false, openMode })}
+      ${renderPhotoPreviewButton(item, photo, { isWritable: false, showExpandHint: true })}
     </div>
   `;
 }
@@ -589,7 +591,6 @@ export function renderJournalStatTiles(state, journalState) {
 export function renderJournalContent(state, journalState) {
   const { days } = state;
   const needsProfilePrompt = shouldShowProfilePrompt(state, journalState);
-  const isManualReloading = journalState.isManualReloading === true;
 
   const daySections = days
     .map((day, index) => {
@@ -609,22 +610,6 @@ export function renderJournalContent(state, journalState) {
     .join("");
 
   return `
-    <section class="journal-header" aria-label="Journal controls">
-      <div class="journal-header__copy">
-        <p class="journal-header__eyebrow">Journal</p>
-        <h2 class="journal-header__title">Trip journal</h2>
-      </div>
-      <button
-        class="journal-refresh-button"
-        data-journal-refresh
-        type="button"
-        ${isManualReloading ? "disabled" : ""}
-        aria-busy="${String(isManualReloading)}"
-      >
-        <i data-lucide="refresh-cw" aria-hidden="true"></i>
-        <span>${isManualReloading ? "Reloading…" : "Reload"}</span>
-      </button>
-    </section>
     ${renderJournalStatTiles(state, journalState)}
     ${needsProfilePrompt ? renderProfilePromptBanner() : ""}
     ${daySections}

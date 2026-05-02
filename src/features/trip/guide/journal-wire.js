@@ -19,10 +19,8 @@ const AUTOSAVE_DELAY_MS = 500;
 const SAVED_FEEDBACK_MS = 2000;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
-const LIGHTBOX_LONG_PRESS_MS = 500;
 let _journalCleanupFns = [];
 let _saveCounter = 0;
-let _activePhotoUploadCount = 0;
 let _openLightboxPhotoId = "";
 let _lightboxEscapeHandler = null;
 
@@ -30,7 +28,6 @@ export function teardownJournalMode() {
   _journalCleanupFns.forEach((fn) => fn());
   _journalCleanupFns = [];
   closeJournalLightbox();
-  _activePhotoUploadCount = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,10 +44,6 @@ export function wireJournalMode(state, journalState) {
   wireItemPhotos(state, journalState, userId);
   wirePhotoLightbox(state, journalState);
   wireDoneToggles(state, journalState);
-}
-
-export function hasActiveJournalInteractionInProgress() {
-  return _activePhotoUploadCount > 0 || Boolean(document.querySelector("[data-journal-editor]:not([hidden])"));
 }
 
 // ---------------------------------------------------------------------------
@@ -364,76 +357,8 @@ function wirePhotoLightbox(state, journalState) {
   document.querySelectorAll("[data-journal-photo-open]").forEach((button) => {
     if (button.dataset.journalLightboxBound === "true") return;
     const photoId = button.dataset.journalPhotoOpen;
-    const openMode = button.dataset.journalPhotoOpenMode || "click";
     if (!photoId) return;
     button.dataset.journalLightboxBound = "true";
-
-    if (openMode === "long-press") {
-      let pressTimer = 0;
-      let suppressClick = false;
-
-      const clearPressTimer = () => {
-        if (pressTimer) {
-          window.clearTimeout(pressTimer);
-          pressTimer = 0;
-        }
-      };
-
-      const handlePointerDown = (event) => {
-        if (!(event instanceof PointerEvent) || event.pointerType === "mouse") {
-          return;
-        }
-
-        clearPressTimer();
-        pressTimer = window.setTimeout(() => {
-          suppressClick = true;
-          openJournalLightbox({ photoId, state, journalState });
-          clearPressTimer();
-        }, LIGHTBOX_LONG_PRESS_MS);
-      };
-
-      const handlePointerUp = () => {
-        clearPressTimer();
-      };
-
-      const handleClick = (event) => {
-        if (suppressClick) {
-          suppressClick = false;
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-
-        if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-          openJournalLightbox({ photoId, state, journalState });
-        }
-      };
-
-      const handleContextMenu = (event) => {
-        if (window.matchMedia("(hover: none)").matches) {
-          event.preventDefault();
-        }
-      };
-
-      button.addEventListener("pointerdown", handlePointerDown);
-      button.addEventListener("pointerup", handlePointerUp);
-      button.addEventListener("pointerleave", handlePointerUp);
-      button.addEventListener("pointercancel", handlePointerUp);
-      button.addEventListener("click", handleClick);
-      button.addEventListener("contextmenu", handleContextMenu);
-
-      _journalCleanupFns.push(() => {
-        button.removeEventListener("pointerdown", handlePointerDown);
-        button.removeEventListener("pointerup", handlePointerUp);
-        button.removeEventListener("pointerleave", handlePointerUp);
-        button.removeEventListener("pointercancel", handlePointerUp);
-        button.removeEventListener("click", handleClick);
-        button.removeEventListener("contextmenu", handleContextMenu);
-        clearPressTimer();
-      });
-
-      return;
-    }
 
     const handleOpen = () => {
       openJournalLightbox({ photoId, state, journalState });
@@ -525,7 +450,6 @@ async function handlePhotoAdd({ itemId, state, journalState, userId }) {
 
   const slot = document.querySelector(`[data-journal-photo-slot="${CSS.escape(itemId)}"]`);
   if (slot) slot.classList.add("is-uploading");
-  _activePhotoUploadCount += 1;
 
   try {
     const blob = await compressJournalPhoto(file);
@@ -543,8 +467,6 @@ async function handlePhotoAdd({ itemId, state, journalState, userId }) {
     console.error("Photo upload failed:", error);
     showToast("Photo upload failed. Try again.", "error");
     if (slot) slot.classList.remove("is-uploading");
-  } finally {
-    _activePhotoUploadCount = Math.max(0, _activePhotoUploadCount - 1);
   }
 }
 
@@ -563,7 +485,6 @@ async function handlePhotoReplace({ itemId, state, journalState, userId, closeLi
 
   const slot = document.querySelector(`[data-journal-photo-slot="${CSS.escape(itemId)}"]`);
   if (slot) slot.classList.add("is-uploading");
-  _activePhotoUploadCount += 1;
 
   try {
     const blob = await compressJournalPhoto(file);
@@ -597,8 +518,6 @@ async function handlePhotoReplace({ itemId, state, journalState, userId, closeLi
     console.error("Photo replace failed:", error);
     showToast("Couldn't replace photo. Try again.", "error");
     if (slot) slot.classList.remove("is-uploading");
-  } finally {
-    _activePhotoUploadCount = Math.max(0, _activePhotoUploadCount - 1);
   }
 }
 

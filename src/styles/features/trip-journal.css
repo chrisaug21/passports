@@ -3,64 +3,6 @@
    ============================================================ */
 
 /* ---------------------------------------------------------------------------
-   Journal header
-   --------------------------------------------------------------------------- */
-
-.journal-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.journal-header__copy {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.journal-header__eyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-subtle);
-}
-
-.journal-header__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
-  line-height: 1;
-}
-
-.journal-refresh-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-strong);
-  color: var(--color-text);
-  min-height: var(--touch-target);
-  padding: 0.65rem 0.95rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.journal-refresh-button[aria-busy="true"] svg {
-  animation: journal-refresh-spin 900ms linear infinite;
-}
-
-@keyframes journal-refresh-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ---------------------------------------------------------------------------
    Profile prompt banner
    --------------------------------------------------------------------------- */
 
@@ -460,13 +402,25 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 10px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.journal-photo-slot--has-photo:hover .journal-photo-slot__overlay,
+.journal-photo-slot--has-photo:focus-within .journal-photo-slot__overlay {
+  opacity: 1;
+}
+
+.journal-photo-slot__actions {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 160ms ease;
+  padding: 0.5rem;
+  pointer-events: auto;
 }
 
 .journal-photo-slot__expand,
@@ -484,12 +438,6 @@
   opacity: 0;
   transform: translateY(-2px);
   transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.journal-photo-slot--has-photo:hover .journal-photo-slot__overlay,
-.journal-photo-slot--has-photo:focus-within .journal-photo-slot__overlay {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .journal-photo-slot--has-photo:hover .journal-photo-slot__expand,
@@ -515,12 +463,6 @@
 
 .journal-photo-slot__action:hover {
   background: rgba(255, 255, 255, 0.32);
-}
-
-.journal-photo-slot__action--expand {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
 }
 
 .journal-photo-slot__action--remove:hover {
@@ -858,15 +800,6 @@ body.journal-lightbox-open {
    --------------------------------------------------------------------------- */
 
 @media (max-width: 639px) {
-  .journal-header {
-    align-items: stretch;
-  }
-
-  .journal-refresh-button {
-    width: 100%;
-    justify-content: center;
-  }
-
   .journal-item-card__done-block {
     justify-items: end;
   }
