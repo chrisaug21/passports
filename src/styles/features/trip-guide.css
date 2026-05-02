@@ -824,10 +824,21 @@
     width: var(--guide-day-nav-width, 100%);
     padding-inline: 0.75rem;
     box-sizing: border-box;
-    background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.07);
+    background: transparent;
     z-index: 30;
-    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.05);
+  }
+
+  .guide-day-nav.is-sticky-active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc((100vw - 100%) / -2);
+    width: 100vw;
+    background: var(--color-bg);
+    border-bottom: 1px solid rgba(26, 35, 50, 0.06);
+    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.04);
+    z-index: -1;
   }
 }
 
