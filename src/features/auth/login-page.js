@@ -54,21 +54,21 @@ export function renderLoginPage() {
                 <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="map"></i></span>
                 <h4 class="auth-feature__title">Map it all out</h4>
               </div>
-              <p class="auth-feature__copy">Every base, day, and activity in one place — before you even book a flight.</p>
+              <p class="auth-feature__copy">Every base, day, and activity in one place — before you even book a flight. Build the full itinerary and adjust as plans evolve.</p>
             </article>
             <article class="auth-feature">
               <div class="auth-feature__header">
                 <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="file-text"></i></span>
                 <h4 class="auth-feature__title">Log it as you go</h4>
               </div>
-              <p class="auth-feature__copy">Add notes and photos along the way. When you're home, it's all there waiting.</p>
+              <p class="auth-feature__copy">Add notes and photos as you go. It's a travel journal that lives alongside your plan, in the same place you built the trip.</p>
             </article>
             <article class="auth-feature">
               <div class="auth-feature__header">
                 <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="users"></i></span>
                 <h4 class="auth-feature__title">Bring someone along</h4>
               </div>
-              <p class="auth-feature__copy">Share the planning, share the adventure.</p>
+              <p class="auth-feature__copy">Share the planning, share the adventure. Invite anyone joining the trip — they can view the plan, add ideas, and relive it with you.</p>
             </article>
           </div>
           <div class="auth-marketing__cta">
