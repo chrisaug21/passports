@@ -173,6 +173,7 @@
 .auth-marketing__cta-button {
   background: var(--color-surface-strong);
   color: var(--color-action);
+  text-decoration: none;
 }
 
 .auth-marketing__cta-button:hover,
