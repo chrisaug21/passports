@@ -22,6 +22,7 @@
   --color-structure: #2b5be0;
   --color-structure-soft: rgba(43, 91, 224, 0.08);
   --color-structure-tint: rgba(43, 91, 224, 0.1);
+  --color-cta-deep: #16324f;
   --trip-header-media-gradient: linear-gradient(180deg, rgba(43, 91, 224, 0.12), rgba(14, 168, 122, 0.18)), linear-gradient(135deg, #f5f8fd, #dcebf4);
   --color-danger: #c05353;
   --color-danger-strong: #aa4040;

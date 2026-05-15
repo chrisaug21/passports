@@ -46,28 +46,36 @@ export function renderLoginPage() {
         <div class="auth-marketing__inner">
           <div class="auth-marketing__header">
             <p class="eyebrow">Why Passports</p>
-            <h3 class="auth-marketing__title" id="auth-marketing-title">A lighter way to shape the trip before, during, and after you go.</h3>
+            <h3 class="auth-marketing__title" id="auth-marketing-title">Plan it. Live it. Remember it.</h3>
           </div>
           <div class="auth-marketing__grid">
             <article class="auth-feature">
-              <p class="auth-feature__icon" aria-hidden="true">🗺️</p>
-              <h4 class="auth-feature__title">Plan the whole trip</h4>
-              <p class="auth-feature__copy">Organize every base, day, and activity in one place. Build the itinerary before you book anything.</p>
+              <div class="auth-feature__header">
+                <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="map"></i></span>
+                <h4 class="auth-feature__title">Map it all out</h4>
+              </div>
+              <p class="auth-feature__copy">Every base, day, and activity in one place — before you even book a flight.</p>
             </article>
             <article class="auth-feature">
-              <p class="auth-feature__icon" aria-hidden="true">📸</p>
-              <h4 class="auth-feature__title">Keep the memory</h4>
-              <p class="auth-feature__copy">Attach photos and notes as you go. When the trip is done, it becomes a beautiful diary.</p>
+              <div class="auth-feature__header">
+                <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="file-text"></i></span>
+                <h4 class="auth-feature__title">Log it as you go</h4>
+              </div>
+              <p class="auth-feature__copy">Add notes and photos along the way. When you're home, it's all there waiting.</p>
             </article>
             <article class="auth-feature">
-              <p class="auth-feature__icon" aria-hidden="true">👫</p>
-              <h4 class="auth-feature__title">Travel together</h4>
-              <p class="auth-feature__copy">Invite your travel partner. Plan together, explore together, remember it together.</p>
+              <div class="auth-feature__header">
+                <span class="auth-feature__icon" aria-hidden="true"><i data-lucide="users"></i></span>
+                <h4 class="auth-feature__title">Bring someone along</h4>
+              </div>
+              <p class="auth-feature__copy">Share the planning, share the adventure.</p>
             </article>
           </div>
           <div class="auth-marketing__cta">
-            <p class="auth-marketing__cta-copy">Ready to plan your next trip?</p>
-            <a class="button" href="#sign-up-form" data-auth-create-account>Create account</a>
+            <div class="auth-marketing__cta-content">
+              <p class="auth-marketing__cta-copy">Ready to plan your next trip?</p>
+            </div>
+            <a class="button auth-marketing__cta-button" href="#sign-up-form" data-auth-create-account>Create account</a>
           </div>
         </div>
       </section>
