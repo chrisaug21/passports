@@ -1,5 +1,5 @@
 // Keep this in sync with APP_VERSION in src/config/constants.js.
-const version = "1.0.15";
+const version = "1.0.19";
 const cacheName = `passports-shell-${version}`;
 const appShell = [
   "/",
@@ -14,6 +14,7 @@ const appShell = [
   "/android-chrome-512x512.png",
   "/passports-logo.svg",
   "/passports-square-logo.svg",
+  "/assets/hero-bg.jpg",
   "/src/styles/main.css",
   "/src/app/app.js",
 ];
