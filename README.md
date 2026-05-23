@@ -10,6 +10,7 @@ The current foundation includes:
 - base management
 - days view
 - installable PWA shell with manifest and service worker
+- Netlify scheduled keep-alive function for the Supabase project
 - trip settings
 - stop and base soft delete
 - dashboard Past Trips section based on trip dates
