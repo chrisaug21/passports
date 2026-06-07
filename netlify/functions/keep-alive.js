@@ -1,9 +1,13 @@
 exports.handler = async function handler() {
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error("Keep-alive failed: missing SUPABASE_URL or SUPABASE_KEY.");
+    const missingVars = [
+      !supabaseUrl ? "SUPABASE_URL" : null,
+      !supabaseKey ? "SUPABASE_ANON_KEY" : null,
+    ].filter(Boolean);
+    console.error(`Keep-alive failed: missing ${missingVars.join(", ")}.`);
 
     return {
       statusCode: 500,
@@ -27,14 +31,14 @@ exports.handler = async function handler() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Keep-alive failed:", response.status, errorText);
+      console.error("Keep-alive failed: Supabase returned", response.status, errorText);
 
       return {
         statusCode: 500,
       };
     }
 
-    console.log("Keep-alive succeeded.");
+    console.log("Keep-alive succeeded:", response.status);
 
     return {
       statusCode: 200,
