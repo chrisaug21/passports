@@ -1,4 +1,6 @@
 import { navigate } from "../../../app/router.js";
+import { appStore } from "../../../state/app-store.js";
+import { tripStore } from "../../../state/trip-store.js";
 import {
   filterItemsForViewer,
   getLodgingBands,
@@ -14,10 +16,24 @@ import {
 } from "./journal-view.js";
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
+import { fetchTripDetailBundle } from "../../../services/trips-service.js";
 import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
+import {
+  renderDeleteItemConfirmModal,
+  renderDiscardConfirmModal,
+  renderItemEditorModal,
+} from "../detail/item-editor-controller.js";
+import {
+  createItemEditorHandlers,
+  getTripItemErrorMessage,
+} from "../detail/item-editor-controller.js";
+import { wireTripDetailPageEvents } from "../detail/trip-detail-wire.js";
+import { setTripDetailRerenderer, tripDetailState } from "../detail/trip-detail-state.js";
+import { showToast } from "../../shared/toast.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
 const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 768;
+const JOURNAL_AUTO_REFRESH_MS = 60000;
 
 let cleanupFns = [];
 
@@ -33,10 +49,13 @@ let _todayDayNumber = null;
 let _journalState = {
   hasFetched: false,
   isFetching: false,
+  isRefreshing: false,
+  isManualRefreshing: false,
   entries: [],
   photos: [],
   profiles: [],
 };
+let _journalAutoRefreshTimer = null;
 
 let dayNavOffsetRafId = null;
 let dayNavStickyRafId = null;
@@ -47,10 +66,12 @@ export function teardownGuideView() {
   isUserScrolling = false;
   clearTimeout(touchEndTimer);
   teardownJournalMode();
+  stopJournalAutoRefresh();
+  appStore.resetTripDetail();
   _guideState = null;
   _currentMode = "itinerary";
   _todayDayNumber = null;
-  _journalState = { hasFetched: false, isFetching: false, entries: [], photos: [], profiles: [] };
+  _journalState = { hasFetched: false, isFetching: false, isRefreshing: false, isManualRefreshing: false, entries: [], photos: [], profiles: [] };
   if (dayNavOffsetRafId) {
     cancelAnimationFrame(dayNavOffsetRafId);
     dayNavOffsetRafId = null;
@@ -67,6 +88,11 @@ function isMobileLayout() {
 
 export function wireGuideView(state) {
   _guideState = state;
+  setTripDetailRerenderer(() => {
+    if (_currentMode === "journal") {
+      renderJournalModeContent();
+    }
+  });
   _todayDayNumber = getTodayDayNumber(state.trip);
   _currentMode = getStoredActiveMode();
 
@@ -361,12 +387,14 @@ async function switchToJournal() {
   _currentMode = "journal";
   persistActiveMode("journal");
   renderJournalModeContent();
+  startJournalAutoRefresh();
 }
 
 function switchToItinerary() {
   if (!_guideState) return;
 
   teardownJournalMode();
+  stopJournalAutoRefresh();
   setActiveTab("itinerary");
   _currentMode = "itinerary";
   persistActiveMode("itinerary");
@@ -417,14 +445,21 @@ function renderJournalModeContent() {
   const content = document.querySelector(".guide-content");
   if (!nav || !content || !_guideState) return;
 
+  syncGuideStateFromTripStore();
+  syncTripDetailModalState();
   // Replace only the nav items, not the <nav> element itself
   nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
-  content.innerHTML = renderJournalContent(_guideState, _journalState);
+  content.innerHTML = `
+    ${renderJournalContent(_guideState, _journalState)}
+    ${renderJournalItemEditorOverlays()}
+  `;
 
   window.lucide?.createIcons?.();
   wireNavClicks();
   setupLazyJournalDays();
   wireJournalMode(_guideState, _journalState);
+  wireJournalControls();
+  wireTripDetailPageEvents(createGuideItemEditorHandlers());
   restoreDayNavSelection();
 }
 
@@ -482,6 +517,150 @@ function renderItineraryModeContent() {
   if (_todayDayNumber) scrollOrJumpToDay(_todayDayNumber);
   else if (!isMobileLayout()) updateActiveSection();
   else document.querySelector(".guide-nav-item")?.classList.add("is-active");
+}
+
+function createGuideItemEditorHandlers() {
+  return createItemEditorHandlers({
+    getTripItemErrorMessage,
+  });
+}
+
+function syncGuideStateFromTripStore() {
+  if (!_guideState) return;
+  const currentTrip = tripStore.getCurrentTrip();
+
+  if (currentTrip?.id !== _guideState.tripId) {
+    return;
+  }
+
+  _guideState.trip = currentTrip;
+  _guideState.bases = tripStore.getCurrentBases();
+  _guideState.days = tripStore.getCurrentDays();
+  _guideState.items = tripStore.getCurrentItems();
+}
+
+function renderJournalItemEditorOverlays() {
+  const { tripDetail } = appStore.getState();
+  const bases = tripStore.getCurrentBases();
+  const days = tripStore.getCurrentDays();
+  const items = tripStore.getCurrentItems();
+  const editingItem = items.find((item) => item.id === tripDetail.editingItemId) || null;
+
+  return `
+    ${renderItemEditorModal({
+      item: editingItem,
+      bases,
+      days,
+      mode: tripDetail.itemEditorMode,
+      context: tripDetail.itemEditorContext,
+      isSaving: tripDetail.isSavingItem,
+      isDeleting: tripDetail.isDeletingItem && tripDetail.deletingItemId === editingItem?.id,
+    })}
+    ${renderDiscardConfirmModal(tripDetail.showDiscardConfirm)}
+    ${renderDeleteItemConfirmModal({
+      item: items.find((entry) => entry.id === tripDetail.deletingItemId) || null,
+      isOpen: tripDetail.showDeleteItemConfirm,
+      isDeleting: tripDetail.isDeletingItem,
+    })}
+  `;
+}
+
+function syncTripDetailModalState() {
+  const { tripDetail } = appStore.getState();
+  const hasOpenModal = Boolean(
+    tripDetail.editingItemId ||
+    tripDetail.itemEditorMode === "add" ||
+    tripDetail.showDiscardConfirm ||
+    tripDetail.showDeleteItemConfirm ||
+    tripDetailState.pendingDiscardAction
+  );
+
+  document.body.classList.toggle("modal-open", hasOpenModal);
+}
+
+function wireJournalControls() {
+  document.querySelector("[data-journal-refresh]")?.addEventListener("click", () => {
+    void refreshJournalData({ showLoading: true });
+  });
+}
+
+function startJournalAutoRefresh() {
+  stopJournalAutoRefresh();
+  _journalAutoRefreshTimer = window.setInterval(() => {
+    void refreshJournalData({ showLoading: false });
+  }, JOURNAL_AUTO_REFRESH_MS);
+}
+
+function stopJournalAutoRefresh() {
+  if (!_journalAutoRefreshTimer) {
+    return;
+  }
+
+  window.clearInterval(_journalAutoRefreshTimer);
+  _journalAutoRefreshTimer = null;
+}
+
+function isJournalInteractionInProgress() {
+  return Boolean(
+    document.querySelector("[data-journal-editor]:not([hidden])") ||
+    document.querySelector(".journal-photo-slot.is-uploading") ||
+    document.querySelector("#item-editor-modal[aria-hidden='false']")
+  );
+}
+
+async function refreshJournalData({ showLoading }) {
+  if (!_guideState || _currentMode !== "journal" || _journalState.isRefreshing) {
+    return;
+  }
+
+  if (!showLoading && isJournalInteractionInProgress()) {
+    return;
+  }
+
+  _journalState.isRefreshing = true;
+  _journalState.isManualRefreshing = Boolean(showLoading);
+  if (showLoading) {
+    renderJournalModeContent();
+  }
+
+  try {
+    await ensureMembersLoaded();
+    const bundle = await fetchTripDetailBundle(_guideState.tripId);
+    const memberUserIds = _guideState.members.map((member) => member.user_id);
+    const doneUserIds = (bundle.items || [])
+      .map((item) => item.done_by)
+      .filter(Boolean);
+    const data = await fetchJournalData(_guideState.tripId, memberUserIds, doneUserIds);
+
+    if (!showLoading && isJournalInteractionInProgress()) {
+      return;
+    }
+
+    tripStore.setCurrentTripBundle(bundle);
+    _guideState = {
+      ..._guideState,
+      trip: bundle.trip,
+      bases: bundle.bases,
+      days: bundle.days,
+      items: bundle.items,
+    };
+    _journalState.entries = data.entries;
+    _journalState.photos = data.photos;
+    _journalState.profiles = data.profiles;
+    _journalState.hasFetched = true;
+    renderJournalModeContent();
+  } catch (error) {
+    console.error("Failed to refresh journal data:", error);
+    if (showLoading) {
+      showToast("Couldn't reload the journal. Try again.", "error");
+    }
+  } finally {
+    _journalState.isRefreshing = false;
+    _journalState.isManualRefreshing = false;
+    if (showLoading && _currentMode === "journal") {
+      renderJournalModeContent();
+    }
+  }
 }
 
 function restoreDayNavSelection() {

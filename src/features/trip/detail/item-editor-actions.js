@@ -156,6 +156,32 @@ export function createItemEditorHandlers() {
         rerenderTripDetail();
       });
     },
+    onAddItemToDay: (dayId) => {
+      if (!dayId) {
+        return;
+      }
+
+      requestCloseItemEditor(() => {
+        const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId) || null;
+        const context = {
+          baseId: "",
+          dayId,
+          status: "confirmed",
+          dayLabel: day ? `Day ${day.day_number}` : "day",
+        };
+        appStore.updateTripDetail({
+          editingItemId: null,
+          itemEditorMode: "add",
+          itemEditorContext: context,
+          showDiscardConfirm: false,
+        });
+        tripDetailState.persistedEditorItemId = null;
+        tripDetailState.itemEditorDraft = buildAddItemEditorDraft(context);
+        tripDetailState.itemEditorInitialSnapshot = serializeItemEditorDraft(tripDetailState.itemEditorDraft);
+        tripDetailState.pendingDiscardAction = null;
+        rerenderTripDetail();
+      });
+    },
     onItemEditorTypeChange: syncItemEditorTypeFields,
     onItemEditorAssignmentChange: syncItemEditorAssignmentHint,
     onItemEditorDraftChange: syncItemEditorDraftFromForm,

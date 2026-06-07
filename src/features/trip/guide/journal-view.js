@@ -372,6 +372,22 @@ function renderDoneAttribution(item, members, profiles) {
 // Item card (Journal Mode)
 // ---------------------------------------------------------------------------
 
+function renderJournalEditButton(item, isWritable) {
+  if (!isWritable) return "";
+
+  return `
+    <button
+      class="journal-item-card__edit"
+      data-edit-item="${escapeHtml(item.id)}"
+      type="button"
+      aria-label="${escapeHtml(`Edit ${item.title || "this stop"}`)}"
+      title="Edit stop"
+    >
+      <i data-lucide="pencil" aria-hidden="true"></i>
+    </button>
+  `;
+}
+
 function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneUi) {
   const isDone = item.is_done === true;
 
@@ -413,6 +429,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
           ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
           <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
         </div>
+        ${renderJournalEditButton(item, isWritable)}
         ${doneHeaderBlock}
       </div>
       <div class="guide-item-card__details">
@@ -462,6 +479,14 @@ export function renderJournalDaySection(day, state, journalState) {
   }
 
   const dayJournalArea = renderDayJournalArea(day, entries, members, profiles, isWritable, userId);
+  const addItemButton = isWritable
+    ? `
+      <button class="journal-day-add-item" data-add-item-to-day="${escapeHtml(day.id)}" type="button">
+        <i data-lucide="plus" aria-hidden="true"></i>
+        <span>Add item</span>
+      </button>
+    `
+    : "";
 
   const itemCards = sorted.map((item) =>
     renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneUi)
@@ -487,6 +512,7 @@ export function renderJournalDaySection(day, state, journalState) {
     ` : ""}
     <div class="guide-day-items">
       ${itemCards}
+      ${addItemButton}
       ${!hasContent ? `<p class="guide-day-empty muted">Nothing planned for this day yet.</p>` : ""}
     </div>
   `;
@@ -584,6 +610,28 @@ export function renderJournalStatTiles(state, journalState) {
   `;
 }
 
+export function renderJournalToolbar(journalState) {
+  const isRefreshing = Boolean(journalState.isManualRefreshing);
+
+  return `
+    <section class="journal-toolbar" aria-label="Journal controls">
+      <div>
+        <p class="eyebrow">Journal</p>
+      </div>
+      <button
+        class="journal-refresh-button${isRefreshing ? " is-loading" : ""}"
+        data-journal-refresh
+        type="button"
+        aria-label="Reload journal"
+        ${isRefreshing ? "disabled" : ""}
+      >
+        <i data-lucide="refresh-cw" aria-hidden="true"></i>
+        <span>${isRefreshing ? "Reloading" : "Reload"}</span>
+      </button>
+    </section>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Full Journal Mode content (guide-content area)
 // ---------------------------------------------------------------------------
@@ -610,6 +658,7 @@ export function renderJournalContent(state, journalState) {
     .join("");
 
   return `
+    ${renderJournalToolbar(journalState)}
     ${renderJournalStatTiles(state, journalState)}
     ${needsProfilePrompt ? renderProfilePromptBanner() : ""}
     ${daySections}

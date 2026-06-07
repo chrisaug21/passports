@@ -152,7 +152,7 @@ export function buildAddItemEditorDraft(context = null) {
   return {
     title: "",
     itemType: "",
-    status: "idea",
+    status: context?.status || "idea",
     baseId: context?.baseId || "",
     dayId: context?.dayId || "",
     isAnchor: false,
@@ -172,6 +172,10 @@ export function buildAddItemEditorDraft(context = null) {
 }
 
 export function getAddItemModalTitle(context, bases) {
+  if (context?.dayLabel) {
+    return `Add to ${context.dayLabel}`;
+  }
+
   if (context?.baseId) {
     const base = bases.find((entry) => entry.id === context.baseId);
     return `Add to ${base?.name || "base"}`;
