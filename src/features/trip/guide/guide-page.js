@@ -2,6 +2,8 @@ import { fetchTripDetailBundle } from "../../../services/trips-service.js";
 import { fetchTripMembersWithEmails } from "../../../services/members-service.js";
 import { getSupabase } from "../../../lib/supabase.js";
 import { sessionStore } from "../../../state/session-store.js";
+import { appStore } from "../../../state/app-store.js";
+import { tripStore } from "../../../state/trip-store.js";
 import { navigate } from "../../../app/router.js";
 import {
   renderGuideView,
@@ -103,6 +105,8 @@ export async function loadGuidePage(tripId) {
     const root = document.querySelector("#guide-view-root");
     if (!root) return;
 
+    appStore.resetTripDetail();
+    tripStore.setCurrentTripBundle(bundle);
     teardownGuideView();
     root.innerHTML = renderGuideView(state);
     window.lucide?.createIcons?.();

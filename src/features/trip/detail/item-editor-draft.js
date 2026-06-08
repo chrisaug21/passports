@@ -1,6 +1,7 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { tripDetailState } from "./trip-detail-state.js";
+import { DEFAULT_ITEM_STATUS } from "../../../config/constants.js";
 
 export function captureItemEditorInitialSnapshot() {
   if (!tripDetailState.itemEditorDraft) {
@@ -152,7 +153,7 @@ export function buildAddItemEditorDraft(context = null) {
   return {
     title: "",
     itemType: "",
-    status: "idea",
+    status: context?.status || DEFAULT_ITEM_STATUS,
     baseId: context?.baseId || "",
     dayId: context?.dayId || "",
     isAnchor: false,
@@ -172,6 +173,10 @@ export function buildAddItemEditorDraft(context = null) {
 }
 
 export function getAddItemModalTitle(context, bases) {
+  if (context?.dayLabel) {
+    return `Add to ${context.dayLabel}`;
+  }
+
   if (context?.baseId) {
     const base = bases.find((entry) => entry.id === context.baseId);
     return `Add to ${base?.name || "base"}`;

@@ -3,6 +3,60 @@
    ============================================================ */
 
 /* ---------------------------------------------------------------------------
+   Journal hero refresh
+   --------------------------------------------------------------------------- */
+
+.journal-hero-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+}
+
+.journal-refresh-button {
+  min-height: var(--touch-target);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 10, 18, 0.32);
+  color: rgba(255, 255, 255, 0.82);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  opacity: 0.82;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.journal-refresh-button:hover,
+.journal-refresh-button:focus-visible {
+  background: rgba(5, 10, 18, 0.48);
+  border-color: rgba(255, 255, 255, 0.44);
+  color: #fff;
+  opacity: 1;
+}
+
+.journal-refresh-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.journal-refresh-button.is-loading svg {
+  animation: journal-refresh-spin 900ms linear infinite;
+}
+
+@keyframes journal-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Profile prompt banner
    --------------------------------------------------------------------------- */
 
@@ -260,6 +314,12 @@
   gap: 0.75rem;
 }
 
+.journal-item-card .guide-item-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+}
+
 .journal-item-card__title-group {
   display: flex;
   align-items: center;
@@ -268,13 +328,41 @@
   flex: 1;
 }
 
+.journal-item-card__edit {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.journal-item-card__edit:hover,
+.journal-item-card__edit:focus-visible {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.journal-item-card__edit svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 .journal-item-card__done-block {
+  position: relative;
   display: grid;
   justify-items: end;
   align-content: start;
   gap: 0.2rem;
+  width: max-content;
+  padding-bottom: 1.25rem;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .journal-item-card__done-by {
@@ -282,6 +370,13 @@
   font-size: 0.7rem;
   line-height: 1.2;
   color: var(--color-text-subtle);
+  position: absolute;
+  top: calc(100% - 0.72rem);
+  right: 0;
+  width: max-content;
+  max-width: 11rem;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .journal-member-row {
@@ -319,6 +414,36 @@
 .journal-item-entry {
   display: grid;
   gap: 0.3rem;
+}
+
+.journal-day-add-item {
+  min-height: var(--touch-target);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+  padding: 0.65rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  justify-self: start;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.journal-day-add-item:hover,
+.journal-day-add-item:focus-visible {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-structure);
+  color: var(--color-structure);
+}
+
+.journal-day-add-item svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .journal-item-entry__saved {
@@ -518,7 +643,9 @@
   padding: 0.22rem 0.48rem;
   cursor: pointer;
   color: var(--color-text-subtle);
-  min-height: 1.9rem;
+  box-sizing: border-box;
+  height: 2.25rem;
+  min-height: 2.25rem;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

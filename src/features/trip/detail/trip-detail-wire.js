@@ -186,6 +186,9 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onAddItemToBase?.(button.getAttribute("data-add-item-to-base"));
   });
   bindClick("[data-add-item-to-trip]", handlers.onAddItemToTrip);
+  bindAll("[data-add-item-to-day]", "click", (button) => {
+    handlers.onAddItemToDay?.(button.getAttribute("data-add-item-to-day"));
+  });
   bindClick("#close-item-editor", handlers.onCloseItemEditor);
   bindClick("#cancel-item-editor", handlers.onCloseItemEditor);
   bindClick("[data-close-item-editor]", handlers.onCloseItemEditor);
