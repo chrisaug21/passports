@@ -61,6 +61,7 @@ let _journalState = {
   profiles: [],
 };
 let _journalAutoRefreshTimer = null;
+let _journalItemEditorHandlers = null;
 
 let dayNavOffsetRafId = null;
 let dayNavStickyRafId = null;
@@ -73,6 +74,7 @@ export function teardownGuideView() {
   teardownJournalMode();
   stopJournalAutoRefresh();
   appStore.resetTripDetail();
+  _journalItemEditorHandlers = null;
   _guideState = null;
   _currentMode = "itinerary";
   _todayDayNumber = null;
@@ -664,13 +666,59 @@ function bindJournalTap(selector, handler, options = {}) {
 }
 
 function wireJournalItemEditorButtons(handlers) {
-  bindJournalTap(".journal-item-card [data-edit-item]", (button) => {
-    handlers.onEditItem?.(button.getAttribute("data-edit-item"));
-  });
+  _journalItemEditorHandlers = handlers;
+  const content = document.querySelector(".guide-content");
+  if (!content || content.dataset.journalItemEditorDelegated === "true") {
+    return;
+  }
 
-  bindJournalTap("[data-add-item-to-day]", (button) => {
-    handlers.onAddItemToDay?.(button.getAttribute("data-add-item-to-day"));
-  });
+  let lastPointerAt = 0;
+
+  const handleJournalItemEditorEvent = (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const editButton = target.closest(".journal-item-card [data-edit-item]");
+    const addButton = target.closest("[data-add-item-to-day]");
+    const button = editButton || addButton;
+
+    if (!button || !content.contains(button)) {
+      return;
+    }
+
+    const isTouchPointer = (
+      event.type === "pointerup"
+      && typeof PointerEvent !== "undefined"
+      && event instanceof PointerEvent
+      && (event.pointerType === "touch" || event.pointerType === "pen")
+    );
+
+    if (event.type === "pointerup" && !isTouchPointer) {
+      return;
+    }
+
+    if (isTouchPointer) {
+      lastPointerAt = Date.now();
+    } else if (event.type === "click" && Date.now() - lastPointerAt < 500) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (editButton) {
+      _journalItemEditorHandlers?.onEditItem?.(editButton.getAttribute("data-edit-item"));
+      return;
+    }
+
+    _journalItemEditorHandlers?.onAddItemToDay?.(addButton.getAttribute("data-add-item-to-day"));
+  };
+
+  content.dataset.journalItemEditorDelegated = "true";
+  content.addEventListener("pointerup", handleJournalItemEditorEvent, true);
+  content.addEventListener("click", handleJournalItemEditorEvent, true);
 }
 
 function startJournalAutoRefresh() {

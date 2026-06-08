@@ -643,7 +643,9 @@
   padding: 0.22rem 0.48rem;
   cursor: pointer;
   color: var(--color-text-subtle);
-  min-height: 1.9rem;
+  box-sizing: border-box;
+  height: 2.25rem;
+  min-height: 2.25rem;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
