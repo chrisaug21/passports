@@ -355,12 +355,13 @@
 }
 
 .journal-item-card__done-block {
+  position: relative;
   display: grid;
   justify-items: end;
   align-content: start;
   gap: 0.2rem;
   width: max-content;
-  max-width: 9rem;
+  padding-bottom: 1rem;
   flex-shrink: 0;
 }
 
@@ -369,7 +370,11 @@
   font-size: 0.7rem;
   line-height: 1.2;
   color: var(--color-text-subtle);
-  max-width: 100%;
+  position: absolute;
+  top: calc(100% - 0.85rem);
+  right: 0;
+  width: max-content;
+  max-width: 11rem;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -926,7 +931,6 @@ body.journal-lightbox-open {
 @media (max-width: 639px) {
   .journal-item-card__done-block {
     justify-items: end;
-    max-width: 8rem;
   }
 
   .journal-done-toggle {
