@@ -465,8 +465,9 @@ function renderJournalModeContent() {
   setupLazyJournalDays();
   wireJournalMode(_guideState, _journalState);
   wireJournalControls();
-  wireTripDetailPageEvents(createGuideItemEditorHandlers());
-  wireJournalItemEditorButtons();
+  const itemEditorHandlers = createGuideItemEditorHandlers();
+  wireJournalItemEditorButtons(itemEditorHandlers);
+  wireTripDetailPageEvents(itemEditorHandlers);
   restoreDayNavSelection();
 }
 
@@ -642,32 +643,34 @@ function bindJournalTap(selector, handler, options = {}) {
       ) {
         lastPointerAt = Date.now();
         event.preventDefault();
+        event.stopImmediatePropagation();
         handler(element, event);
       }
     });
 
     element.addEventListener("click", (event) => {
       if (!clickFallback) {
+        event.stopImmediatePropagation();
         return;
       }
       if (Date.now() - lastPointerAt < 500) {
+        event.stopImmediatePropagation();
         return;
       }
+      event.stopImmediatePropagation();
       handler(element, event);
     });
   });
 }
 
-function wireJournalItemEditorButtons() {
-  const handlers = createGuideItemEditorHandlers();
-
+function wireJournalItemEditorButtons(handlers) {
   bindJournalTap(".journal-item-card [data-edit-item]", (button) => {
     handlers.onEditItem?.(button.getAttribute("data-edit-item"));
-  }, { clickFallback: false });
+  });
 
   bindJournalTap("[data-add-item-to-day]", (button) => {
     handlers.onAddItemToDay?.(button.getAttribute("data-add-item-to-day"));
-  }, { clickFallback: false });
+  });
 }
 
 function startJournalAutoRefresh() {
