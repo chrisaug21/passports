@@ -361,7 +361,7 @@
   align-content: start;
   gap: 0.2rem;
   width: max-content;
-  padding-bottom: 1rem;
+  padding-bottom: 1.25rem;
   flex-shrink: 0;
 }
 
@@ -371,7 +371,7 @@
   line-height: 1.2;
   color: var(--color-text-subtle);
   position: absolute;
-  top: calc(100% - 0.85rem);
+  top: calc(100% - 0.72rem);
   right: 0;
   width: max-content;
   max-width: 11rem;
