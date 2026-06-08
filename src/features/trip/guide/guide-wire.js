@@ -13,6 +13,7 @@ import {
   renderJournalContent,
   renderJournalDayNav,
   renderJournalDaySection,
+  renderJournalRefreshButton,
 } from "./journal-view.js";
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
@@ -29,6 +30,10 @@ import {
 } from "../detail/item-editor-controller.js";
 import { wireTripDetailPageEvents } from "../detail/trip-detail-wire.js";
 import { setTripDetailRerenderer, tripDetailState } from "../detail/trip-detail-state.js";
+import {
+  serializeItemEditorDraft,
+  syncItemEditorDraftFromForm,
+} from "../detail/item-editor-draft.js";
 import { showToast } from "../../shared/toast.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
@@ -447,6 +452,7 @@ function renderJournalModeContent() {
 
   syncGuideStateFromTripStore();
   syncTripDetailModalState();
+  renderJournalHeroControls();
   // Replace only the nav items, not the <nav> element itself
   nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
   content.innerHTML = `
@@ -460,6 +466,7 @@ function renderJournalModeContent() {
   wireJournalMode(_guideState, _journalState);
   wireJournalControls();
   wireTripDetailPageEvents(createGuideItemEditorHandlers());
+  wireJournalItemEditorButtons();
   restoreDayNavSelection();
 }
 
@@ -469,6 +476,7 @@ function renderItineraryModeContent() {
   if (!nav || !content || !_guideState) return;
 
   const { trip, bases, days, items, viewerRole } = _guideState;
+  renderJournalHeroControls();
 
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
   nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber);
@@ -520,9 +528,22 @@ function renderItineraryModeContent() {
 }
 
 function createGuideItemEditorHandlers() {
-  return createItemEditorHandlers({
+  const handlers = createItemEditorHandlers({
     getTripItemErrorMessage,
   });
+
+  return {
+    ...handlers,
+    onAfterItemEditorOpen: () => {
+      handlers.onAfterItemEditorOpen?.();
+      if (document.querySelector("#item-editor-modal[aria-hidden='false']")) {
+        syncItemEditorDraftFromForm();
+        tripDetailState.itemEditorInitialSnapshot = tripDetailState.itemEditorDraft
+          ? serializeItemEditorDraft(tripDetailState.itemEditorDraft)
+          : "";
+      }
+    },
+  };
 }
 
 function syncGuideStateFromTripStore() {
@@ -579,9 +600,74 @@ function syncTripDetailModalState() {
 }
 
 function wireJournalControls() {
-  document.querySelector("[data-journal-refresh]")?.addEventListener("click", () => {
+  bindJournalTap("[data-journal-refresh]", () => {
     void refreshJournalData({ showLoading: true });
   });
+}
+
+function renderJournalHeroControls() {
+  const hero = document.querySelector(".guide-hero");
+  if (!hero) return;
+
+  hero.querySelector("[data-journal-hero-controls]")?.remove();
+
+  if (_currentMode !== "journal") {
+    return;
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "journal-hero-controls";
+  controls.setAttribute("data-journal-hero-controls", "");
+  controls.innerHTML = renderJournalRefreshButton(_journalState);
+  hero.append(controls);
+  window.lucide?.createIcons?.();
+}
+
+function bindJournalTap(selector, handler, options = {}) {
+  const clickFallback = options.clickFallback !== false;
+
+  document.querySelectorAll(selector).forEach((element) => {
+    if (element.dataset.journalTapBound === "true") {
+      return;
+    }
+
+    element.dataset.journalTapBound = "true";
+    let lastPointerAt = 0;
+
+    element.addEventListener("pointerup", (event) => {
+      if (
+        typeof PointerEvent !== "undefined"
+        && event instanceof PointerEvent
+        && (event.pointerType === "touch" || event.pointerType === "pen")
+      ) {
+        lastPointerAt = Date.now();
+        event.preventDefault();
+        handler(element, event);
+      }
+    });
+
+    element.addEventListener("click", (event) => {
+      if (!clickFallback) {
+        return;
+      }
+      if (Date.now() - lastPointerAt < 500) {
+        return;
+      }
+      handler(element, event);
+    });
+  });
+}
+
+function wireJournalItemEditorButtons() {
+  const handlers = createGuideItemEditorHandlers();
+
+  bindJournalTap(".journal-item-card [data-edit-item]", (button) => {
+    handlers.onEditItem?.(button.getAttribute("data-edit-item"));
+  }, { clickFallback: false });
+
+  bindJournalTap("[data-add-item-to-day]", (button) => {
+    handlers.onAddItemToDay?.(button.getAttribute("data-add-item-to-day"));
+  }, { clickFallback: false });
 }
 
 function startJournalAutoRefresh() {

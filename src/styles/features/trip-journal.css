@@ -3,42 +3,42 @@
    ============================================================ */
 
 /* ---------------------------------------------------------------------------
-   Journal toolbar
+   Journal hero refresh
    --------------------------------------------------------------------------- */
 
-.journal-toolbar {
+.journal-hero-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.journal-toolbar .eyebrow {
-  margin: 0;
 }
 
 .journal-refresh-button {
   min-height: var(--touch-target);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-strong);
-  color: var(--color-text);
-  padding: 0.55rem 0.85rem;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 10, 18, 0.32);
+  color: rgba(255, 255, 255, 0.82);
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  backdrop-filter: blur(4px);
+  opacity: 0.82;
   cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
 }
 
 .journal-refresh-button:hover,
 .journal-refresh-button:focus-visible {
-  background: var(--color-surface-subtle);
-  border-color: var(--color-border-strong);
+  background: rgba(5, 10, 18, 0.48);
+  border-color: rgba(255, 255, 255, 0.44);
+  color: #fff;
+  opacity: 1;
 }
 
 .journal-refresh-button svg {
@@ -314,6 +314,12 @@
   gap: 0.75rem;
 }
 
+.journal-item-card .guide-item-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+}
+
 .journal-item-card__title-group {
   display: flex;
   align-items: center;
@@ -353,8 +359,9 @@
   justify-items: end;
   align-content: start;
   gap: 0.2rem;
+  width: max-content;
+  max-width: 9rem;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .journal-item-card__done-by {
@@ -362,6 +369,9 @@
   font-size: 0.7rem;
   line-height: 1.2;
   color: var(--color-text-subtle);
+  max-width: 100%;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .journal-member-row {
@@ -916,6 +926,7 @@ body.journal-lightbox-open {
 @media (max-width: 639px) {
   .journal-item-card__done-block {
     justify-items: end;
+    max-width: 8rem;
   }
 
   .journal-done-toggle {

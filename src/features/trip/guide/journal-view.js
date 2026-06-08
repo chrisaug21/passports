@@ -610,25 +610,20 @@ export function renderJournalStatTiles(state, journalState) {
   `;
 }
 
-export function renderJournalToolbar(journalState) {
+export function renderJournalRefreshButton(journalState) {
   const isRefreshing = Boolean(journalState.isManualRefreshing);
 
   return `
-    <section class="journal-toolbar" aria-label="Journal controls">
-      <div>
-        <p class="eyebrow">Journal</p>
-      </div>
-      <button
-        class="journal-refresh-button${isRefreshing ? " is-loading" : ""}"
-        data-journal-refresh
-        type="button"
-        aria-label="Reload journal"
-        ${isRefreshing ? "disabled" : ""}
-      >
-        <i data-lucide="refresh-cw" aria-hidden="true"></i>
-        <span>${isRefreshing ? "Reloading" : "Reload"}</span>
-      </button>
-    </section>
+    <button
+      class="journal-refresh-button${isRefreshing ? " is-loading" : ""}"
+      data-journal-refresh
+      type="button"
+      aria-label="${isRefreshing ? "Reloading journal" : "Reload journal"}"
+      title="${isRefreshing ? "Reloading journal" : "Reload journal"}"
+      ${isRefreshing ? "disabled" : ""}
+    >
+      <i data-lucide="refresh-cw" aria-hidden="true"></i>
+    </button>
   `;
 }
 
@@ -658,7 +653,6 @@ export function renderJournalContent(state, journalState) {
     .join("");
 
   return `
-    ${renderJournalToolbar(journalState)}
     ${renderJournalStatTiles(state, journalState)}
     ${needsProfilePrompt ? renderProfilePromptBanner() : ""}
     ${daySections}
