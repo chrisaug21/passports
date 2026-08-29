@@ -169,7 +169,7 @@ function wireTripSettingsShareLink(trip) {
   const planningShareLinkHint = form?.querySelector("[data-planning-share-link-hint]");
   const journalShareLinkHint = form?.querySelector("[data-journal-share-link-hint]");
   const publicSavedShareHint = "Anyone with the link can view your itinerary.";
-  const planningSavedShareHint = "Anyone with the link can view everything to help plan your trip.";
+  const planningSavedShareHint = "A plain-text view of everything, for AI tools.";
   const journalSavedShareHint = "Let anyone with the link read your trip journal.";
   const unsavedShareHint = "Copied — save changes to make this link work for others.";
 
@@ -457,7 +457,7 @@ export function renderTripSettingsForm(trip, isSaving) {
               <div class="trip-settings-form__sharing-row">
                 <div class="trip-settings-form__sharing-label-group">
                   <div class="trip-settings-form__sharing-heading">
-                    <span class="trip-settings-form__sharing-label">Public planning</span>
+                    <span class="trip-settings-form__sharing-label">LLM planning link</span>
                     <button
                       class="trip-settings-share-link${trip.is_planning_public ? "" : " is-disabled"}"
                       data-copy-planning-share-link
@@ -471,9 +471,9 @@ export function renderTripSettingsForm(trip, isSaving) {
                       <span class="trip-settings-share-link__label" data-share-link-label>Copy link</span>
                     </button>
                   </div>
-                  <p class="field-hint trip-settings-form__sharing-hint" data-planning-share-link-hint>Anyone with the link can view everything to help plan your trip.</p>
+                  <p class="field-hint trip-settings-form__sharing-hint" data-planning-share-link-hint>A plain-text view of everything, for AI tools.</p>
                 </div>
-                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Public planning">
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="LLM planning link">
                   <input name="isPlanningPublic" type="checkbox" class="toggle-switch__input" ${trip.is_planning_public ? "checked" : ""} />
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>

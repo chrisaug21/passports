@@ -846,12 +846,6 @@ body.journal-lightbox-open {
    Trip Settings — Share journal toggle row
    --------------------------------------------------------------------------- */
 
-.trip-settings-form__sharing-row--journal {
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--color-border);
-}
-
 .trip-settings-form__sharing-row--journal.is-disabled {
   opacity: 0.45;
   pointer-events: none;
