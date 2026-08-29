@@ -171,7 +171,7 @@ function wireTripSettingsShareLink(trip) {
   const publicSavedShareHint = "Anyone with the link can view your itinerary.";
   const planningSavedShareHint = "Anyone with the link can view everything to help plan your trip.";
   const journalSavedShareHint = "Let anyone with the link read your trip journal.";
-  const unsavedShareHint = "Save changes to enable sharing";
+  const unsavedShareHint = "Copied — save changes to make this link work for others.";
 
   if (
     !trip?.id ||
@@ -270,17 +270,25 @@ function wireTripSettingsShareLink(trip) {
         return;
       }
 
-      if (!persistedValue()) {
-        updateShareLinkHint(hint, unsavedShareHint);
-        return;
-      }
+      // The link works as soon as it's saved, and RLS blocks anyone who
+      // visits it before that — so there's no harm in letting the owner
+      // copy it early instead of forcing a save → reopen round trip.
+      const isPersisted = persistedValue();
 
       try {
         await copyTextToClipboard(buildUrl());
         syncSharingUi({ [copiedStateKey]: true });
+
+        if (!isPersisted) {
+          updateShareLinkHint(hint, unsavedShareHint);
+        }
+
         clearShareLinkFeedbackResetTimer(key);
         const timerId = window.setTimeout(() => {
           syncSharingUi();
+          if (!isPersisted) {
+            updateShareLinkHint(hint, unsavedShareHint);
+          }
           shareLinkFeedbackResetTimers.delete(key);
         }, SHARE_LINK_FEEDBACK_DURATION_MS);
         shareLinkFeedbackResetTimers.set(key, timerId);
