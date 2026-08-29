@@ -126,6 +126,14 @@ async function fetchFromSupabase(supabaseUrl, supabaseKey, path) {
 // Item + journal line formatting
 // ---------------------------------------------------------------------------
 
+function formatCostLabel(low, high) {
+  if (low == null && high == null) return "";
+  if (low != null && high != null && Number(low) !== Number(high)) {
+    return `$${Number(low)}-$${Number(high)}`;
+  }
+  return `$${Number(low ?? high)}`;
+}
+
 function formatItemLine(item, basesById) {
   const parts = [];
 
@@ -146,6 +154,11 @@ function formatItemLine(item, basesById) {
 
   if (item.item_type === "transport" && (item.transport_origin || item.transport_destination)) {
     parts.push(`(${item.transport_origin || "?"} → ${item.transport_destination || "?"})`);
+  }
+
+  const costLabel = formatCostLabel(item.cost_low, item.cost_high);
+  if (costLabel) {
+    parts.push(costLabel);
   }
 
   if (item.base_id && basesById.has(item.base_id)) {
@@ -212,6 +225,7 @@ exports.handler = async function handler(event) {
   }
 
   const tripId = event.queryStringParameters?.id || "";
+  const mode = event.queryStringParameters?.mode === "planning" ? "planning" : "itinerary";
 
   if (!UUID_PATTERN.test(tripId)) {
     return {
@@ -221,19 +235,27 @@ exports.handler = async function handler(event) {
   }
 
   try {
+    const visibilityColumn = mode === "planning" ? "is_planning_public" : "is_public";
     const trips = await fetchFromSupabase(
       supabaseUrl,
       supabaseKey,
-      `trips?id=eq.${tripId}&is_public=eq.true&deleted_at=is.null&select=id,title,description,trip_length,start_date,is_journal_public`
+      `trips?id=eq.${tripId}&${visibilityColumn}=eq.true&deleted_at=is.null&select=id,title,description,trip_length,start_date,is_journal_public`
     );
     const trip = trips[0];
 
     if (!trip) {
       return {
         statusCode: 404,
-        body: "This trip isn't public or doesn't exist.",
+        body: mode === "planning"
+          ? "This trip's planning view isn't shared or doesn't exist."
+          : "This trip isn't public or doesn't exist.",
       };
     }
+
+    const itemSelectFields = "id,base_id,day_id,title,item_type,status,is_anchor,meal_slot,activity_type,transport_mode,transport_origin,transport_destination,time_start,time_end,time_is_estimated,notes,url,sort_order,check_out_date";
+    const itemsQuery = mode === "planning"
+      ? `trip_items?trip_id=eq.${tripId}&deleted_at=is.null&select=${itemSelectFields},cost_low,cost_high&order=sort_order.asc`
+      : `trip_items?trip_id=eq.${tripId}&deleted_at=is.null&status=in.(${PUBLIC_ITEM_STATUSES.join(",")})&select=${itemSelectFields}&order=sort_order.asc`;
 
     const [bases, days, items] = await Promise.all([
       fetchFromSupabase(
@@ -246,11 +268,7 @@ exports.handler = async function handler(event) {
         supabaseKey,
         `trip_days?trip_id=eq.${tripId}&deleted_at=is.null&select=id,base_id,day_number,title,location_name&order=day_number.asc`
       ),
-      fetchFromSupabase(
-        supabaseUrl,
-        supabaseKey,
-        `trip_items?trip_id=eq.${tripId}&deleted_at=is.null&status=in.(${PUBLIC_ITEM_STATUSES.join(",")})&select=id,base_id,day_id,title,item_type,status,is_anchor,meal_slot,activity_type,transport_mode,transport_origin,transport_destination,time_start,time_end,time_is_estimated,notes,url,sort_order,check_out_date&order=sort_order.asc`
-      ),
+      fetchFromSupabase(supabaseUrl, supabaseKey, itemsQuery),
     ]);
 
     const basesById = new Map(bases.map((base) => [base.id, base]));
@@ -332,7 +350,7 @@ exports.handler = async function handler(event) {
       const hasContent = dayItems.length > 0 || checkOutBands.length > 0 || checkInBands.length > 0;
 
       if (!hasContent) {
-        lines.push("  (nothing confirmed yet)");
+        lines.push(mode === "planning" ? "  (nothing planned yet)" : "  (nothing confirmed yet)");
       } else {
         for (const band of checkOutBands) {
           lines.push(`  - Check out: ${band.lodging.title}${band.lodging.time_end ? ` (${formatTimeLabel(band.lodging.time_end)})` : ""}`);
