@@ -255,6 +255,7 @@ export async function fetchTripDetailBundle(tripId) {
           status,
           is_public,
           is_journal_public,
+          is_planning_public,
           cover_photo_url,
           created_at,
           updated_at,
@@ -582,6 +583,7 @@ export async function updateTripSettings({
   tripLength,
   isPublic,
   isJournalPublic,
+  isPlanningPublic,
 }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
@@ -647,6 +649,10 @@ export async function updateTripSettings({
     tripUpdate.is_journal_public = Boolean(isPublic) ? Boolean(isJournalPublic) : false;
   }
 
+  if (typeof isPlanningPublic !== "undefined") {
+    tripUpdate.is_planning_public = Boolean(isPlanningPublic);
+  }
+
   const { data, error } = await supabase
     .from("trips")
     .update(tripUpdate)
@@ -662,6 +668,7 @@ export async function updateTripSettings({
         status,
         is_public,
         is_journal_public,
+        is_planning_public,
         cover_photo_url,
         created_at,
         updated_at,
