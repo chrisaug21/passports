@@ -107,8 +107,13 @@ function getLodgingBands(items, days, startDate) {
 // Supabase REST helper
 // ---------------------------------------------------------------------------
 
-async function fetchFromSupabase(supabaseUrl, supabaseKey, path) {
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+async function fetchFromSupabase(supabaseUrl, supabaseKey, table, params) {
+  const url = new URL(`${supabaseUrl}/rest/v1/${table}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  const response = await fetch(url, {
     headers: {
       apikey: supabaseKey,
       Authorization: `Bearer ${supabaseKey}`,
@@ -116,7 +121,7 @@ async function fetchFromSupabase(supabaseUrl, supabaseKey, path) {
   });
 
   if (!response.ok) {
-    throw new Error(`Supabase request failed (${response.status}): ${path}`);
+    throw new Error(`Supabase request failed (${response.status}): ${table}`);
   }
 
   return response.json();
@@ -169,7 +174,7 @@ function formatItemLine(item, basesById) {
   let line = `  - ${parts.filter(Boolean).join(" ")}`;
 
   if (item.notes) {
-    line += `\n    Notes: ${item.notes}`;
+    line += `\n    Notes: ${item.notes.replace(/\n/g, "\n    ")}`;
   }
 
   if (item.url) {
@@ -236,11 +241,12 @@ exports.handler = async function handler(event) {
 
   try {
     const visibilityColumn = mode === "planning" ? "is_planning_public" : "is_public";
-    const trips = await fetchFromSupabase(
-      supabaseUrl,
-      supabaseKey,
-      `trips?id=eq.${tripId}&${visibilityColumn}=eq.true&deleted_at=is.null&select=id,title,description,trip_length,start_date,is_journal_public`
-    );
+    const trips = await fetchFromSupabase(supabaseUrl, supabaseKey, "trips", {
+      id: `eq.${tripId}`,
+      [visibilityColumn]: "eq.true",
+      deleted_at: "is.null",
+      select: "id,title,description,trip_length,start_date,is_journal_public",
+    });
     const trip = trips[0];
 
     if (!trip) {
@@ -253,25 +259,34 @@ exports.handler = async function handler(event) {
     }
 
     const itemSelectFields = "id,base_id,day_id,title,item_type,status,is_anchor,meal_slot,activity_type,transport_mode,transport_origin,transport_destination,time_start,time_end,time_is_estimated,notes,url,sort_order,check_out_date";
-    const itemsQuery = mode === "planning"
-      ? `trip_items?trip_id=eq.${tripId}&deleted_at=is.null&select=${itemSelectFields},cost_low,cost_high&order=sort_order.asc`
-      : `trip_items?trip_id=eq.${tripId}&deleted_at=is.null&status=in.(${PUBLIC_ITEM_STATUSES.join(",")})&select=${itemSelectFields}&order=sort_order.asc`;
+    const itemsParams = {
+      trip_id: `eq.${tripId}`,
+      deleted_at: "is.null",
+      select: mode === "planning" ? `${itemSelectFields},cost_low,cost_high` : itemSelectFields,
+      order: "sort_order.asc",
+    };
+    if (mode !== "planning") {
+      itemsParams.status = `in.(${PUBLIC_ITEM_STATUSES.join(",")})`;
+    }
 
     const [bases, days, items] = await Promise.all([
-      fetchFromSupabase(
-        supabaseUrl,
-        supabaseKey,
-        `trip_bases?trip_id=eq.${tripId}&deleted_at=is.null&select=id,name,location_name&order=sort_order.asc`
-      ),
-      fetchFromSupabase(
-        supabaseUrl,
-        supabaseKey,
-        `trip_days?trip_id=eq.${tripId}&deleted_at=is.null&select=id,base_id,day_number,title,location_name&order=day_number.asc`
-      ),
-      fetchFromSupabase(supabaseUrl, supabaseKey, itemsQuery),
+      fetchFromSupabase(supabaseUrl, supabaseKey, "trip_bases", {
+        trip_id: `eq.${tripId}`,
+        deleted_at: "is.null",
+        select: "id,name,location_name",
+        order: "sort_order.asc",
+      }),
+      fetchFromSupabase(supabaseUrl, supabaseKey, "trip_days", {
+        trip_id: `eq.${tripId}`,
+        deleted_at: "is.null",
+        select: "id,base_id,day_number,title,location_name",
+        order: "day_number.asc",
+      }),
+      fetchFromSupabase(supabaseUrl, supabaseKey, "trip_items", itemsParams),
     ]);
 
     const basesById = new Map(bases.map((base) => [base.id, base]));
+    const returnedDayIds = new Set(days.map((day) => day.id));
     const lodgingBands = getLodgingBands(items, days, trip.start_date);
     const lodgingItemIds = new Set(lodgingBands.map((band) => band.lodging.id));
 
@@ -281,7 +296,7 @@ exports.handler = async function handler(event) {
     for (const item of items) {
       if (lodgingItemIds.has(item.id)) continue;
 
-      if (item.day_id) {
+      if (item.day_id && returnedDayIds.has(item.day_id)) {
         if (!itemsByDayId.has(item.day_id)) {
           itemsByDayId.set(item.day_id, []);
         }
@@ -299,26 +314,25 @@ exports.handler = async function handler(event) {
 
     if (journalEnabled) {
       const [entries, photos] = await Promise.all([
-        fetchFromSupabase(
-          supabaseUrl,
-          supabaseKey,
-          `journal_entries?trip_id=eq.${tripId}&deleted_at=is.null&select=day_id,item_id,notes,user_id`
-        ),
-        fetchFromSupabase(
-          supabaseUrl,
-          supabaseKey,
-          `journal_item_photos?trip_id=eq.${tripId}&deleted_at=is.null&select=item_id,public_url,user_id`
-        ),
+        fetchFromSupabase(supabaseUrl, supabaseKey, "journal_entries", {
+          trip_id: `eq.${tripId}`,
+          deleted_at: "is.null",
+          select: "day_id,item_id,notes,user_id",
+        }),
+        fetchFromSupabase(supabaseUrl, supabaseKey, "journal_item_photos", {
+          trip_id: `eq.${tripId}`,
+          deleted_at: "is.null",
+          select: "item_id,public_url,user_id",
+        }),
       ]);
       journal = { entries, photos };
 
       const authorIds = [...new Set([...entries.map((e) => e.user_id), ...photos.map((p) => p.user_id)])];
       if (authorIds.length > 0) {
-        const profiles = await fetchFromSupabase(
-          supabaseUrl,
-          supabaseKey,
-          `user_profiles?id=in.(${authorIds.join(",")})&select=id,first_name,last_name`
-        );
+        const profiles = await fetchFromSupabase(supabaseUrl, supabaseKey, "user_profiles", {
+          id: `in.(${authorIds.join(",")})`,
+          select: "id,first_name,last_name",
+        });
         journal.profilesById = new Map(profiles.map((p) => [p.id, p]));
       }
     }
