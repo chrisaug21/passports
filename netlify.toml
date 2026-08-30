@@ -33,6 +33,50 @@
   to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
   status = 200
 
+# The same two documents at their path-aware locations. RFC 9728/8414 tell a
+# client that for a resource at https://host/api/mcp it should look under
+# /.well-known/<doc>/api/mcp — many clients try that form FIRST. Without these
+# rules the catch-all below answered those URLs with index.html and a 200,
+# so a client asking for JSON got HTML and a success status: it parses, throws,
+# and the sign-in flow dies before it ever reaches us (no request in our logs).
+#
+# Exact path here, not a splat: the protected-resource document names the
+# resource it describes ("resource": ".../api/mcp"), and RFC 9728 has the
+# client check that field against the resource it was discovering. A splat
+# would answer /.well-known/oauth-protected-resource/<anything> with a
+# document describing /api/mcp — a document that contradicts its own URL.
+# /api/mcp is the only protected resource we expose; a second one would need
+# its own rule here (and its own value in that field).
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource/api/mcp"
+  to = "/.netlify/functions/mcp-oauth-metadata-resource"
+  status = 200
+
+# The authorization-server document, by contrast, names no path — its issuer
+# is the bare origin — so it is self-consistent at any suffix. Kept as a splat
+# because clients vary in what they append when deriving this URL from the
+# MCP endpoint, and every variant returns the same correct document.
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server/*"
+  to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
+  status = 200
+
+# We are an OAuth 2.0 server, not an OpenID Connect provider. Clients probe
+# this path anyway, so answer with an honest 404 rather than letting the
+# catch-all hand back HTML with a 200 — same failure mode as above.
+# `status = 200` here means "rewrite to this function", not "reply 200": the
+# function's own 404 is what reaches the client, the same way /api/* already
+# passes through 401s and 201s from its functions.
+[[redirects]]
+  from = "/.well-known/openid-configuration"
+  to = "/.netlify/functions/well-known-not-found"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/openid-configuration/*"
+  to = "/.netlify/functions/well-known-not-found"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
