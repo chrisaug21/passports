@@ -28,7 +28,26 @@ export function renderMcpConnectPage() {
   `;
 }
 
+// The router calls this without awaiting it, so an error thrown in here has
+// nowhere to surface: the page just sits on "Loading…" forever with no clue
+// what happened. That cost hours of debugging once. Everything real lives in
+// renderConnectPrompt; this wrapper guarantees a failure is always visible.
 export async function wireMcpConnectPage() {
+  try {
+    await renderConnectPrompt();
+  } catch (error) {
+    console.error("Connect page failed to load:", error);
+    const titleEl = document.querySelector("#mcp-connect-title");
+    const copyEl = document.querySelector("#mcp-connect-copy");
+    if (titleEl) titleEl.textContent = "Something went wrong.";
+    if (copyEl) {
+      copyEl.textContent =
+        "We couldn't load this connection request. Close this window and try connecting again.";
+    }
+  }
+}
+
+async function renderConnectPrompt() {
   const { clientId, redirectUri, state, codeChallenge, codeChallengeMethod } = getConnectParams();
   const titleEl = document.querySelector("#mcp-connect-title");
   const copyEl = document.querySelector("#mcp-connect-copy");
@@ -40,9 +59,18 @@ export async function wireMcpConnectPage() {
     return;
   }
 
-  const { data: redirectAllowed } = await getSupabase()
-    .rpc("mcp_is_redirect_uri_allowed", { p_client_id: clientId, p_redirect_uri: redirectUri })
-    .catch(() => ({ data: false }));
+  // try/catch, not .catch(): the object .rpc() returns is a thenable, not a
+  // Promise — it defines then() and nothing else. Calling .catch() on it threw
+  // TypeError before the request was ever sent, which is why no network call
+  // for this RPC appeared in the logs and the page hung on "Loading…".
+  let redirectAllowed = false;
+  try {
+    const { data, error } = await getSupabase()
+      .rpc("mcp_is_redirect_uri_allowed", { p_client_id: clientId, p_redirect_uri: redirectUri });
+    redirectAllowed = !error && data === true;
+  } catch (error) {
+    console.error("Could not check the redirect address:", error);
+  }
 
   if (!redirectAllowed) {
     titleEl.textContent = "This connection link isn't valid.";
