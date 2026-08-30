@@ -1,4 +1,5 @@
 [build]
+  command = "npm install --prefix mcp-server"
   publish = "."
   functions = "netlify/functions"
 
