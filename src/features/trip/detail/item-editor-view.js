@@ -90,14 +90,14 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
               <span>Start Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeStart" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
-                  <button class="item-time-clear" type="button" data-clear-time="timeStart" aria-label="Clear start time" tabindex="-1">×</button>
+                  <button class="item-time-clear" type="button" data-clear-time="timeStart" aria-label="Clear start time">×</button>
                 </div>
               </label>
               <label class="field">
                 <span>End Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeEnd" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
-                  <button class="item-time-clear" type="button" data-clear-time="timeEnd" aria-label="Clear end time" tabindex="-1">×</button>
+                  <button class="item-time-clear" type="button" data-clear-time="timeEnd" aria-label="Clear end time">×</button>
                 </div>
               </label>
             </div>
