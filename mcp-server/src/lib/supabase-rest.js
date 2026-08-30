@@ -114,6 +114,38 @@ async function insertRow(table, row, { bearer }) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+// Partial PATCH with a caller-supplied bearer, so RLS scopes the write to
+// the connected user exactly like insertRow does for creates. `filters` is
+// a PostgREST query-param object (e.g. { id: `eq.${itemId}` }); `patch` is
+// only the fields actually changing — this is a true partial update, unlike
+// the app's own item-editor form which always resends the full row.
+async function updateRow(table, filters, patch, { bearer }) {
+  const url = new URL(`${process.env.SUPABASE_URL}/rest/v1/${table}`);
+  for (const [key, value] of Object.entries(filters)) {
+    url.searchParams.set(key, value);
+  }
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${bearer}`,
+      prefer: "return=representation",
+    },
+    body: JSON.stringify(patch),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Supabase update of ${table} failed (${response.status})`);
+  }
+
+  return Array.isArray(data) ? data[0] : data;
+}
+
 async function getSupabaseUser(accessToken) {
   const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
@@ -148,4 +180,4 @@ async function refreshSupabaseSession(refreshToken) {
   return data; // { access_token, refresh_token, expires_in, user, ... }
 }
 
-module.exports = { callRpc, selectRows, selectForTrip, upsertRow, insertRow, getSupabaseUser, refreshSupabaseSession };
+module.exports = { callRpc, selectRows, selectForTrip, upsertRow, insertRow, updateRow, getSupabaseUser, refreshSupabaseSession };

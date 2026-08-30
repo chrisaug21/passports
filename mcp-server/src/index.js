@@ -8,12 +8,14 @@ const { registerListTrips } = require("./tools/list-trips.js");
 const { registerGetTrip } = require("./tools/get-trip.js");
 const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 const { registerCreateTripItem } = require("./tools/create-trip-item.js");
+const { registerProposeUpdateTripItem } = require("./tools/propose-update-trip-item.js");
+const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-item.js");
 
 // Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.2.3";
+const MCP_SERVER_VERSION = "1.3.0";
 
 // ctx: { getSupabaseAccessToken, userId, connectionId } — getSupabaseAccessToken()
 // lazily resolves (and memoizes for the rest of this request) the connected
@@ -30,6 +32,8 @@ function createMcpServer(ctx) {
   registerGetTrip(server, ctx);
   registerGetTripJournal(server, ctx);
   registerCreateTripItem(server, ctx);
+  registerProposeUpdateTripItem(server, ctx);
+  registerConfirmUpdateTripItem(server, ctx);
   return server;
 }
 

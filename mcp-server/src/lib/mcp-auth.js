@@ -114,13 +114,22 @@ async function rotateSupabaseSession(rawAccessToken, connectionId, encryptedRefr
   throw error;
 }
 
+// Starting points chosen from estimated usage (most days hold well under 10
+// items), not tuned from real data — revisit all three if real Phase 3
+// usage shows they're too tight (legitimate proposals getting rejected) or
+// too loose (meaningful spam/mess risk).
 const RATE_LIMIT_MAX_WRITES = 10;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
+const MAX_CHANGESET_ITEMS = 10;
+const PROPOSAL_EXPIRY_MINUTES = 30;
 
 // Atomic check-and-increment against mcp_connections' write_count/window —
 // see the migration for why this is race-safe across concurrent requests
 // on the same connection. Returns false once the connection has made
-// RATE_LIMIT_MAX_WRITES writes within the current window.
+// RATE_LIMIT_MAX_WRITES writes within the current window. Used directly by
+// create_trip_item (count=1 per call); confirm_update_trip_item instead
+// goes through claimProposal below, which folds the same check into the
+// proposal-claim transaction rather than calling this separately.
 async function checkAndIncrementRateLimit(connectionId) {
   const rows = await callRpc("mcp_check_and_increment_rate_limit", {
     p_connection_id: connectionId,
@@ -134,15 +143,60 @@ async function checkAndIncrementRateLimit(connectionId) {
 // Records one write to mcp_write_log. Best-effort in the sense that a
 // logging failure shouldn't be allowed to look like the write itself
 // failed — callers should log after the real write succeeds, not before.
-async function logWrite({ connectionId, userId, toolName, tripId, itemId, payload }) {
-  await callRpc("mcp_log_write", {
+// state/expiresAt/proposalId default to Phase 2's original shape (a single
+// committed row with no expiry or proposal link) so existing call sites are
+// unaffected; propose/confirm (Phase 3) pass them explicitly.
+async function logWrite({ connectionId, userId, toolName, tripId, itemId, payload, state, expiresAt, proposalId }) {
+  const rows = await callRpc("mcp_log_write", {
     p_connection_id: connectionId,
     p_user_id: userId,
     p_tool_name: toolName,
     p_trip_id: tripId || null,
     p_item_id: itemId || null,
     p_payload: payload || null,
+    p_state: state || "committed",
+    p_expires_at: expiresAt || null,
+    p_proposal_id: proposalId || null,
   });
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return row?.id;
+}
+
+// Creates a pending proposal row and returns its id. Never touches
+// trip_items — propose_update_trip_item only validates and records intent.
+async function createProposal({ connectionId, userId, tripId, changeset, summary }) {
+  const expiresAt = new Date(Date.now() + PROPOSAL_EXPIRY_MINUTES * 60 * 1000).toISOString();
+  return logWrite({
+    connectionId,
+    userId,
+    toolName: "propose_update_trip_item",
+    tripId,
+    payload: { changeset, summary },
+    state: "pending",
+    expiresAt,
+  });
+}
+
+// Atomically validates + rate-limit-checks + claims a proposal in one
+// transaction (see mcp-server-spec.md's Phase 3 design decisions for why
+// this can't be two separate steps without a race between them). Returns
+// { ok: true, tripId, changeset, summary } on success, or
+// { ok: false, reason } where reason is one of:
+// "not_found" | "already_resolved" | "expired" | "rate_limited".
+async function claimProposal({ proposalId, connectionId }) {
+  const rows = await callRpc("mcp_claim_proposal", {
+    p_proposal_id: proposalId,
+    p_connection_id: connectionId,
+    p_rate_limit: RATE_LIMIT_MAX_WRITES,
+    p_rate_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+  });
+  const row = Array.isArray(rows) ? rows[0] : rows;
+
+  if (!row) return { ok: false, reason: "not_found" };
+  if (row.result !== "ok") return { ok: false, reason: row.result };
+
+  const payload = row.payload || {};
+  return { ok: true, tripId: row.trip_id, changeset: payload.changeset || [], summary: payload.summary || "" };
 }
 
 module.exports = {
@@ -151,5 +205,9 @@ module.exports = {
   rotateSupabaseSession,
   checkAndIncrementRateLimit,
   logWrite,
+  createProposal,
+  claimProposal,
   ACCESS_TOKEN_TTL_SECONDS,
+  MAX_CHANGESET_ITEMS,
+  PROPOSAL_EXPIRY_MINUTES,
 };
