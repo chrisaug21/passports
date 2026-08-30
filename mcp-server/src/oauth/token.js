@@ -39,7 +39,8 @@ async function handleAuthorizationCodeGrant(params) {
       p_code_verifier: codeVerifier,
     });
     exchanged = Array.isArray(rows) ? rows[0] : rows;
-  } catch {
+  } catch (error) {
+    console.error("mcp_exchange_authorization_code failed:", error);
     throw oauthError(400, "invalid_grant", "The authorization code is invalid, expired, or already used.");
   }
 
@@ -62,7 +63,8 @@ async function handleRefreshTokenGrant(params) {
     rows = await callRpc("mcp_lookup_connection_by_refresh_hash", {
       p_refresh_token_hash: sha256Hex(presentedRefreshToken),
     });
-  } catch {
+  } catch (error) {
+    console.error("mcp_lookup_connection_by_refresh_hash failed:", error);
     throw oauthError(400, "invalid_grant", "The refresh token is not recognized.");
   }
   const row = Array.isArray(rows) ? rows[0] : rows;
@@ -74,7 +76,8 @@ async function handleRefreshTokenGrant(params) {
   let rotated;
   try {
     rotated = await rotateSupabaseSession(row.connection_id, row.encrypted_refresh_token);
-  } catch {
+  } catch (error) {
+    console.error("rotateSupabaseSession failed:", error);
     throw oauthError(400, "invalid_grant", "Could not refresh the underlying session. Please reconnect.");
   }
 
