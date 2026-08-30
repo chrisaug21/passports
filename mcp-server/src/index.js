@@ -8,12 +8,14 @@ const { registerListTrips } = require("./tools/list-trips.js");
 const { registerGetTrip } = require("./tools/get-trip.js");
 const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 const { registerCreateTripItem } = require("./tools/create-trip-item.js");
+const { registerProposeUpdateTripItem } = require("./tools/propose-update-trip-item.js");
+const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-item.js");
 
 // Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.2.3";
+const MCP_SERVER_VERSION = "1.3.4";
 
 // ctx: { getSupabaseAccessToken, userId, connectionId } — getSupabaseAccessToken()
 // lazily resolves (and memoizes for the rest of this request) the connected
@@ -30,6 +32,8 @@ function createMcpServer(ctx) {
   registerGetTrip(server, ctx);
   registerGetTripJournal(server, ctx);
   registerCreateTripItem(server, ctx);
+  registerProposeUpdateTripItem(server, ctx);
+  registerConfirmUpdateTripItem(server, ctx);
   return server;
 }
 
@@ -43,8 +47,32 @@ function unauthorizedResponse(resourceMetadataUrl) {
   });
 }
 
+// The MCP SDK's transport always opens a genuine, indefinitely-open SSE
+// stream for a GET request (no config option disables it), but this
+// Netlify Function's response path is fully buffered — fromWebResponse
+// awaits response.text() before returning anything, which can never
+// complete for a stream that's designed to stay open. Left unchecked, the
+// underlying Lambda invocation hangs until the runtime kills it
+// (Runtime.NodeJsExit: "a Promise that was never settled"), which reaches
+// the client as an opaque 502. Reject GET outright instead, before it ever
+// reaches the transport: server-initiated SSE is an optional capability
+// per the Streamable HTTP spec, and 405 is the standard way to decline
+// it — a compliant client falls back to request/response-only operation
+// rather than treating this as fatal. Nothing here currently needs
+// server-initiated push, so there's no capability actually lost.
+function methodNotAllowedResponse() {
+  return new Response(JSON.stringify({ error: "This server does not support server-initiated SSE (GET)." }), {
+    status: 405,
+    headers: { "content-type": "application/json", allow: "POST" },
+  });
+}
+
 async function handleMcpEvent(event) {
   const request = toWebRequest(event);
+  if (request.method === "GET") {
+    return fromWebResponse(methodNotAllowedResponse());
+  }
+
   const proto = event.headers?.["x-forwarded-proto"] || "https";
   const host = event.headers?.host || "localhost";
   const resourceMetadataUrl = `${proto}://${host}/.well-known/oauth-protected-resource`;
