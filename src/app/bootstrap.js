@@ -5,6 +5,7 @@ import { renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
 import { openProfileModal } from "../features/shared/profile-modal.js";
+import { openSettingsModal } from "../features/shared/settings-modal.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
@@ -133,6 +134,7 @@ export function renderAppShell(content, options = {}) {
                   <div class="account-menu__panel">
                     <p class="account-menu__email">${escapeHtml(email)}</p>
                     <button class="account-menu__profile" id="open-profile-modal" type="button">Profile</button>
+                    <button class="account-menu__profile" id="open-settings-modal" type="button">Settings</button>
                     <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                   </div>
                 </details>
@@ -157,6 +159,11 @@ export function renderAppShell(content, options = {}) {
     document.querySelector("#open-profile-modal")?.addEventListener("click", () => {
       document.querySelector("#account-menu").open = false;
       openProfileModal();
+    });
+
+    document.querySelector("#open-settings-modal")?.addEventListener("click", () => {
+      document.querySelector("#account-menu").open = false;
+      openSettingsModal();
     });
 
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {

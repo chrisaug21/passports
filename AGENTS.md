@@ -65,7 +65,7 @@ Do not read them for context. Do not modify them.
 ## Architecture
 - Supabase-first. No offline writes — show error toast if Supabase unreachable on write.
 - localStorage is read-only cache only. Never write trip data to localStorage.
-- No frameworks, no bundlers. Plain vanilla JS with ES modules.
+- No frameworks, no bundlers. Plain vanilla JS with ES modules. One scoped exception: `mcp-server/` has its own `package.json` (the Passports MCP connector backend, needs `@modelcontextprotocol/sdk`) — fully isolated, nothing in `src/` imports from it. See `passports-mcp-server-spec.md`.
 - Single-page app with client-side routing via router.js.
 - Services talk to Supabase. Features render UI. State holds what's in memory. Never skip layers.
 

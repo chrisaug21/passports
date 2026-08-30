@@ -1,0 +1,88 @@
+const { sha256Hex, randomToken, encrypt, decrypt } = require("./crypto.js");
+const { callRpc, refreshSupabaseSession } = require("./supabase-rest.js");
+
+const ACCESS_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour — Claude refreshes reactively on 401
+// and proactively up to 5 minutes before this expiry, per Anthropic's connector docs.
+
+// Called on every incoming MCP request. Returns null for anything not
+// usable (missing, revoked, expired, needs_reconnect) rather than throwing,
+// since "not authenticated" is an expected outcome here, not an error.
+async function validateAccessToken(rawToken) {
+  try {
+    const rows = await callRpc("mcp_validate_access_token", {
+      p_access_token_hash: sha256Hex(rawToken),
+    });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) return null;
+
+    return {
+      connectionId: row.connection_id,
+      userId: row.user_id,
+      encryptedSupabaseRefreshToken: row.encrypted_refresh_token,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Mints this server's own opaque access/refresh token pair for a connection
+// and stores their hashes (never the raw values) plus the given encrypted
+// Supabase refresh token.
+async function issueTokensForConnection(connectionId, encryptedSupabaseRefreshToken) {
+  const accessToken = randomToken(32);
+  const refreshToken = randomToken(32);
+  const accessTokenExpiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000).toISOString();
+
+  await callRpc("mcp_finalize_token_issuance", {
+    p_connection_id: connectionId,
+    p_encrypted_supabase_refresh_token: encryptedSupabaseRefreshToken,
+    p_access_token_hash: sha256Hex(accessToken),
+    p_access_token_expires_at: accessTokenExpiresAt,
+    p_refresh_token_hash: sha256Hex(refreshToken),
+  });
+
+  return { accessToken, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS };
+}
+
+// Exchanges the stored (encrypted) Supabase refresh token for a fresh
+// Supabase access token, and rotates the stored refresh token — Supabase
+// rotates it on every use. Uses a compare-and-swap update so that if two
+// requests race on the same connection, the loser retries once against
+// whatever the winner just stored, instead of both trying to reuse a
+// refresh token Supabase has already invalidated.
+async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
+  let currentEncrypted = encryptedRefreshToken;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const supabaseRefreshToken = decrypt(currentEncrypted);
+      const session = await refreshSupabaseSession(supabaseRefreshToken);
+      const newEncrypted = encrypt(session.refresh_token);
+
+      const rows = await callRpc("mcp_rotate_supabase_refresh_token", {
+        p_connection_id: connectionId,
+        p_expected_encrypted_refresh_token: currentEncrypted,
+        p_new_encrypted_refresh_token: newEncrypted,
+      });
+      const row = Array.isArray(rows) ? rows[0] : rows;
+
+      if (row?.swapped) {
+        return { supabaseAccessToken: session.access_token, encryptedSupabaseRefreshToken: newEncrypted };
+      }
+
+      // Another request rotated it first — retry once against the latest value.
+      currentEncrypted = row?.current_encrypted_refresh_token;
+      if (!currentEncrypted) break;
+    } catch (error) {
+      if (attempt === 1 || error.code === "invalid_grant" || error.status === 400) {
+        await callRpc("mcp_set_connection_status", { p_connection_id: connectionId, p_status: "needs_reconnect" });
+        throw error;
+      }
+    }
+  }
+
+  await callRpc("mcp_set_connection_status", { p_connection_id: connectionId, p_status: "needs_reconnect" });
+  throw new Error("Could not refresh the underlying session after a retry.");
+}
+
+module.exports = { validateAccessToken, issueTokensForConnection, rotateSupabaseSession, ACCESS_TOKEN_TTL_SECONDS };

@@ -236,6 +236,17 @@
   align-items: stretch;
 }
 
+.auth-layout--single {
+  grid-template-columns: minmax(0, 480px);
+  justify-content: center;
+}
+
+.mcp-connect__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
 @media (max-width: 840px) {
   .topbar {
     margin-bottom: 1rem;
