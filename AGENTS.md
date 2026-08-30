@@ -153,6 +153,23 @@ idea → shortlisted → confirmed → reserved → done
 ## Pull Request Drafts
 Always open new PRs as drafts (`--draft` flag with `gh pr create`). This prevents CodeRabbit from auto-triggering a review before the work is ready. Only mark a PR ready for review when explicitly instructed.
 
+## Checking CI Bot Findings (Codacy, Sourcery)
+This repo has both Codacy and Sourcery installed on PRs. Each publishes its real per-issue findings through a **different API surface than PR/issue comments** — checking only `gh pr view`/`gh api .../issues/<pr>/comments` will show just a summary count and a link, not the actual list. Use these instead:
+
+- **Codacy** posts its findings as **check-run annotations**, not comments:
+  ```bash
+  gh api repos/<owner>/<repo>/commits/<sha>/check-runs --jq '.check_runs[] | select(.app.name | test("Codacy"; "i")) | .id'
+  gh api repos/<owner>/<repo>/check-runs/<check-run-id>/annotations
+  ```
+  The issue comment Codacy leaves on the PR is only a summary ("15 medium issues... View in Codacy") — the annotations endpoint above has the real file/line/message list.
+- **Sourcery** posts real line-by-line findings as a formal GitHub PR review with inline comments:
+  ```bash
+  gh api repos/<owner>/<repo>/pulls/<pr>/reviews
+  gh api repos/<owner>/<repo>/pulls/<pr>/comments
+  ```
+  but **it skips draft PRs by default** — on a draft it only posts a high-level "Reviewer's Guide" summary as an issue comment, with no line-by-line findings. Comment `@sourcery-ai review` on the PR (or mark it ready for review) to trigger a real review with inline comments.
+- If Codacy's dashboard/API needs its own auth (the annotations trick above doesn't need it, but Codacy's own web UI does), ask the project owner for a token rather than assuming access doesn't exist.
+
 ## Verification
 Unless otherwise specified, do not plan on `netlify dev` or a local server for final verification. Open a draft PR when instructed, then the project owner will test on the Netlify preview URL. Non-server checks, static analysis, and code review are still appropriate before handing off.
 
@@ -160,5 +177,9 @@ Unless otherwise specified, do not plan on `netlify dev` or a local server for f
 - Soft delete only — never hard delete. All main tables have `deleted_at`. Set it; never use DELETE. The ONLY exception is hard deleting photos from storage upon replacement (which is allowed) so we avoid storing old photos we'll never use and wasting storage space. 
 - Never reference Supabase in user-facing error messages. Use plain language: "Something went wrong saving. Please try again."
 - Never hardcode hex colors — CSS custom properties only.
-- VERSION bump is mandatory on every PR and every push that changes shipped code. Never forget it, never skip it, and never push without doing it first. In this repo the version lives in `src/config/constants.js` as `APP_VERSION`.
+- VERSION bump is mandatory before every push that changes shipped code. Never forget it, never skip it, and never push first and fix it later.
+  - Frontend/PWA changes (anything in `src/`, `sw.js`, or other files the app ships to users) → bump `APP_VERSION` in `src/config/constants.js`, and the matching `version` string in `sw.js`.
+  - MCP server changes (anything in `mcp-server/` or the `netlify/functions/mcp*.js` wrappers) → bump `MCP_SERVER_VERSION` in `mcp-server/src/index.js` instead. This is the version an MCP client (e.g. MCP Inspector) reports on connect — it's the way to confirm you're talking to the build you just deployed, since nothing in the PWA UI reflects an MCP-only change.
+  - A PR that only touches `mcp-server/`/MCP function files does not need an `APP_VERSION` bump — nothing shipped to the PWA changed. A PR touching both bumps both.
+  - Bump on **every** push to an open PR that touches the relevant files, not just once right before merge. A deploy preview is meant to be tested against real code mid-review — if two different commits on the same PR both report the same version, there's no way to confirm via Inspector (or anything else) which one you're actually talking to, which defeats the entire reason this field exists. This applies even to a small follow-up fix pushed to an already-open PR.
 - Keep README.md accurate — update it when new tables, env vars, or major features are added.

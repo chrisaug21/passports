@@ -28,6 +28,40 @@ async function callRpc(fnName, args, { bearer } = {}) {
   return data;
 }
 
+// GET with a caller-supplied bearer (the connected user's own access token,
+// resolved per-request via rotateSupabaseSession) so RLS scopes results to
+// that user, exactly like the browser client. Read-only tools use this.
+async function selectRows(table, params, { bearer }) {
+  const url = new URL(`${process.env.SUPABASE_URL}/rest/v1/${table}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${bearer}`,
+    },
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : [];
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Could not read ${table} (status ${response.status})`);
+  }
+
+  return data;
+}
+
+// Convenience wrapper for the "every row for one trip, not soft-deleted"
+// query shape every read-only MCP tool uses.
+function selectForTrip(table, tripId, select, { bearer, order } = {}) {
+  const params = { trip_id: `eq.${tripId}`, deleted_at: "is.null", select };
+  if (order) params.order = order;
+  return selectRows(table, params, { bearer });
+}
+
 async function upsertRow(table, row, { bearer, onConflict }) {
   const url = new URL(`${process.env.SUPABASE_URL}/rest/v1/${table}`);
   if (onConflict) url.searchParams.set("on_conflict", onConflict);
@@ -87,4 +121,4 @@ async function refreshSupabaseSession(refreshToken) {
   return data; // { access_token, refresh_token, expires_in, user, ... }
 }
 
-module.exports = { callRpc, upsertRow, getSupabaseUser, refreshSupabaseSession };
+module.exports = { callRpc, selectRows, selectForTrip, upsertRow, getSupabaseUser, refreshSupabaseSession };

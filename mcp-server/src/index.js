@@ -3,12 +3,30 @@ const {
   WebStandardStreamableHTTPServerTransport,
 } = require("@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js");
 const { toWebRequest, fromWebResponse } = require("./lib/http-adapter.js");
-const { validateAccessToken } = require("./lib/mcp-auth.js");
+const { validateAccessToken, rotateSupabaseSession } = require("./lib/mcp-auth.js");
+const { registerListTrips } = require("./tools/list-trips.js");
+const { registerGetTrip } = require("./tools/get-trip.js");
+const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 
-// Phase 0: no tools registered yet. Later phases register them here
-// (list_trips, get_trip, get_trip_journal, ...) — see passports-mcp-server-spec.md.
-function createMcpServer() {
-  return new McpServer({ name: "passports", version: "0.1.0" });
+// Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
+// number, this one is actually visible from an MCP client (MCP Inspector
+// shows it on connect) — it's the fastest way to confirm you're talking to
+// the build you just deployed, without relying on anything in the app UI.
+const MCP_SERVER_VERSION = "1.1.1";
+
+// ctx: { getSupabaseAccessToken, userId } — getSupabaseAccessToken() lazily
+// resolves (and memoizes for the rest of this request) the connected user's
+// own live Supabase access token via rotateSupabaseSession, only when a tool
+// actually calls it. A bare `initialize`/`tools/list` handshake never touches
+// Supabase at all this way — only an actual tool call does, which also means
+// a broken underlying connection surfaces as that one tool's error, not as a
+// 401 on every request regardless of whether it needed data.
+function createMcpServer(ctx) {
+  const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION });
+  registerListTrips(server, ctx);
+  registerGetTrip(server, ctx);
+  registerGetTripJournal(server, ctx);
+  return server;
 }
 
 function unauthorizedResponse(resourceMetadataUrl) {
@@ -38,7 +56,22 @@ async function handleMcpEvent(event) {
     return fromWebResponse(unauthorizedResponse(resourceMetadataUrl));
   }
 
-  const server = createMcpServer();
+  // Lazy + memoized: the first tool call in this request that awaits this
+  // triggers the actual rotation; every later call in the same request
+  // (unlikely under the stateless-per-invocation transport below, but
+  // harmless either way) reuses the same in-flight/resolved promise instead
+  // of rotating the refresh token a second time.
+  let supabaseTokenPromise = null;
+  function getSupabaseAccessToken() {
+    if (!supabaseTokenPromise) {
+      supabaseTokenPromise = rotateSupabaseSession(match[1], auth.connectionId, auth.encryptedSupabaseRefreshToken).then(
+        (result) => result.supabaseAccessToken
+      );
+    }
+    return supabaseTokenPromise;
+  }
+
+  const server = createMcpServer({ getSupabaseAccessToken, userId: auth.userId });
   // Stateless: each Netlify Function invocation is its own process, so
   // there's no server memory to key a session against across requests.
   const transport = new WebStandardStreamableHTTPServerTransport({
