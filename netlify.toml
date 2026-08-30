@@ -52,13 +52,30 @@
   to = "/.netlify/functions/mcp-oauth-metadata-resource"
   status = 200
 
-# The authorization-server document, by contrast, names no path — its issuer
-# is the bare origin — so it is self-consistent at any suffix. Kept as a splat
-# because clients vary in what they append when deriving this URL from the
-# MCP endpoint, and every variant returns the same correct document.
+# The authorization-server document must NOT be served under a path suffix.
+# RFC 8414 builds the metadata URL by inserting the well-known segment between
+# host and path of the *issuer*, so /.well-known/oauth-authorization-server
+# /api/mcp asks about an issuer of "https://host/api/mcp". Our issuer is the
+# bare origin, so a document returned there fails RFC 8414's check that the
+# issuer field matches the issuer the URL asked about — and on that mismatch
+# the client MUST NOT use the document. Answering with a 404 instead lets it
+# fall back to the suffix-less URL above, which is the one that matches.
+#
+# (This rule previously served the document at any suffix, on the reasoning
+# that the document is internally self-consistent. That reasoning was wrong:
+# 8414 validates the issuer against the request URL, not the document alone.
+# It is the same trap this whole file is about — a parseable 200 carrying the
+# wrong answer is worse than an honest 404, because it defeats the fallback.)
 [[redirects]]
   from = "/.well-known/oauth-authorization-server/*"
-  to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
+  to = "/.netlify/functions/well-known-not-found"
+  status = 200
+
+# Same reasoning for any protected-resource path other than our one real
+# resource, matched exactly above: we have no such resource, so say so.
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource/*"
+  to = "/.netlify/functions/well-known-not-found"
   status = 200
 
 # We are an OAuth 2.0 server, not an OpenID Connect provider. Clients probe
