@@ -71,20 +71,21 @@
 }
 
 .item-time-field {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .item-time-field .item-time-input {
-  width: 100%;
-  padding-right: 2.1rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
 }
 
 .item-time-clear {
   display: none;
-  position: absolute;
-  top: 50%;
-  right: 0.4rem;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 1.5rem;
