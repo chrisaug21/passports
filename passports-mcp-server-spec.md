@@ -232,7 +232,7 @@ The risk here isn't the database operation — it's that Claude.ai may call a to
 - Test locally with the MCP Inspector tool before ever registering the connector against production Claude.ai.
 - Phase 0 has no destructive MCP tools (it's auth plumbing only), so testing directly against the production Supabase project with the user's own account is reasonably low-risk — no separate staging environment is required for this phase specifically. Revisit for later phases once real writes exist.
 - The audit log table (Phase 2+) and the proposal table (Phase 3+) can reasonably be the same table with a `state` column (`committed` vs `pending`) rather than two separate tables — implementer's judgment.
-- `APP_VERSION` bump convention from the main CLAUDE.md still applies to changes to the shipped PWA itself; the new Settings UI is app-facing and should follow it. The MCP function endpoints themselves are backend-only — use judgment on whether a given change counts as "shipped code," and ask if unsure.
+- `APP_VERSION` bump convention from the main CLAUDE.md still applies to changes to the shipped PWA itself; the new Settings UI is app-facing and should follow it. **Resolved, no longer a judgment call** (added when Phase 1 shipped): MCP-only changes — anything scoped to `mcp-server/` or the `netlify/functions/mcp*.js` wrappers — bump `MCP_SERVER_VERSION` in `mcp-server/src/index.js` instead of `APP_VERSION`. See CLAUDE.md/AGENTS.md/README.md's versioning sections for the full rule.
 
 ## Open questions — resolved during this scoping pass
 

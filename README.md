@@ -38,7 +38,8 @@ Do not use `file://` or a simple static server for auth flows.
 
 - `src/config/constants.js` holds `APP_VERSION` for the app UI.
 - `sw.js` has its own matching version string so browsers detect a changed service worker file on deploy.
-- Bump both together on every shipped change.
+- Bump both together on every shipped change to `src/`, `sw.js`, or other PWA-facing files.
+- Changes scoped entirely to `mcp-server/` or the `netlify/functions/mcp*.js` wrappers bump `MCP_SERVER_VERSION` in `mcp-server/src/index.js` instead, not `APP_VERSION` — see [passports-mcp-server-spec.md](./passports-mcp-server-spec.md).
 
 ## Project Structure
 

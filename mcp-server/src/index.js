@@ -3,12 +3,27 @@ const {
   WebStandardStreamableHTTPServerTransport,
 } = require("@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js");
 const { toWebRequest, fromWebResponse } = require("./lib/http-adapter.js");
-const { validateAccessToken } = require("./lib/mcp-auth.js");
+const { validateAccessToken, rotateSupabaseSession } = require("./lib/mcp-auth.js");
+const { registerListTrips } = require("./tools/list-trips.js");
+const { registerGetTrip } = require("./tools/get-trip.js");
+const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 
-// Phase 0: no tools registered yet. Later phases register them here
-// (list_trips, get_trip, get_trip_journal, ...) — see passports-mcp-server-spec.md.
-function createMcpServer() {
-  return new McpServer({ name: "passports", version: "0.1.0" });
+// Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
+// number, this one is actually visible from an MCP client (MCP Inspector
+// shows it on connect) — it's the fastest way to confirm you're talking to
+// the build you just deployed, without relying on anything in the app UI.
+const MCP_SERVER_VERSION = "1.1.0";
+
+// ctx: { supabaseAccessToken } — the connected user's own live Supabase
+// access token for this one request, resolved just below via
+// rotateSupabaseSession. Every tool's downstream Supabase calls use this
+// bearer, so existing RLS does the real scoping — same as the browser client.
+function createMcpServer(ctx) {
+  const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION });
+  registerListTrips(server, ctx);
+  registerGetTrip(server, ctx);
+  registerGetTripJournal(server, ctx);
+  return server;
 }
 
 function unauthorizedResponse(resourceMetadataUrl) {
@@ -38,7 +53,15 @@ async function handleMcpEvent(event) {
     return fromWebResponse(unauthorizedResponse(resourceMetadataUrl));
   }
 
-  const server = createMcpServer();
+  let supabaseAccessToken;
+  try {
+    ({ supabaseAccessToken } = await rotateSupabaseSession(auth.connectionId, auth.encryptedSupabaseRefreshToken));
+  } catch (error) {
+    console.error("mcp: could not refresh underlying Supabase session:", error);
+    return fromWebResponse(unauthorizedResponse(resourceMetadataUrl));
+  }
+
+  const server = createMcpServer({ supabaseAccessToken, userId: auth.userId });
   // Stateless: each Netlify Function invocation is its own process, so
   // there's no server memory to key a session against across requests.
   const transport = new WebStandardStreamableHTTPServerTransport({

@@ -160,5 +160,8 @@ Unless otherwise specified, do not plan on `netlify dev` or a local server for f
 - Soft delete only — never hard delete. All main tables have `deleted_at`. Set it; never use DELETE. The ONLY exception is hard deleting photos from storage upon replacement (which is allowed) so we avoid storing old photos we'll never use and wasting storage space. 
 - Never reference Supabase in user-facing error messages. Use plain language: "Something went wrong saving. Please try again."
 - Never hardcode hex colors — CSS custom properties only.
-- VERSION bump is mandatory on every PR and every push that changes shipped code. Never forget it, never skip it, and never push without doing it first. In this repo the version lives in `src/config/constants.js` as `APP_VERSION`.
+- VERSION bump is mandatory before every push that changes shipped code. Never forget it, never skip it, and never push first and fix it later.
+  - Frontend/PWA changes (anything in `src/`, `sw.js`, or other files the app ships to users) → bump `APP_VERSION` in `src/config/constants.js`, and the matching `version` string in `sw.js`.
+  - MCP server changes (anything in `mcp-server/` or the `netlify/functions/mcp*.js` wrappers) → bump `MCP_SERVER_VERSION` in `mcp-server/src/index.js` instead. This is the version an MCP client (e.g. MCP Inspector) reports on connect — it's the way to confirm you're talking to the build you just deployed, since nothing in the PWA UI reflects an MCP-only change.
+  - A PR that only touches `mcp-server/`/MCP function files does not need an `APP_VERSION` bump — nothing shipped to the PWA changed. A PR touching both bumps both.
 - Keep README.md accurate — update it when new tables, env vars, or major features are added.
