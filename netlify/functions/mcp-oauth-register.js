@@ -1,6 +1,7 @@
 const { registerClient } = require("../../mcp-server/src/oauth/register.js");
+const { withCors } = require("../../mcp-server/src/lib/cors.js");
 
-exports.handler = async function handler(event) {
+exports.handler = withCors(async function handler(event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method not allowed" };
   }
@@ -23,7 +24,7 @@ exports.handler = async function handler(event) {
     console.error("mcp-oauth-register failed:", error);
     return jsonError(error.status || 500, error.oauthError || "server_error", error.message);
   }
-};
+});
 
 function jsonError(status, error, description) {
   return {

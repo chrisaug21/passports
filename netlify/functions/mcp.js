@@ -1,6 +1,7 @@
 const { handleMcpEvent } = require("../../mcp-server/src/index.js");
+const { withCors } = require("../../mcp-server/src/lib/cors.js");
 
-exports.handler = async function handler(event) {
+exports.handler = withCors(async function handler(event) {
   try {
     return await handleMcpEvent(event);
   } catch (error) {
@@ -11,4 +12,4 @@ exports.handler = async function handler(event) {
       body: JSON.stringify({ error: "Something went wrong." }),
     };
   }
-};
+});

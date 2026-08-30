@@ -1,6 +1,7 @@
 const { protectedResourceMetadata, authorizationServerMetadata } = require("../../mcp-server/src/oauth/metadata.js");
+const { withCors } = require("../../mcp-server/src/lib/cors.js");
 
-exports.handler = async function handler(event) {
+exports.handler = withCors(async function handler(event) {
   const type = event.queryStringParameters?.type === "authorization-server" ? "authorization-server" : "protected-resource";
 
   const body = type === "authorization-server" ? authorizationServerMetadata(event) : protectedResourceMetadata(event);
@@ -13,4 +14,4 @@ exports.handler = async function handler(event) {
     },
     body: JSON.stringify(body),
   };
-};
+});

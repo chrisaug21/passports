@@ -1,6 +1,7 @@
 const { approveConnection } = require("../../mcp-server/src/oauth/approve.js");
+const { withCors } = require("../../mcp-server/src/lib/cors.js");
 
-exports.handler = async function handler(event) {
+exports.handler = withCors(async function handler(event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method not allowed" };
   }
@@ -32,7 +33,7 @@ exports.handler = async function handler(event) {
     console.error("mcp-oauth-approve failed:", error);
     return jsonError(error.status || 500, error.message || "Something went wrong.");
   }
-};
+});
 
 function jsonError(status, message) {
   return {

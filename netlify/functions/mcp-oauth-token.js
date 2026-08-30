@@ -1,8 +1,9 @@
 const { issueToken } = require("../../mcp-server/src/oauth/token.js");
+const { withCors } = require("../../mcp-server/src/lib/cors.js");
 
 // RFC 6749 requires the token endpoint to accept
 // application/x-www-form-urlencoded — not JSON.
-exports.handler = async function handler(event) {
+exports.handler = withCors(async function handler(event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method not allowed" };
   }
@@ -33,4 +34,4 @@ exports.handler = async function handler(event) {
       body: JSON.stringify({ error: "server_error" }),
     };
   }
-};
+});
