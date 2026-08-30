@@ -114,4 +114,42 @@ async function rotateSupabaseSession(rawAccessToken, connectionId, encryptedRefr
   throw error;
 }
 
-module.exports = { validateAccessToken, issueTokensForConnection, rotateSupabaseSession, ACCESS_TOKEN_TTL_SECONDS };
+const RATE_LIMIT_MAX_WRITES = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+// Atomic check-and-increment against mcp_connections' write_count/window —
+// see the migration for why this is race-safe across concurrent requests
+// on the same connection. Returns false once the connection has made
+// RATE_LIMIT_MAX_WRITES writes within the current window.
+async function checkAndIncrementRateLimit(connectionId) {
+  const rows = await callRpc("mcp_check_and_increment_rate_limit", {
+    p_connection_id: connectionId,
+    p_limit: RATE_LIMIT_MAX_WRITES,
+    p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+  });
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return Boolean(row?.allowed);
+}
+
+// Records one write to mcp_write_log. Best-effort in the sense that a
+// logging failure shouldn't be allowed to look like the write itself
+// failed — callers should log after the real write succeeds, not before.
+async function logWrite({ connectionId, userId, toolName, tripId, itemId, payload }) {
+  await callRpc("mcp_log_write", {
+    p_connection_id: connectionId,
+    p_user_id: userId,
+    p_tool_name: toolName,
+    p_trip_id: tripId || null,
+    p_item_id: itemId || null,
+    p_payload: payload || null,
+  });
+}
+
+module.exports = {
+  validateAccessToken,
+  issueTokensForConnection,
+  rotateSupabaseSession,
+  checkAndIncrementRateLimit,
+  logWrite,
+  ACCESS_TOKEN_TTL_SECONDS,
+};

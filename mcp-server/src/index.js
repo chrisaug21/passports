@@ -7,25 +7,29 @@ const { validateAccessToken, rotateSupabaseSession } = require("./lib/mcp-auth.j
 const { registerListTrips } = require("./tools/list-trips.js");
 const { registerGetTrip } = require("./tools/get-trip.js");
 const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
+const { registerCreateTripItem } = require("./tools/create-trip-item.js");
 
 // Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.1.1";
+const MCP_SERVER_VERSION = "1.2.3";
 
-// ctx: { getSupabaseAccessToken, userId } — getSupabaseAccessToken() lazily
-// resolves (and memoizes for the rest of this request) the connected user's
-// own live Supabase access token via rotateSupabaseSession, only when a tool
-// actually calls it. A bare `initialize`/`tools/list` handshake never touches
-// Supabase at all this way — only an actual tool call does, which also means
-// a broken underlying connection surfaces as that one tool's error, not as a
-// 401 on every request regardless of whether it needed data.
+// ctx: { getSupabaseAccessToken, userId, connectionId } — getSupabaseAccessToken()
+// lazily resolves (and memoizes for the rest of this request) the connected
+// user's own live Supabase access token via rotateSupabaseSession, only when
+// a tool actually calls it. A bare `initialize`/`tools/list` handshake never
+// touches Supabase at all this way — only an actual tool call does, which
+// also means a broken underlying connection surfaces as that one tool's
+// error, not as a 401 on every request regardless of whether it needed data.
+// connectionId is needed by write tools (Phase 2+) to check/increment the
+// per-connection rate limit and record the audit log entry.
 function createMcpServer(ctx) {
   const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION });
   registerListTrips(server, ctx);
   registerGetTrip(server, ctx);
   registerGetTripJournal(server, ctx);
+  registerCreateTripItem(server, ctx);
   return server;
 }
 
@@ -71,7 +75,7 @@ async function handleMcpEvent(event) {
     return supabaseTokenPromise;
   }
 
-  const server = createMcpServer({ getSupabaseAccessToken, userId: auth.userId });
+  const server = createMcpServer({ getSupabaseAccessToken, userId: auth.userId, connectionId: auth.connectionId });
   // Stateless: each Netlify Function invocation is its own process, so
   // there's no server memory to key a session against across requests.
   const transport = new WebStandardStreamableHTTPServerTransport({
