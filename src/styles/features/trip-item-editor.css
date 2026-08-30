@@ -110,8 +110,8 @@
   width: 1.75rem;
   height: 1.75rem;
   border: none;
-  border-radius: 50%;
-  background: transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
   color: var(--color-text-muted);
   font-size: 1.1rem;
   line-height: 1;
