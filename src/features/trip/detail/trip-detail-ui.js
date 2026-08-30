@@ -177,6 +177,37 @@ export function getItemSubtypeLabel(item) {
   return "";
 }
 
+const ITEM_NOTES_PREVIEW_LENGTH = 140;
+
+export function renderItemNotes(item, className) {
+  const notes = String(item.notes || "").trim();
+
+  if (!notes) {
+    return "";
+  }
+
+  const isTruncated = notes.length > ITEM_NOTES_PREVIEW_LENGTH;
+
+  if (!isTruncated) {
+    return `<p class="${className}">${escapeHtml(notes)}</p>`;
+  }
+
+  const preview = notes.slice(0, ITEM_NOTES_PREVIEW_LENGTH).trimEnd();
+
+  return `
+    <button
+      class="${className} item-notes-preview"
+      type="button"
+      data-open-item-notes
+      data-notes-title="${escapeHtml(item.title || "Untitled stop")}"
+      data-notes-full="${escapeHtml(notes)}"
+    >
+      <span>${escapeHtml(preview)}&hellip;</span>
+      <span class="item-notes-preview__cta">Read more</span>
+    </button>
+  `;
+}
+
 export function renderItemStatusMeta(status) {
   const safeStatus = String(status || "");
 

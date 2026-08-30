@@ -158,3 +158,31 @@
   width: 0.875rem;
   height: 0.875rem;
 }
+
+/* Truncated notes preview — expands to a read-only modal (item-notes-modal.js) */
+.item-notes-preview {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item-notes-preview__cta {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--color-structure);
+  font-weight: 600;
+}
+
+.item-notes-modal__body {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
