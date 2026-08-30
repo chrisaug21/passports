@@ -88,11 +88,17 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             <div class="item-editor-form__grid">
               <label class="field">
               <span>Start Time</span>
-                <input class="item-time-input" name="timeStart" type="time" step="900" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
+                <div class="item-time-field">
+                  <input class="item-time-input" name="timeStart" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
+                  <button class="item-time-clear" type="button" data-clear-time="timeStart" aria-label="Clear start time" tabindex="-1">×</button>
+                </div>
               </label>
               <label class="field">
                 <span>End Time</span>
-                <input class="item-time-input" name="timeEnd" type="time" step="900" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
+                <div class="item-time-field">
+                  <input class="item-time-input" name="timeEnd" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
+                  <button class="item-time-clear" type="button" data-clear-time="timeEnd" aria-label="Clear end time" tabindex="-1">×</button>
+                </div>
               </label>
             </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
