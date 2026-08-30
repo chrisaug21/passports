@@ -56,12 +56,15 @@ mcp-server/
       supabase-rest.js      — REST helper, mirrors trip-export.js's fetch pattern
 
 netlify/functions/
-  mcp.js                    — thin wrapper requiring mcp-server/src/index.js
-  mcp-oauth-authorize.js    — wrapper for the authorize step (needs to render real UI, see below)
+  mcp.js                                       — thin wrapper requiring mcp-server/src/index.js
+  mcp-oauth-approve.js                          — the browser's POST when the user clicks Allow
   mcp-oauth-token.js
   mcp-oauth-register.js
-  mcp-oauth-metadata.js
+  mcp-oauth-metadata-resource.js                — /.well-known/oauth-protected-resource
+  mcp-oauth-metadata-authorization-server.js    — /.well-known/oauth-authorization-server
 ```
+
+(Implementation note, added after Phase 0 shipped: the two metadata documents were originally one function branching on a `?type=` query param — a caching layer in front of it served the wrong document for one of the two paths in production, breaking client registration. Splitting into two functions with distinct URLs and no caching removed the ambiguity.)
 
 **Required repo-wide update, part of the Phase 0 PR itself:** `CLAUDE.md`, `AGENTS.md`, and `README.md` all currently state "no build step, no npm dependencies" as a flat rule. Update each to note `mcp-server/` as a scoped, approved exception — e.g. *"The `mcp-server/` folder is the one exception to the no-npm-dependencies rule above: it's the MCP connector backend, isolated with its own `package.json`, and does not affect how the rest of the app (`src/`) is built or run."* Do this in the same PR that creates the folder, not as a follow-up.
 
