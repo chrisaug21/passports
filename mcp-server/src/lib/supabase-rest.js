@@ -87,6 +87,33 @@ async function upsertRow(table, row, { bearer, onConflict }) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+// Plain insert (no on-conflict merge) with a caller-supplied bearer, so RLS
+// scopes the write to the connected user exactly like the browser client —
+// e.g. trip_items' insert policy already requires real trip membership.
+async function insertRow(table, row, { bearer }) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/${table}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${bearer}`,
+      prefer: "return=representation",
+    },
+    body: JSON.stringify(row),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Supabase insert into ${table} failed (${response.status})`);
+  }
+
+  return Array.isArray(data) ? data[0] : data;
+}
+
 async function getSupabaseUser(accessToken) {
   const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
@@ -121,4 +148,4 @@ async function refreshSupabaseSession(refreshToken) {
   return data; // { access_token, refresh_token, expires_in, user, ... }
 }
 
-module.exports = { callRpc, selectRows, selectForTrip, upsertRow, getSupabaseUser, refreshSupabaseSession };
+module.exports = { callRpc, selectRows, selectForTrip, upsertRow, insertRow, getSupabaseUser, refreshSupabaseSession };
