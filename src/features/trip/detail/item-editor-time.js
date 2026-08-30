@@ -60,12 +60,17 @@ function syncTimeWarning() {
   warning.classList.toggle("is-hidden", !shouldWarn);
 }
 
+function syncClearButtonVisibility(input) {
+  const field = input.closest(".item-time-field");
+  field?.classList.toggle("has-value", Boolean(input.value));
+}
+
 export function wireTimeInputs() {
   const isMobile = window.matchMedia?.("(max-width: 767px)")?.matches;
   const defaultTime = getNearestUpcomingHour();
 
   document.querySelectorAll('[name="timeStart"], [name="timeEnd"]').forEach((input) => {
-    input.step = "900";
+    input.step = "60";
 
     if (isMobile) {
       input.addEventListener("focus", () => {
@@ -77,8 +82,30 @@ export function wireTimeInputs() {
       });
     }
 
-    input.addEventListener("input", syncTimeWarning);
-    input.addEventListener("change", syncTimeWarning);
+    const handleTimeInputEvent = () => {
+      syncTimeWarning();
+      syncClearButtonVisibility(input);
+    };
+
+    // Some mobile time pickers only fire "change" on commit, not "input" —
+    // both are wired to stay in sync across platforms.
+    input.addEventListener("input", handleTimeInputEvent);
+    input.addEventListener("change", handleTimeInputEvent);
+    syncClearButtonVisibility(input);
+  });
+
+  document.querySelectorAll("[data-clear-time]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = button.closest(".item-time-field")?.querySelector("input");
+      if (!input) {
+        return;
+      }
+
+      input.value = "";
+      input.removeAttribute("data-defaulted-empty-time");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   });
 
   syncTimeWarning();
