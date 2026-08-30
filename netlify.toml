@@ -39,14 +39,23 @@
 # rules the catch-all below answered those URLs with index.html and a 200,
 # so a client asking for JSON got HTML and a success status: it parses, throws,
 # and the sign-in flow dies before it ever reaches us (no request in our logs).
-# Splat, not exact, because the suffix is whatever path the resource lives at.
-# Both target functions build their document from the request host alone, so
-# they are correct no matter which suffix was used to reach them.
+#
+# Exact path here, not a splat: the protected-resource document names the
+# resource it describes ("resource": ".../api/mcp"), and RFC 9728 has the
+# client check that field against the resource it was discovering. A splat
+# would answer /.well-known/oauth-protected-resource/<anything> with a
+# document describing /api/mcp — a document that contradicts its own URL.
+# /api/mcp is the only protected resource we expose; a second one would need
+# its own rule here (and its own value in that field).
 [[redirects]]
-  from = "/.well-known/oauth-protected-resource/*"
+  from = "/.well-known/oauth-protected-resource/api/mcp"
   to = "/.netlify/functions/mcp-oauth-metadata-resource"
   status = 200
 
+# The authorization-server document, by contrast, names no path — its issuer
+# is the bare origin — so it is self-consistent at any suffix. Kept as a splat
+# because clients vary in what they append when deriving this URL from the
+# MCP endpoint, and every variant returns the same correct document.
 [[redirects]]
   from = "/.well-known/oauth-authorization-server/*"
   to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"

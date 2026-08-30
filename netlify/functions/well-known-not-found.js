@@ -9,7 +9,10 @@ const { withCors } = require("../../mcp-server/src/lib/cors.js");
 // throw instead of falling back. Passports is an OAuth 2.0 authorization
 // server, not an OpenID Connect provider, so `openid-configuration` must say
 // "no" clearly rather than half-succeed.
-exports.handler = withCors(async function handler() {
+// Not `async`: there is nothing to await, and the lint rule the repo is
+// checked against (require-await) flags an async function with no await.
+// withCors awaits whatever the handler returns, so a plain object is fine.
+exports.handler = withCors(function handler() {
   return {
     statusCode: 404,
     headers: {
