@@ -82,14 +82,15 @@ export function wireTimeInputs() {
       });
     }
 
-    input.addEventListener("input", () => {
+    const handleTimeInputEvent = () => {
       syncTimeWarning();
       syncClearButtonVisibility(input);
-    });
-    input.addEventListener("change", () => {
-      syncTimeWarning();
-      syncClearButtonVisibility(input);
-    });
+    };
+
+    // Some mobile time pickers only fire "change" on commit, not "input" —
+    // both are wired to stay in sync across platforms.
+    input.addEventListener("input", handleTimeInputEvent);
+    input.addEventListener("change", handleTimeInputEvent);
     syncClearButtonVisibility(input);
   });
 
