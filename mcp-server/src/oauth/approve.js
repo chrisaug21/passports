@@ -21,6 +21,11 @@ async function approveConnection({ supabaseAccessToken, supabaseRefreshToken, cl
     throw error;
   }
 
+  // Keyed on (user_id, label) rather than (user_id, client_id): a fresh
+  // Dynamic Client Registration call mints a brand-new client_id every
+  // time, including on a retry after a failed handshake. Matching on the
+  // stable app identity (label) instead means a retry updates the same
+  // row instead of creating a duplicate "Connected app" entry.
   await upsertRow(
     "mcp_connections",
     {
@@ -32,7 +37,7 @@ async function approveConnection({ supabaseAccessToken, supabaseRefreshToken, cl
       last_used_at: new Date().toISOString(),
       revoked_at: null,
     },
-    { bearer: supabaseAccessToken, onConflict: "user_id,client_id" }
+    { bearer: supabaseAccessToken, onConflict: "user_id,label" }
   );
 
   const code = await callRpc(
