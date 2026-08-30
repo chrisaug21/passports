@@ -25,6 +25,12 @@ const ACTIVITY_TYPES = [
 ];
 const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
 
+// Some MCP clients (e.g. MCP Inspector's form) send an empty string for an
+// optional field left blank, rather than omitting the key entirely. zod's
+// .optional() only accepts a missing field, not a present-but-blank one, so
+// treat "" as "not provided" before the real validation runs.
+const optionalOf = (schema) => z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
+
 // Which sub-type field goes with which itemType — the input schema can't
 // express "required only when itemType is X" on its own (each field is
 // independently optional), so this is checked by hand before anything
@@ -133,17 +139,15 @@ function registerCreateTripItem(server, ctx) {
         tripId: z.string().uuid().describe("The trip's id, from list_trips."),
         title: z.string().min(1).describe("Short title for the idea, e.g. 'Try the tasting menu at Noma'."),
         itemType: z.enum(ITEM_TYPES).describe("meal, activity, transport, or lodging."),
-        baseId: z
-          .string()
-          .uuid()
-          .optional()
-          .describe("Which of the trip's bases this belongs to. Omit if unknown or genuinely ambiguous — see guidance above."),
-        dayId: z.string().uuid().optional().describe("Which day this belongs to, if known. Usually omitted for a loose idea."),
-        mealSlot: z.enum(MEAL_SLOTS).optional().describe("Required only when itemType is 'meal'."),
-        activityType: z.enum(ACTIVITY_TYPES).optional().describe("Required only when itemType is 'activity'."),
-        transportMode: z.enum(TRANSPORT_MODES).optional().describe("Required only when itemType is 'transport'."),
-        notes: z.string().optional().describe("Any free-text notes about the idea."),
-        url: z.string().optional().describe("A link related to the idea (restaurant site, listing, article, etc.)."),
+        baseId: optionalOf(z.string().uuid()).describe(
+          "Which of the trip's bases this belongs to. Omit if unknown or genuinely ambiguous — see guidance above."
+        ),
+        dayId: optionalOf(z.string().uuid()).describe("Which day this belongs to, if known. Usually omitted for a loose idea."),
+        mealSlot: optionalOf(z.enum(MEAL_SLOTS)).describe("Required only when itemType is 'meal'."),
+        activityType: optionalOf(z.enum(ACTIVITY_TYPES)).describe("Required only when itemType is 'activity'."),
+        transportMode: optionalOf(z.enum(TRANSPORT_MODES)).describe("Required only when itemType is 'transport'."),
+        notes: optionalOf(z.string()).describe("Any free-text notes about the idea."),
+        url: optionalOf(z.string()).describe("A link related to the idea (restaurant site, listing, article, etc.)."),
       },
     },
     withToolErrorHandling(async ({ tripId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url }) => {
