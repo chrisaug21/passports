@@ -33,6 +33,41 @@
   to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
   status = 200
 
+# The same two documents at their path-aware locations. RFC 9728/8414 tell a
+# client that for a resource at https://host/api/mcp it should look under
+# /.well-known/<doc>/api/mcp — many clients try that form FIRST. Without these
+# rules the catch-all below answered those URLs with index.html and a 200,
+# so a client asking for JSON got HTML and a success status: it parses, throws,
+# and the sign-in flow dies before it ever reaches us (no request in our logs).
+# Splat, not exact, because the suffix is whatever path the resource lives at.
+# Both target functions build their document from the request host alone, so
+# they are correct no matter which suffix was used to reach them.
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource/*"
+  to = "/.netlify/functions/mcp-oauth-metadata-resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server/*"
+  to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
+  status = 200
+
+# We are an OAuth 2.0 server, not an OpenID Connect provider. Clients probe
+# this path anyway, so answer with an honest 404 rather than letting the
+# catch-all hand back HTML with a 200 — same failure mode as above.
+# `status = 200` here means "rewrite to this function", not "reply 200": the
+# function's own 404 is what reaches the client, the same way /api/* already
+# passes through 401s and 201s from its functions.
+[[redirects]]
+  from = "/.well-known/openid-configuration"
+  to = "/.netlify/functions/well-known-not-found"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/openid-configuration/*"
+  to = "/.netlify/functions/well-known-not-found"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

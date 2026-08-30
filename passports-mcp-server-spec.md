@@ -62,9 +62,12 @@ netlify/functions/
   mcp-oauth-register.js
   mcp-oauth-metadata-resource.js                — /.well-known/oauth-protected-resource
   mcp-oauth-metadata-authorization-server.js    — /.well-known/oauth-authorization-server
+  well-known-not-found.js                       — honest 404 for discovery docs we don't implement
 ```
 
 (Implementation note, added after Phase 0 shipped: the two metadata documents were originally one function branching on a `?type=` query param — a caching layer in front of it served the wrong document for one of the two paths in production, breaking client registration. Splitting into two functions with distinct URLs and no caching removed the ambiguity.)
+
+(Second implementation note, same area: both documents must also be served at their **path-aware** locations — `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server/api/mcp` — which is where RFC 9728/8414 tell a client to look first for a resource that lives at `/api/mcp`. Until this was added, the SPA catch-all in `netlify.toml` answered those URLs with `index.html` and a `200`. That is the worst possible shape of wrong: a client expecting JSON gets a success status and HTML, throws while parsing, and aborts the sign-in flow — leaving no trace in our function logs at all, because it never reached a function. Anything under `/.well-known/` that we do not implement should return a real 404 for the same reason; a 404 lets a client fall back cleanly, a 200 does not.)
 
 **Required repo-wide update, part of the Phase 0 PR itself:** `CLAUDE.md`, `AGENTS.md`, and `README.md` all currently state "no build step, no npm dependencies" as a flat rule. Update each to note `mcp-server/` as a scoped, approved exception — e.g. *"The `mcp-server/` folder is the one exception to the no-npm-dependencies rule above: it's the MCP connector backend, isolated with its own `package.json`, and does not affect how the rest of the app (`src/`) is built or run."* Do this in the same PR that creates the folder, not as a follow-up.
 
