@@ -48,10 +48,18 @@ async function selectRows(table, params, { bearer }) {
   const data = text ? JSON.parse(text) : [];
 
   if (!response.ok) {
-    throw new Error(data?.message || `Supabase select from ${table} failed (${response.status})`);
+    throw new Error(data?.message || `Could not read ${table} (status ${response.status})`);
   }
 
   return data;
+}
+
+// Convenience wrapper for the "every row for one trip, not soft-deleted"
+// query shape every read-only MCP tool uses.
+function selectForTrip(table, tripId, select, { bearer, order } = {}) {
+  const params = { trip_id: `eq.${tripId}`, deleted_at: "is.null", select };
+  if (order) params.order = order;
+  return selectRows(table, params, { bearer });
 }
 
 async function upsertRow(table, row, { bearer, onConflict }) {
@@ -113,4 +121,4 @@ async function refreshSupabaseSession(refreshToken) {
   return data; // { access_token, refresh_token, expires_in, user, ... }
 }
 
-module.exports = { callRpc, selectRows, upsertRow, getSupabaseUser, refreshSupabaseSession };
+module.exports = { callRpc, selectRows, selectForTrip, upsertRow, getSupabaseUser, refreshSupabaseSession };

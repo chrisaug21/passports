@@ -1,14 +1,18 @@
 const { z } = require("zod");
-const { selectRows } = require("../lib/supabase-rest.js");
+const { selectRows, selectForTrip } = require("../lib/supabase-rest.js");
+const { withToolErrorHandling } = require("../lib/tool-error.js");
 
+// Mirrors getDisplayName in netlify/functions/trip-export.js. Keep the two in
+// sync by hand — see the TRIP_ITEM_SELECT note in get-trip.js for why this
+// package can't just import the shared version.
 function getDisplayName(userId, profilesById) {
   const profile = profilesById.get(userId);
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
   return name || "A traveler";
 }
 
-// ctx: { supabaseAccessToken } — see list-trips.js. Deliberately does NOT
-// apply the `is_journal_public` gate that netlify/functions/trip-export.js
+// ctx: { getSupabaseAccessToken } — see mcp-server/src/index.js. Deliberately
+// does NOT apply the `is_journal_public` gate that netlify/functions/trip-export.js
 // uses: that gate is for the anonymous public-share view. The connected
 // user is authenticated as themself (or a real trip member) via RLS, so
 // they see their own journal regardless of whether it's ever been shared.
@@ -27,28 +31,22 @@ function registerGetTripJournal(server, ctx) {
         tripId: z.string().uuid().describe("The trip's id, from list_trips."),
       },
     },
-    async ({ tripId }) => {
-      const bearer = ctx.supabaseAccessToken;
+    withToolErrorHandling(async ({ tripId }) => {
+      const bearer = await ctx.getSupabaseAccessToken();
+
+      const trips = await selectRows("trips", { id: `eq.${tripId}`, deleted_at: "is.null", select: "id" }, { bearer });
+      if (!trips[0]) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "No trip found with that id, or you don't have access to it." }],
+        };
+      }
 
       const [entries, photos] = await Promise.all([
-        selectRows(
-          "journal_entries",
-          {
-            trip_id: `eq.${tripId}`,
-            deleted_at: "is.null",
-            select: "id,trip_id,user_id,day_id,item_id,notes,created_at,updated_at",
-          },
-          { bearer }
-        ),
-        selectRows(
-          "journal_item_photos",
-          {
-            trip_id: `eq.${tripId}`,
-            deleted_at: "is.null",
-            select: "id,trip_id,user_id,item_id,public_url,created_at",
-          },
-          { bearer }
-        ),
+        selectForTrip("journal_entries", tripId, "id,trip_id,user_id,day_id,item_id,notes,created_at,updated_at", {
+          bearer,
+        }),
+        selectForTrip("journal_item_photos", tripId, "id,trip_id,user_id,item_id,public_url,created_at", { bearer }),
       ]);
 
       const authorIds = [...new Set([...entries.map((e) => e.user_id), ...photos.map((p) => p.user_id)])];
@@ -71,7 +69,7 @@ function registerGetTripJournal(server, ctx) {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         structuredContent: result,
       };
-    }
+    })
   );
 }
 

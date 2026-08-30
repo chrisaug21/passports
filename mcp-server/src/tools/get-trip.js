@@ -1,17 +1,22 @@
 const { z } = require("zod");
-const { selectRows } = require("../lib/supabase-rest.js");
+const { selectRows, selectForTrip } = require("../lib/supabase-rest.js");
 const { deriveTripStatus } = require("../lib/derive.js");
+const { withToolErrorHandling } = require("../lib/tool-error.js");
 
+// Mirrors TRIP_ITEM_SELECT in src/services/trips-service.js — same reasoning
+// as derive.js's duplication note: this package is plain CommonJS and can't
+// import the app's ES modules. Keep these two lists in sync by hand if
+// trip_items gains or loses a column.
 const TRIP_ITEM_SELECT =
   "id,trip_id,base_id,day_id,created_by,title,item_type,status,is_done,done_by,done_at," +
   "is_anchor,meal_slot,activity_type,transport_mode,transport_origin,transport_destination," +
   "time_start,time_end,time_is_estimated,cost_low,cost_high,confirmation_ref,url,notes," +
   "sort_order,check_out_date,created_at,updated_at";
 
-// ctx: { supabaseAccessToken } — see list-trips.js. Unlike the public
-// trip-export.js, this tool is the account owner (or a trip member) looking
-// at their own trip, so no status/cost filtering — every item and field is
-// returned, exactly as they'd see it in the app itself.
+// ctx: { getSupabaseAccessToken } — see mcp-server/src/index.js. Unlike the
+// public trip-export.js, this tool is the account owner (or a trip member)
+// looking at their own trip, so no status/cost filtering — every item and
+// field is returned, exactly as they'd see it in the app itself.
 function registerGetTrip(server, ctx) {
   server.registerTool(
     "get_trip",
@@ -30,8 +35,8 @@ function registerGetTrip(server, ctx) {
         tripId: z.string().uuid().describe("The trip's id, from list_trips."),
       },
     },
-    async ({ tripId }) => {
-      const bearer = ctx.supabaseAccessToken;
+    withToolErrorHandling(async ({ tripId }) => {
+      const bearer = await ctx.getSupabaseAccessToken();
 
       const trips = await selectRows(
         "trips",
@@ -54,50 +59,25 @@ function registerGetTrip(server, ctx) {
       }
 
       const [bases, days, items, todos, packingItems] = await Promise.all([
-        selectRows(
-          "trip_bases",
-          {
-            trip_id: `eq.${tripId}`,
-            deleted_at: "is.null",
-            select: "id,trip_id,name,location_name,local_timezone,sort_order,notes",
-            order: "sort_order.asc",
-          },
-          { bearer }
-        ),
-        selectRows(
-          "trip_days",
-          {
-            trip_id: `eq.${tripId}`,
-            deleted_at: "is.null",
-            select: "id,trip_id,base_id,day_number,title,location_name,sort_order",
-            order: "day_number.asc",
-          },
-          { bearer }
-        ),
-        selectRows(
-          "trip_items",
-          {
-            trip_id: `eq.${tripId}`,
-            deleted_at: "is.null",
-            select: TRIP_ITEM_SELECT,
-            order: "sort_order.asc",
-          },
-          { bearer }
-        ),
-        selectRows(
-          "trip_todos",
-          { trip_id: `eq.${tripId}`, deleted_at: "is.null", select: "*" },
-          { bearer }
-        ),
-        selectRows(
-          "trip_packing_items",
-          { trip_id: `eq.${tripId}`, deleted_at: "is.null", select: "*" },
-          { bearer }
-        ),
+        selectForTrip("trip_bases", tripId, "id,trip_id,name,location_name,local_timezone,sort_order,notes", {
+          bearer,
+          order: "sort_order.asc",
+        }),
+        selectForTrip("trip_days", tripId, "id,trip_id,base_id,day_number,title,location_name,sort_order", {
+          bearer,
+          order: "day_number.asc",
+        }),
+        selectForTrip("trip_items", tripId, TRIP_ITEM_SELECT, { bearer, order: "sort_order.asc" }),
+        selectForTrip("trip_todos", tripId, "id,trip_id,item_id,title,due_phase,is_complete,sort_order,notes,created_at,updated_at", {
+          bearer,
+        }),
+        selectForTrip("trip_packing_items", tripId, "id,trip_id,title,category,is_packed,sort_order,created_at,updated_at", {
+          bearer,
+        }),
       ]);
 
       const result = {
-        trip: { ...trip, derived_status: deriveTripStatus(trip) },
+        trip: { ...trip, derived_status: deriveTripStatus(trip, bases[0]?.local_timezone) },
         bases,
         days,
         items,
@@ -109,7 +89,7 @@ function registerGetTrip(server, ctx) {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         structuredContent: result,
       };
-    }
+    })
   );
 }
 

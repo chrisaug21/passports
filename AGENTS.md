@@ -153,6 +153,23 @@ idea → shortlisted → confirmed → reserved → done
 ## Pull Request Drafts
 Always open new PRs as drafts (`--draft` flag with `gh pr create`). This prevents CodeRabbit from auto-triggering a review before the work is ready. Only mark a PR ready for review when explicitly instructed.
 
+## Checking CI Bot Findings (Codacy, Sourcery)
+This repo has both Codacy and Sourcery installed on PRs. Each publishes its real per-issue findings through a **different API surface than PR/issue comments** — checking only `gh pr view`/`gh api .../issues/<pr>/comments` will show just a summary count and a link, not the actual list. Use these instead:
+
+- **Codacy** posts its findings as **check-run annotations**, not comments:
+  ```bash
+  gh api repos/<owner>/<repo>/commits/<sha>/check-runs --jq '.check_runs[] | select(.app.name | test("Codacy"; "i")) | .id'
+  gh api repos/<owner>/<repo>/check-runs/<check-run-id>/annotations
+  ```
+  The issue comment Codacy leaves on the PR is only a summary ("15 medium issues... View in Codacy") — the annotations endpoint above has the real file/line/message list.
+- **Sourcery** posts real line-by-line findings as a formal GitHub PR review with inline comments:
+  ```bash
+  gh api repos/<owner>/<repo>/pulls/<pr>/reviews
+  gh api repos/<owner>/<repo>/pulls/<pr>/comments
+  ```
+  but **it skips draft PRs by default** — on a draft it only posts a high-level "Reviewer's Guide" summary as an issue comment, with no line-by-line findings. Comment `@sourcery-ai review` on the PR (or mark it ready for review) to trigger a real review with inline comments.
+- If Codacy's dashboard/API needs its own auth (the annotations trick above doesn't need it, but Codacy's own web UI does), ask the project owner for a token rather than assuming access doesn't exist.
+
 ## Verification
 Unless otherwise specified, do not plan on `netlify dev` or a local server for final verification. Open a draft PR when instructed, then the project owner will test on the Netlify preview URL. Non-server checks, static analysis, and code review are still appropriate before handing off.
 

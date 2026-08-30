@@ -14,10 +14,13 @@ const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 // the build you just deployed, without relying on anything in the app UI.
 const MCP_SERVER_VERSION = "1.1.0";
 
-// ctx: { supabaseAccessToken } — the connected user's own live Supabase
-// access token for this one request, resolved just below via
-// rotateSupabaseSession. Every tool's downstream Supabase calls use this
-// bearer, so existing RLS does the real scoping — same as the browser client.
+// ctx: { getSupabaseAccessToken, userId } — getSupabaseAccessToken() lazily
+// resolves (and memoizes for the rest of this request) the connected user's
+// own live Supabase access token via rotateSupabaseSession, only when a tool
+// actually calls it. A bare `initialize`/`tools/list` handshake never touches
+// Supabase at all this way — only an actual tool call does, which also means
+// a broken underlying connection surfaces as that one tool's error, not as a
+// 401 on every request regardless of whether it needed data.
 function createMcpServer(ctx) {
   const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION });
   registerListTrips(server, ctx);
@@ -53,15 +56,22 @@ async function handleMcpEvent(event) {
     return fromWebResponse(unauthorizedResponse(resourceMetadataUrl));
   }
 
-  let supabaseAccessToken;
-  try {
-    ({ supabaseAccessToken } = await rotateSupabaseSession(auth.connectionId, auth.encryptedSupabaseRefreshToken));
-  } catch (error) {
-    console.error("mcp: could not refresh underlying Supabase session:", error);
-    return fromWebResponse(unauthorizedResponse(resourceMetadataUrl));
+  // Lazy + memoized: the first tool call in this request that awaits this
+  // triggers the actual rotation; every later call in the same request
+  // (unlikely under the stateless-per-invocation transport below, but
+  // harmless either way) reuses the same in-flight/resolved promise instead
+  // of rotating the refresh token a second time.
+  let supabaseTokenPromise = null;
+  function getSupabaseAccessToken() {
+    if (!supabaseTokenPromise) {
+      supabaseTokenPromise = rotateSupabaseSession(match[1], auth.connectionId, auth.encryptedSupabaseRefreshToken).then(
+        (result) => result.supabaseAccessToken
+      );
+    }
+    return supabaseTokenPromise;
   }
 
-  const server = createMcpServer({ supabaseAccessToken, userId: auth.userId });
+  const server = createMcpServer({ getSupabaseAccessToken, userId: auth.userId });
   // Stateless: each Netlify Function invocation is its own process, so
   // there's no server memory to key a session against across requests.
   const transport = new WebStandardStreamableHTTPServerTransport({

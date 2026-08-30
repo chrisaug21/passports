@@ -50,7 +50,23 @@ async function issueTokensForConnection(connectionId, encryptedSupabaseRefreshTo
 // requests race on the same connection, the loser retries once against
 // whatever the winner just stored, instead of both trying to reuse a
 // refresh token Supabase has already invalidated.
-async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
+//
+// There are two distinct ways a request can lose that race, and both need
+// the same "re-read latest and retry once" treatment:
+//   1. Our own CAS write loses (line ~row?.swapped false below) — the
+//      RPC itself hands back the current value, so we retry with that.
+//   2. Supabase's own /token endpoint rejects OUR refresh call with
+//      invalid_grant/400 because a concurrent request already consumed
+//      this exact refresh token before we got there. Unlike case 1, this
+//      fails before we ever reach the CAS RPC, so it has no "current
+//      value" handed back — mcp_validate_access_token does a plain
+//      (non-CAS) read of the connection's row, so re-calling it gets us
+//      the latest stored value to retry against once.
+// Only mark the connection needs_reconnect when this retry is exhausted
+// or the failure isn't a same-token-reused race at all (e.g. the
+// credential really is dead) — a transient network/5xx blip against
+// Supabase's own endpoint shouldn't be treated as "reconnect your account".
+async function rotateSupabaseSession(rawAccessToken, connectionId, encryptedRefreshToken) {
   let currentEncrypted = encryptedRefreshToken;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -74,15 +90,28 @@ async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
       currentEncrypted = row?.current_encrypted_refresh_token;
       if (!currentEncrypted) break;
     } catch (error) {
-      if (attempt === 1 || error.code === "invalid_grant" || error.status === 400) {
-        await callRpc("mcp_set_connection_status", { p_connection_id: connectionId, p_status: "needs_reconnect" });
-        throw error;
+      const isTokenReuseCollision = error.code === "invalid_grant" || error.status === 400;
+
+      if (attempt === 0 && isTokenReuseCollision) {
+        const fresh = await validateAccessToken(rawAccessToken);
+        if (fresh?.encryptedSupabaseRefreshToken) {
+          currentEncrypted = fresh.encryptedSupabaseRefreshToken;
+          continue;
+        }
       }
+
+      if (attempt === 1 || isTokenReuseCollision) {
+        await callRpc("mcp_set_connection_status", { p_connection_id: connectionId, p_status: "needs_reconnect" });
+        error.needsReconnect = true;
+      }
+      throw error;
     }
   }
 
   await callRpc("mcp_set_connection_status", { p_connection_id: connectionId, p_status: "needs_reconnect" });
-  throw new Error("Could not refresh the underlying session after a retry.");
+  const error = new Error("Could not refresh the underlying session after a retry.");
+  error.needsReconnect = true;
+  throw error;
 }
 
 module.exports = { validateAccessToken, issueTokensForConnection, rotateSupabaseSession, ACCESS_TOKEN_TTL_SECONDS };
