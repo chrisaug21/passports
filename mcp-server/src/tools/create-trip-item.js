@@ -25,6 +25,13 @@ const ACTIVITY_TYPES = [
 ];
 const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
 
+// Appends to the end of the trip's existing item order, same convention the
+// app's own "add item" UI uses.
+async function nextSortOrderForTrip(tripId, bearer) {
+  const existingItems = await selectForTrip("trip_items", tripId, "sort_order", { bearer });
+  return existingItems.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1;
+}
+
 // ctx: { getSupabaseAccessToken, userId, connectionId } — see mcp-server/src/index.js.
 // This is Phase 2's only write tool. Two hardcoded rules are the whole point
 // of this phase: it can only ever create a new `status: 'idea'` item, never
@@ -84,10 +91,7 @@ function registerCreateTripItem(server, ctx) {
         };
       }
 
-      // Append to the end of the trip's existing item order, same convention
-      // the app's own "add item" UI uses.
-      const existingItems = await selectForTrip("trip_items", tripId, "sort_order", { bearer });
-      const nextSortOrder = existingItems.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1;
+      const nextSortOrder = await nextSortOrderForTrip(tripId, bearer);
 
       const created = await insertRow(
         "trip_items",
