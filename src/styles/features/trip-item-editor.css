@@ -73,23 +73,42 @@
 .item-time-field {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
   min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+  padding-right: 0.4rem;
+}
+
+.item-time-field:focus-within {
+  outline: 2px solid rgba(43, 91, 224, 0.18);
+  border-color: rgba(43, 91, 224, 0.4);
 }
 
 .item-time-field .item-time-input {
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
+  border: none;
+  background: transparent;
+}
+
+.item-time-field .item-time-input:focus {
+  outline: none;
+  border-color: transparent;
 }
 
 .item-time-clear {
-  display: none;
+  display: flex;
   flex: 0 0 auto;
+  /* Space for the button is always reserved (not display:none) so the
+     field's width never shifts when a value is added or cleared. */
+  visibility: hidden;
+  opacity: 0;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -106,7 +125,8 @@
 }
 
 .item-time-field.has-value .item-time-clear {
-  display: flex;
+  visibility: visible;
+  opacity: 1;
 }
 
 .trip-settings-form input,
