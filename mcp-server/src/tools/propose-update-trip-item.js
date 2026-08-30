@@ -11,7 +11,7 @@ const { ITEM_TYPES, MEAL_SLOTS, ACTIVITY_TYPES, TRANSPORT_MODES, ITEM_STATUSES, 
 // clear the old sub-type field when changing itemType — see the merge
 // validation below, which requires exactly that.
 function fieldDefs(baseNameById, dayLabelById) {
-  const idOrUnassigned = (map) => (value) => (value == null ? "Unassigned" : map[value] || value);
+  const idOrUnassigned = (map) => (value) => (value == null ? "Unassigned" : map.get(value) || value);
   return [
     { camel: "title", snake: "title", nullable: false, zod: z.string().min(1) },
     { camel: "itemType", snake: "item_type", nullable: false, zod: z.enum(ITEM_TYPES) },
@@ -53,7 +53,7 @@ function fieldDefs(baseNameById, dayLabelById) {
 // is what keeps this as an explicit anyOf instead.
 function changeEntrySchema() {
   const shape = { itemId: z.string().uuid() };
-  for (const def of fieldDefs({}, {})) {
+  for (const def of fieldDefs(new Map(), new Map())) {
     shape[def.camel] = def.nullable
       ? z.union([def.zod, z.null().describe("null clears this field")]).optional()
       : def.zod.optional();
@@ -97,6 +97,30 @@ function buildPatchAndDiffLine(change, currentItem, baseNameById, dayLabelById) 
   // up to 30 minutes before confirm_update_trip_item actually applies it,
   // so that timestamp is set fresh at confirm time instead.
   const line = parts.length > 0 ? `${currentItem.title}: ${parts.join(", ")}` : null;
+  return { patch, line };
+}
+
+// Runs every per-item check (base/day membership, merged itemType
+// consistency, "did anything actually change") and builds that item's
+// patch + diff line. Returns { error } or { patch, line } — pulled out of
+// the main handler purely to keep that function short and scannable.
+function validateAndBuildChange(change, currentItem, baseNameById, dayLabelById) {
+  if ("baseId" in change && change.baseId != null && !baseNameById.has(change.baseId)) {
+    return { error: `baseId ${change.baseId} doesn't belong to this trip.` };
+  }
+  if ("dayId" in change && change.dayId != null && !dayLabelById.has(change.dayId)) {
+    return { error: `dayId ${change.dayId} doesn't belong to this trip.` };
+  }
+
+  const typeError = validateMergedItemType(change, currentItem);
+  if (typeError) {
+    return { error: `${currentItem.title}: ${typeError}` };
+  }
+
+  const { patch, line } = buildPatchAndDiffLine(change, currentItem, baseNameById, dayLabelById);
+  if (Object.keys(patch).length === 0) {
+    return { error: `No changes given for item '${currentItem.title}'.` };
+  }
   return { patch, line };
 }
 
@@ -155,8 +179,8 @@ function registerProposeUpdateTripItem(server, ctx) {
         return { isError: true, content: [{ type: "text", text: "No trip found with that id, or you don't have access to it." }] };
       }
 
-      const baseNameById = Object.fromEntries(bases.map((b) => [b.id, b.name]));
-      const dayLabelById = Object.fromEntries(days.map((d) => [d.id, `Day ${d.day_number}`]));
+      const baseNameById = new Map(bases.map((b) => [b.id, b.name]));
+      const dayLabelById = new Map(days.map((d) => [d.id, `Day ${d.day_number}`]));
 
       const currentItems = await fetchCurrentItems(tripId, itemIds, bearer);
       const missing = itemIds.filter((id) => !currentItems.has(id));
@@ -168,29 +192,15 @@ function registerProposeUpdateTripItem(server, ctx) {
       }
 
       const diffLines = [];
-      const patchesByItemId = {};
+      const patchesByItemId = new Map();
 
       for (const change of changes) {
-        const currentItem = currentItems.get(change.itemId);
-
-        if ("baseId" in change && change.baseId != null && !(change.baseId in baseNameById)) {
-          return { isError: true, content: [{ type: "text", text: `baseId ${change.baseId} doesn't belong to this trip.` }] };
+        const outcome = validateAndBuildChange(change, currentItems.get(change.itemId), baseNameById, dayLabelById);
+        if (outcome.error) {
+          return { isError: true, content: [{ type: "text", text: outcome.error }] };
         }
-        if ("dayId" in change && change.dayId != null && !(change.dayId in dayLabelById)) {
-          return { isError: true, content: [{ type: "text", text: `dayId ${change.dayId} doesn't belong to this trip.` }] };
-        }
-
-        const typeError = validateMergedItemType(change, currentItem);
-        if (typeError) {
-          return { isError: true, content: [{ type: "text", text: `${currentItem.title}: ${typeError}` }] };
-        }
-
-        const { patch, line } = buildPatchAndDiffLine(change, currentItem, baseNameById, dayLabelById);
-        if (Object.keys(patch).length === 0) {
-          return { isError: true, content: [{ type: "text", text: `No changes given for item '${currentItem.title}'.` }] };
-        }
-        patchesByItemId[change.itemId] = patch;
-        if (line) diffLines.push(line);
+        patchesByItemId.set(change.itemId, outcome.patch);
+        if (outcome.line) diffLines.push(outcome.line);
       }
 
       const summary = diffLines.join("\n");
@@ -198,7 +208,7 @@ function registerProposeUpdateTripItem(server, ctx) {
         connectionId: ctx.connectionId,
         userId: ctx.userId,
         tripId,
-        changeset: itemIds.map((itemId) => ({ itemId, patch: patchesByItemId[itemId] })),
+        changeset: itemIds.map((itemId) => ({ itemId, patch: patchesByItemId.get(itemId) })),
         summary,
       });
 
