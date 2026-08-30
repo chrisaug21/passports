@@ -15,7 +15,7 @@ const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-i
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.3.0";
+const MCP_SERVER_VERSION = "1.3.1";
 
 // ctx: { getSupabaseAccessToken, userId, connectionId } — getSupabaseAccessToken()
 // lazily resolves (and memoizes for the rest of this request) the connected

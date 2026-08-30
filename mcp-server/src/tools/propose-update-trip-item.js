@@ -41,10 +41,22 @@ function fieldDefs(baseNameById, dayLabelById) {
 // field, each genuinely optional (an absent key means "not changing this
 // field") and, where nullable, unioned with z.null() so a proposal can
 // explicitly clear a field rather than merely omit it.
+//
+// The null branch carries a .describe() deliberately, not just for
+// documentation: zod v4's JSON Schema converter collapses a bare
+// `anyOf: [{type: "string"}, {type: "null"}]` into the shorthand
+// `type: ["string", "null"]` UNLESS a branch carries a constraint, $ref,
+// const, or metadata — see node_modules/zod/v4/core/to-json-schema.js's
+// compactifyUnion. The array-type form is legal JSON Schema, but several
+// MCP clients (including, per Inspector's own portability check, some real
+// ones) read `type` as a single string and mishandle it. The .describe()
+// is what keeps this as an explicit anyOf instead.
 function changeEntrySchema() {
   const shape = { itemId: z.string().uuid() };
   for (const def of fieldDefs({}, {})) {
-    shape[def.camel] = def.nullable ? def.zod.nullable().optional() : def.zod.optional();
+    shape[def.camel] = def.nullable
+      ? z.union([def.zod, z.null().describe("null clears this field")]).optional()
+      : def.zod.optional();
   }
   return z.object(shape).strict();
 }
