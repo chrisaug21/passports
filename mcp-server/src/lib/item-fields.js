@@ -30,6 +30,21 @@ const ITEM_STATUSES = ["idea", "option", "shortlisted", "confirmed", "reserved"]
 // treat "" as "not provided" before the real validation runs.
 const optionalOf = (schema) => z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 
+// Some MCP clients' auto-generated form UIs serialize an array-typed field
+// as a plain object keyed by numeric-string index (e.g. {"0": {...},
+// "1": {...}}) instead of a real JSON array — observed from MCP Inspector's
+// form against propose_update_trip_item's `changes` field. Coerce that
+// shape back into a real array before the real array validation runs, same
+// category of client quirk as optionalOf's blank-string handling above,
+// just for arrays instead of scalars.
+const arrayOf = (schema) =>
+  z.preprocess((value) => {
+    if (Array.isArray(value) || value == null || typeof value !== "object") return value;
+    const keys = Object.keys(value);
+    const isIndexObject = keys.length > 0 && keys.every((k) => /^\d+$/.test(k));
+    return isIndexObject ? keys.sort((a, b) => Number(a) - Number(b)).map((k) => value[k]) : value;
+  }, schema);
+
 // Which sub-type field goes with which itemType — the input schema can't
 // express "required only when itemType is X" on its own (each field is
 // independently optional), so this is checked by hand before anything
@@ -66,5 +81,6 @@ module.exports = {
   TRANSPORT_MODES,
   ITEM_STATUSES,
   optionalOf,
+  arrayOf,
   validateItemTypeFields,
 };

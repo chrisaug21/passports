@@ -2,7 +2,7 @@ const { z } = require("zod");
 const { selectRows, selectForTrip } = require("../lib/supabase-rest.js");
 const { createProposal, MAX_CHANGESET_ITEMS } = require("../lib/mcp-auth.js");
 const { withToolErrorHandling } = require("../lib/tool-error.js");
-const { ITEM_TYPES, MEAL_SLOTS, ACTIVITY_TYPES, TRANSPORT_MODES, ITEM_STATUSES, validateItemTypeFields } = require("../lib/item-fields.js");
+const { ITEM_TYPES, MEAL_SLOTS, ACTIVITY_TYPES, TRANSPORT_MODES, ITEM_STATUSES, arrayOf, validateItemTypeFields } = require("../lib/item-fields.js");
 
 // Every editable field: how it maps to the trip_items column, whether it
 // can be explicitly cleared (set to null) via a proposed change, and how to
@@ -130,16 +130,12 @@ function registerProposeUpdateTripItem(server, ctx) {
         "proposal is rejected for an inconsistent item.",
       inputSchema: {
         tripId: z.string().uuid().describe("The trip's id, from list_trips."),
-        changes: z
-          .array(changeEntrySchema())
-          .min(1)
-          .max(MAX_CHANGESET_ITEMS)
-          .describe(
-            `1–${MAX_CHANGESET_ITEMS} item edits. Each entry needs itemId plus only the fields actually ` +
-              "changing — omit anything left as-is. Nullable fields (baseId, dayId, mealSlot, activityType, " +
-              "transportMode, transportOrigin, transportDestination, timeStart, timeEnd, costLow, costHigh, " +
-              "confirmationRef, url, notes, checkOutDate) accept null to explicitly clear them."
-          ),
+        changes: arrayOf(z.array(changeEntrySchema()).min(1).max(MAX_CHANGESET_ITEMS)).describe(
+          `1–${MAX_CHANGESET_ITEMS} item edits. Each entry needs itemId plus only the fields actually ` +
+            "changing — omit anything left as-is. Nullable fields (baseId, dayId, mealSlot, activityType, " +
+            "transportMode, transportOrigin, transportDestination, timeStart, timeEnd, costLow, costHigh, " +
+            "confirmationRef, url, notes, checkOutDate) accept null to explicitly clear them."
+        ),
       },
     },
     withToolErrorHandling(async ({ tripId, changes }) => {
