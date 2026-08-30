@@ -25,11 +25,85 @@ const ACTIVITY_TYPES = [
 ];
 const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
 
+// Which sub-type field goes with which itemType — the input schema can't
+// express "required only when itemType is X" on its own (each field is
+// independently optional), so this is checked by hand before anything
+// touches the database.
+const REQUIRED_SUBFIELD_BY_ITEM_TYPE = { meal: "mealSlot", activity: "activityType", transport: "transportMode", lodging: null };
+
+// Returns an error string, or null if the sub-type fields match itemType:
+// the one that belongs to itemType must be present, and none of the others
+// may be — e.g. a "meal" item must have mealSlot and must not have
+// activityType/transportMode.
+function validateItemTypeFields(itemType, subfields) {
+  const requiredField = REQUIRED_SUBFIELD_BY_ITEM_TYPE[itemType];
+
+  if (requiredField && !subfields[requiredField]) {
+    return `itemType '${itemType}' requires ${requiredField}.`;
+  }
+
+  for (const [field, value] of Object.entries(subfields)) {
+    if (value && field !== requiredField) {
+      return `${field} doesn't apply to itemType '${itemType}' — omit it.`;
+    }
+  }
+
+  return null;
+}
+
 // Appends to the end of the trip's existing item order, same convention the
 // app's own "add item" UI uses.
 async function nextSortOrderForTrip(tripId, bearer) {
   const existingItems = await selectForTrip("trip_items", tripId, "sort_order", { bearer });
   return existingItems.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1;
+}
+
+// Confirms the trip exists (and is visible to this user via RLS), and that
+// baseId/dayId — if given — actually belong to that trip rather than some
+// other trip. Returns an error string, or null if everything checks out.
+async function validateTripReferences(tripId, baseId, dayId, bearer) {
+  const [trips, base, day] = await Promise.all([
+    selectRows("trips", { id: `eq.${tripId}`, deleted_at: "is.null", select: "id" }, { bearer }),
+    baseId
+      ? selectRows("trip_bases", { id: `eq.${baseId}`, trip_id: `eq.${tripId}`, deleted_at: "is.null", select: "id" }, { bearer })
+      : null,
+    dayId
+      ? selectRows("trip_days", { id: `eq.${dayId}`, trip_id: `eq.${tripId}`, deleted_at: "is.null", select: "id" }, { bearer })
+      : null,
+  ]);
+
+  if (!trips[0]) return "No trip found with that id, or you don't have access to it.";
+  if (baseId && !base[0]) return "That baseId doesn't belong to this trip.";
+  if (dayId && !day[0]) return "That dayId doesn't belong to this trip.";
+  return null;
+}
+
+// Builds and inserts the actual trip_items row. status/is_anchor are always
+// the Phase 2 defaults — never taken from the caller.
+function insertTripItem(fields, bearer) {
+  const { tripId, userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, sortOrder } = fields;
+  return insertRow(
+    "trip_items",
+    {
+      trip_id: tripId,
+      base_id: baseId || null,
+      day_id: dayId || null,
+      created_by: userId,
+      title,
+      item_type: itemType,
+      status: "idea",
+      is_anchor: false,
+      meal_slot: mealSlot || null,
+      activity_type: activityType || null,
+      transport_mode: transportMode || null,
+      notes: notes || null,
+      url: url || null,
+      sort_order: sortOrder,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { bearer }
+  );
 }
 
 // ctx: { getSupabaseAccessToken, userId, connectionId } — see mcp-server/src/index.js.
@@ -73,6 +147,11 @@ function registerCreateTripItem(server, ctx) {
       },
     },
     withToolErrorHandling(async ({ tripId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url }) => {
+      const fieldError = validateItemTypeFields(itemType, { mealSlot, activityType, transportMode });
+      if (fieldError) {
+        return { isError: true, content: [{ type: "text", text: fieldError }] };
+      }
+
       const allowed = await checkAndIncrementRateLimit(ctx.connectionId);
       if (!allowed) {
         return {
@@ -83,47 +162,32 @@ function registerCreateTripItem(server, ctx) {
 
       const bearer = await ctx.getSupabaseAccessToken();
 
-      const trips = await selectRows("trips", { id: `eq.${tripId}`, deleted_at: "is.null", select: "id" }, { bearer });
-      if (!trips[0]) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: "No trip found with that id, or you don't have access to it." }],
-        };
+      const referenceError = await validateTripReferences(tripId, baseId, dayId, bearer);
+      if (referenceError) {
+        return { isError: true, content: [{ type: "text", text: referenceError }] };
       }
 
-      const nextSortOrder = await nextSortOrderForTrip(tripId, bearer);
-
-      const created = await insertRow(
-        "trip_items",
-        {
-          trip_id: tripId,
-          base_id: baseId || null,
-          day_id: dayId || null,
-          created_by: ctx.userId,
-          title,
-          item_type: itemType,
-          status: "idea",
-          is_anchor: false,
-          meal_slot: mealSlot || null,
-          activity_type: activityType || null,
-          transport_mode: transportMode || null,
-          notes: notes || null,
-          url: url || null,
-          sort_order: nextSortOrder,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { bearer }
+      const sortOrder = await nextSortOrderForTrip(tripId, bearer);
+      const created = await insertTripItem(
+        { tripId, userId: ctx.userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, sortOrder },
+        bearer
       );
 
-      await logWrite({
-        connectionId: ctx.connectionId,
-        userId: ctx.userId,
-        toolName: "create_trip_item",
-        tripId,
-        itemId: created?.id,
-        payload: { title, itemType, baseId: baseId || null, dayId: dayId || null },
-      });
+      // The item is already created at this point — a logging failure must
+      // not surface as a tool error, or the caller will see "failed" and
+      // retry a write that actually succeeded.
+      try {
+        await logWrite({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "create_trip_item",
+          tripId,
+          itemId: created?.id,
+          payload: { title, itemType, baseId: baseId || null, dayId: dayId || null },
+        });
+      } catch (error) {
+        console.error("create_trip_item: audit log write failed (item was still created)", error);
+      }
 
       return {
         content: [{ type: "text", text: JSON.stringify(created, null, 2) }],
