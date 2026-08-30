@@ -40,6 +40,16 @@ export async function wireMcpConnectPage() {
     return;
   }
 
+  const { data: redirectAllowed } = await getSupabase()
+    .rpc("mcp_is_redirect_uri_allowed", { p_client_id: clientId, p_redirect_uri: redirectUri })
+    .catch(() => ({ data: false }));
+
+  if (!redirectAllowed) {
+    titleEl.textContent = "This connection link isn't valid.";
+    copyEl.textContent = "The address this link would send you back to isn't one this app registered. Ask it to try adding this connector again.";
+    return;
+  }
+
   let clientName = "An AI assistant";
   try {
     const { data, error } = await getSupabase().rpc("mcp_get_client_name", { p_client_id: clientId });

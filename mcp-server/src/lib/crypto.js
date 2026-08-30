@@ -1,5 +1,7 @@
 const crypto = require("crypto");
 
+const AUTH_TAG_LENGTH = 16; // bytes — Node defaults to this for aes-256-gcm; made explicit rather than implicit.
+
 function getKey() {
   const hex = process.env.MCP_ENCRYPTION_KEY;
   if (!hex || hex.length !== 64) {
@@ -12,7 +14,7 @@ function getKey() {
 function encrypt(plaintext) {
   const key = getKey();
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv, { authTagLength: AUTH_TAG_LENGTH });
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return Buffer.concat([iv, authTag, ciphertext]).toString("base64");
@@ -22,9 +24,9 @@ function decrypt(payloadBase64) {
   const key = getKey();
   const buf = Buffer.from(payloadBase64, "base64");
   const iv = buf.subarray(0, 12);
-  const authTag = buf.subarray(12, 28);
-  const ciphertext = buf.subarray(28);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  const authTag = buf.subarray(12, 12 + AUTH_TAG_LENGTH);
+  const ciphertext = buf.subarray(12 + AUTH_TAG_LENGTH);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv, { authTagLength: AUTH_TAG_LENGTH });
   decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
