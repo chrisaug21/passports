@@ -393,6 +393,7 @@ export async function createDetailedTripItem({
   costLow,
   costHigh,
   url,
+  confirmationRef,
   notes,
   sortOrder,
 }) {
@@ -425,6 +426,7 @@ export async function createDetailedTripItem({
       cost_low: costLow === "" ? null : costLow,
       cost_high: costHigh === "" ? null : costHigh,
       url: url || null,
+      confirmation_ref: confirmationRef || null,
       notes: notes || null,
       sort_order: sortOrder,
       created_at: new Date().toISOString(),
