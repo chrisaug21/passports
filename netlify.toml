@@ -18,15 +18,19 @@
 
 # MCP OAuth discovery documents (RFC 9728 / RFC 8414). Claude.ai (or any MCP
 # client) probes these well-known paths to find the /authorize, /token, and
-# /register endpoints — see passports-mcp-server-spec.md.
+# /register endpoints — see passports-mcp-server-spec.md. Each maps to its
+# own function (not one function branching on a query param) — a query
+# param survived a caching layer incorrectly in production and served the
+# wrong document, breaking client registration; distinct paths remove that
+# ambiguity entirely regardless of the caching layer involved.
 [[redirects]]
   from = "/.well-known/oauth-protected-resource"
-  to = "/.netlify/functions/mcp-oauth-metadata?type=protected-resource"
+  to = "/.netlify/functions/mcp-oauth-metadata-resource"
   status = 200
 
 [[redirects]]
   from = "/.well-known/oauth-authorization-server"
-  to = "/.netlify/functions/mcp-oauth-metadata?type=authorization-server"
+  to = "/.netlify/functions/mcp-oauth-metadata-authorization-server"
   status = 200
 
 [[redirects]]
