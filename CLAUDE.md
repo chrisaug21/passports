@@ -3,12 +3,14 @@
 Personal travel planner and diary PWA. Used on phone while traveling, desktop for planning, and tablet for browsing past trips and sharing itineraries.
 
 ## Stack
-- Vanilla HTML/CSS/JS — modular ES modules, single `index.html` entry point
+- Vanilla HTML/CSS/JS — modular ES modules, single `index.html` entry point, no build step, no npm dependencies (one scoped exception — see below)
 - Supabase (project: `tqxvtsdghobustiatiqm`) — second Supabase account, separate from Homeboard/Habits
 - Netlify — env vars injected at build via `netlify.toml`
 - Unsplash API — auto-pull hero images by location name; attribution required
 - Fraunces + Instrument Sans (Google Fonts) — display + body type pairing
 - PWA shell — manifest + versioned service worker for installability
+
+**Exception: `mcp-server/`.** This one folder has its own `package.json` and `node_modules` — it's the backend for the Passports MCP connector (lets a signed-in user's own Claude.ai read/act on their trips), and needs the official `@modelcontextprotocol/sdk` package to stay protocol-correct. It's fully isolated: nothing in `src/` imports from it, and it doesn't change how the rest of the app is built or run. See `passports-mcp-server-spec.md` for the full design.
 
 ## File Structure
 ```text

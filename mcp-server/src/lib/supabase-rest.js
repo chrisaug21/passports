@@ -1,0 +1,90 @@
+// Mirrors the fetchFromSupabase helper in netlify/functions/trip-export.js,
+// extended with an RPC caller and a caller-supplied bearer (anon key for
+// system-level RPC calls with no session, or the user's own access token
+// when a call should be scoped to them via RLS).
+
+async function callRpc(fnName, args, { bearer } = {}) {
+  const url = `${process.env.SUPABASE_URL}/rest/v1/rpc/${fnName}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${bearer || process.env.SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(args || {}),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    const error = new Error(data?.message || data?.error || `Supabase RPC ${fnName} failed (${response.status})`);
+    error.code = data?.code;
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+async function upsertRow(table, row, { bearer, onConflict }) {
+  const url = new URL(`${process.env.SUPABASE_URL}/rest/v1/${table}`);
+  if (onConflict) url.searchParams.set("on_conflict", onConflict);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${bearer}`,
+      prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(row),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Supabase upsert into ${table} failed (${response.status})`);
+  }
+
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function getSupabaseUser(accessToken) {
+  const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: process.env.SUPABASE_ANON_KEY,
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) return null;
+  return response.json();
+}
+
+async function refreshSupabaseSession(refreshToken) {
+  const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      apikey: process.env.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const error = new Error(data?.error_description || data?.msg || "Supabase refresh failed");
+    error.code = data?.error_code || data?.error;
+    error.status = response.status;
+    throw error;
+  }
+
+  return data; // { access_token, refresh_token, expires_in, user, ... }
+}
+
+module.exports = { callRpc, upsertRow, getSupabaseUser, refreshSupabaseSession };

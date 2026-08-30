@@ -1,0 +1,9 @@
+{
+  "name": "passports-mcp-server",
+  "private": true,
+  "description": "Passports MCP connector backend. Isolated from the rest of the app on purpose — see the note in the repo's CLAUDE.md/AGENTS.md/README.md about this being the one approved exception to the no-build-step, no-npm-dependencies rule.",
+  "type": "commonjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
+}

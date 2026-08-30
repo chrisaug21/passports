@@ -16,9 +16,11 @@ The current foundation includes:
 - dashboard Past Trips section based on trip dates
 
 ## Stack
-- Vanilla HTML, CSS, and JavaScript with ES modules
+- Vanilla HTML, CSS, and JavaScript with ES modules — no build step, no npm dependencies (one scoped exception, see below)
 - Supabase for auth and data
 - Netlify for local dev and deployment
+
+**Exception:** `mcp-server/` is the backend for the Passports MCP connector (a signed-in user's own Claude.ai reading/acting on their trips). It has its own `package.json` and depends on `@modelcontextprotocol/sdk` — fully isolated from `src/`, which stays dependency-free. See [passports-mcp-server-spec.md](./passports-mcp-server-spec.md).
 
 ## Local Development
 
@@ -79,5 +81,6 @@ src/
 
 - [passports-spec.md](./passports-spec.md): product spec and schema notes
 - [passports-build-plan.md](./passports-build-plan.md): working build sequence and next-slice planning
+- [passports-mcp-server-spec.md](./passports-mcp-server-spec.md): Passports MCP connector design and phased roadmap
 - [AGENTS.md](./AGENTS.md): repo instructions for AI coding agents
 - [CLAUDE.md](./CLAUDE.md): project context and implementation notes

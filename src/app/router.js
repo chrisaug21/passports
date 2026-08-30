@@ -16,11 +16,15 @@ import {
 } from "../features/trip/trip-detail-page.js";
 import { tripStore } from "../state/trip-store.js";
 import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-page.js";
+import { renderMcpConnectPage, wireMcpConnectPage } from "../features/shared/mcp-connect-page.js";
+
+const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
 
 function normalizePath(pathname) {
   if (
     pathname === "/login" ||
     pathname === "/app" ||
+    pathname === "/app/connect" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname)
   ) {
@@ -84,6 +88,10 @@ export function renderRoute(options = {}) {
   }
 
   if (!session) {
+    if (pathname === "/app/connect") {
+      sessionStorage.setItem(MCP_CONNECT_RETURN_KEY, `${window.location.pathname}${window.location.search}`);
+    }
+
     if (pathname !== "/login") {
       window.history.replaceState({}, "", "/login");
     }
@@ -92,6 +100,28 @@ export function renderRoute(options = {}) {
       afterRender: () => {
         document.title = "Passports | Sign In";
         wireLoginPage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
+  const pendingConnectReturn = sessionStorage.getItem(MCP_CONNECT_RETURN_KEY);
+  if (pendingConnectReturn && (pathname === "/login" || pathname === "/")) {
+    sessionStorage.removeItem(MCP_CONNECT_RETURN_KEY);
+    window.history.replaceState({}, "", pendingConnectReturn);
+    renderRoute(options);
+    return;
+  }
+
+  if (pathname === "/app/connect") {
+    renderAppShell(renderMcpConnectPage(), {
+      showDashboardLink: true,
+      afterRender: () => {
+        document.title = "Passports | Connect AI Assistant";
+        wireMcpConnectPage();
         if (preserveScroll) {
           window.scrollTo({ top: previousScrollY });
         }

@@ -1,4 +1,5 @@
 [build]
+  command = "npm install --prefix mcp-server"
   publish = "."
   functions = "netlify/functions"
 
@@ -13,6 +14,19 @@
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
+  status = 200
+
+# MCP OAuth discovery documents (RFC 9728 / RFC 8414). Claude.ai (or any MCP
+# client) probes these well-known paths to find the /authorize, /token, and
+# /register endpoints — see passports-mcp-server-spec.md.
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource"
+  to = "/.netlify/functions/mcp-oauth-metadata?type=protected-resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server"
+  to = "/.netlify/functions/mcp-oauth-metadata?type=authorization-server"
   status = 200
 
 [[redirects]]

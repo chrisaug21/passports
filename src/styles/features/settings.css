@@ -1,0 +1,42 @@
+.settings-modal__section-title {
+  margin: 0 0 var(--space-1);
+}
+
+.settings-modal__section-copy {
+  margin: 0 0 var(--space-4);
+}
+
+.mcp-connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mcp-connection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+}
+
+.mcp-connection-row__label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.mcp-connection-row__meta {
+  margin: var(--space-1) 0 0;
+  font-size: 0.85rem;
+}
+
+.mcp-connection-row__status {
+  font-weight: 600;
+}
+
+.mcp-connection-row__status--warn {
+  color: var(--color-danger-strong);
+}

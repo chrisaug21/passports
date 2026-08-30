@@ -3,3 +3,6 @@
 
 # macOS
 .DS_Store
+
+# MCP server dependencies (mcp-server/ has its own package.json — see CLAUDE.md)
+mcp-server/node_modules
