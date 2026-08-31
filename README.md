@@ -83,5 +83,6 @@ src/
 - [passports-spec.md](./passports-spec.md): product spec and schema notes
 - [passports-build-plan.md](./passports-build-plan.md): working build sequence and next-slice planning
 - [passports-mcp-server-spec.md](./passports-mcp-server-spec.md): Passports MCP connector design and phased roadmap
+- [passports-trip-overview-content-spec.md](./passports-trip-overview-content-spec.md): trip/base overview content blocks (history, language, culture, logistics, food & drink, misc) — schema, Plan view authoring, Guide view display
 - [AGENTS.md](./AGENTS.md): repo instructions for AI coding agents
 - [CLAUDE.md](./CLAUDE.md): project context and implementation notes
