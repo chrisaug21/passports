@@ -109,6 +109,35 @@ export async function updateOverviewBlock({
   return data;
 }
 
+export async function reorderOverviewBlocks(updates) {
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return [];
+  }
+
+  const now = new Date().toISOString();
+  const supabase = getSupabase();
+
+  return Promise.all(
+    updates.map(async ({ id, sortOrder }) => {
+      const { data, error } = await supabase
+        .from("trip_overview_blocks")
+        .update({
+          sort_order: sortOrder,
+          updated_at: now,
+        })
+        .eq("id", id)
+        .select(OVERVIEW_BLOCK_SELECT)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    })
+  );
+}
+
 export async function softDeleteOverviewBlock(blockId) {
   const { error } = await getSupabase()
     .from("trip_overview_blocks")

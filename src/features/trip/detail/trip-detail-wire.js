@@ -271,6 +271,15 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-overview-block", handlers.onCancelDeleteOverviewBlock);
   bindClick("[data-cancel-delete-overview-block]", handlers.onCancelDeleteOverviewBlock);
   bindClick("#confirm-delete-overview-block", handlers.onConfirmDeleteOverviewBlock);
+  document.querySelectorAll("[data-reorder-overview-block-up], [data-reorder-overview-block-down]").forEach((button) => {
+    button.addEventListener("click", () => {
+      handlers.onReorderOverviewBlock?.({
+        blockId: button.getAttribute("data-reorder-overview-block-up") || button.getAttribute("data-reorder-overview-block-down"),
+        direction: button.hasAttribute("data-reorder-overview-block-up") ? -1 : 1,
+        button,
+      });
+    });
+  });
 
   document.querySelectorAll("#day-title-inline-input").forEach((dayTitleInput) => {
     handlers.onDayTitleInputReady?.(dayTitleInput);

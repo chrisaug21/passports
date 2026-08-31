@@ -80,7 +80,7 @@ Implemented (Phase 1) mirroring `trip_items`'s actual policy shape exactly, conf
 - **Modal edit workflow**, as requested — but built on the lighter form pattern `trip-settings-controller.js`/`renderTripSettingsForm` already uses (render straight from the block object, read values via `FormData` on submit), not the heavier item-editor machinery (`item-editor-draft.js`'s live draft object, dirty-checking, discard-confirm). Items need that weight because of type-dependent fields and time/base/day interdependencies; overview blocks are four independent fields with no such coupling, so the simpler existing pattern was the better fit and is fully sufficient.
 - Scope (trip-level vs. which base) is set when a block is created and is **not** editable afterward — move a block to a different base by deleting and recreating it. Category, subtitle, body, and published state are all editable.
 - Delete is a "Remove" link inside the edit modal, opening the same confirm-modal pattern as item/base/trip deletion, soft-deleting via `deleted_at`.
-- **Known gap, not built in Phase 1: no manual reordering UI.** `sort_order` is set automatically (`max existing sort_order in that scope+category, + 1`) when a block is created, but there is no drag/arrow control to reorder existing blocks afterward — the spec's original mention of reusing `item-ordering.js` for this did not get built. Low-priority since the field exists and works for that ordering to be interacted with directly in the database if needed; add it later if multiple-blocks-per-category turns out to need frequent reordering in practice.
+- Manual reordering: up/down arrow buttons per row (disabled at the top/bottom of their category group), reusing `item-ordering.js`'s generic `moveCombinedItemByStep`/`assignDaySortOrdersFromCombinedItems` helpers exactly as originally scoped — both are pure array utilities with no item-specific coupling, so no new logic was needed, just a new persistence call (`reorderOverviewBlocks` in `overview-service.js`, mirroring `batchUpdateTripItems`'s per-row-update-in-parallel shape) and the button wiring in `overview-controller.js`/`trip-detail-wire.js`.
 - No presentation-oriented tab/pill UI here — Plan view prioritizes CRUD efficiency over hype, per the discussion that led to this doc.
 
 ## Guide view (display)
@@ -115,7 +115,7 @@ Mirrors the existing `overview-service.js` (new file, `src/services/`) that Plan
 ```text
 src/
   config/constants.js                     — OVERVIEW_CATEGORIES + OVERVIEW_CATEGORY_LABELS
-  services/overview-service.js            — fetchTripOverviewBlocks/createOverviewBlock/updateOverviewBlock/softDeleteOverviewBlock
+  services/overview-service.js            — fetchTripOverviewBlocks/createOverviewBlock/updateOverviewBlock/softDeleteOverviewBlock/reorderOverviewBlocks
   services/trips-service.js               — fetchTripDetailBundle extended to fetch+return overviewBlocks alongside bases/days/items
   state/trip-store.js                     — currentOverviewBlocks + append/update/remove helpers, wired into setCurrentTripBundle/resetCurrentTrip
   state/app-store.js                      — overview editor/delete-confirm fields added to tripDetail's initial state

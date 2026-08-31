@@ -56,8 +56,43 @@
   gap: 0.4rem;
 }
 
+.overview-block-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.overview-block-row__reorder-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.overview-block-row__reorder-button {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.overview-block-row__reorder-button svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.overview-block-row__reorder-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .overview-block-row__button {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

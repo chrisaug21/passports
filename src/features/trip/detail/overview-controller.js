@@ -7,12 +7,21 @@ import {
 } from "../../../config/constants.js";
 import {
   createOverviewBlock,
+  reorderOverviewBlocks,
   softDeleteOverviewBlock,
   updateOverviewBlock,
 } from "../../../services/overview-service.js";
 import { showToast } from "../../shared/toast.js";
 import { escapeHtml } from "./trip-detail-ui.js";
 import { rerenderTripDetail } from "./trip-detail-state.js";
+import {
+  assignDaySortOrdersFromCombinedItems,
+  moveCombinedItemByStep,
+} from "./item-ordering.js";
+
+function compareBySortOrder(left, right) {
+  return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0);
+}
 
 function getOverviewScopeLabel(baseId, bases) {
   if (!baseId) {
@@ -30,15 +39,37 @@ function groupOverviewBlocksByScope(bases, overviewBlocks) {
     blocksByCategory: OVERVIEW_CATEGORIES
       .map((category) => ({
         category,
-        blocks: overviewBlocks.filter((block) => (block.base_id || null) === scope.baseId && block.category === category),
+        blocks: overviewBlocks
+          .filter((block) => (block.base_id || null) === scope.baseId && block.category === category)
+          .sort(compareBySortOrder),
       }))
       .filter((group) => group.blocks.length > 0),
   }));
 }
 
-function renderOverviewBlockRow(block) {
+function renderOverviewBlockRow(block, { canMoveUp, canMoveDown }) {
   return `
     <li class="overview-block-row">
+      <div class="overview-block-row__reorder-controls" aria-label="Reorder block">
+        <button
+          class="overview-block-row__reorder-button"
+          data-reorder-overview-block-up="${escapeHtml(block.id)}"
+          type="button"
+          aria-label="Move block up"
+          ${canMoveUp ? "" : "disabled"}
+        >
+          <i data-lucide="chevron-up"></i>
+        </button>
+        <button
+          class="overview-block-row__reorder-button"
+          data-reorder-overview-block-down="${escapeHtml(block.id)}"
+          type="button"
+          aria-label="Move block down"
+          ${canMoveDown ? "" : "disabled"}
+        >
+          <i data-lucide="chevron-down"></i>
+        </button>
+      </div>
       <button class="overview-block-row__button" data-edit-overview-block="${escapeHtml(block.id)}" type="button">
         <span class="overview-block-row__subtitle">${escapeHtml(block.subtitle || "Untitled")}</span>
         <span class="overview-status-badge ${block.is_published ? "is-published" : "is-draft"}">${block.is_published ? "Published" : "Draft"}</span>
@@ -70,7 +101,10 @@ export function renderOverviewSection(trip, bases, overviewBlocks) {
                   <div class="overview-category">
                     <p class="overview-category__label">${escapeHtml(OVERVIEW_CATEGORY_LABELS[group.category] || group.category)}</p>
                     <ul class="overview-block-list">
-                      ${group.blocks.map((block) => renderOverviewBlockRow(block)).join("")}
+                      ${group.blocks.map((block, index) => renderOverviewBlockRow(block, {
+                        canMoveUp: index > 0,
+                        canMoveDown: index < group.blocks.length - 1,
+                      })).join("")}
                     </ul>
                   </div>
                 `).join("")
@@ -294,6 +328,52 @@ export function createOverviewHandlers() {
           overviewEditorError: "Something went wrong saving. Please try again.",
         });
         rerenderTripDetail();
+      }
+    },
+
+    onReorderOverviewBlock: async ({ blockId, direction, button }) => {
+      if (!blockId || !button || button.disabled) {
+        return;
+      }
+
+      const block = tripStore.getCurrentOverviewBlocks().find((entry) => entry.id === blockId);
+      if (!block) {
+        return;
+      }
+
+      const groupBlocks = tripStore.getCurrentOverviewBlocks()
+        .filter((entry) => (entry.base_id || null) === (block.base_id || null) && entry.category === block.category)
+        .sort(compareBySortOrder);
+      const currentIndex = groupBlocks.findIndex((entry) => entry.id === blockId);
+      const targetIndex = currentIndex + direction;
+
+      if (currentIndex === -1 || targetIndex < 0 || targetIndex >= groupBlocks.length) {
+        return;
+      }
+
+      const reorderedGroup = moveCombinedItemByStep(groupBlocks, blockId, direction);
+      const renumberedGroup = assignDaySortOrdersFromCombinedItems(reorderedGroup);
+      const changedBlocks = renumberedGroup.filter((entry) => {
+        const currentBlock = groupBlocks.find((original) => original.id === entry.id);
+        return currentBlock && Number(currentBlock.sort_order) !== Number(entry.sort_order);
+      });
+
+      if (changedBlocks.length === 0) {
+        return;
+      }
+
+      button.disabled = true;
+
+      try {
+        const savedBlocks = await reorderOverviewBlocks(
+          changedBlocks.map((entry) => ({ id: entry.id, sortOrder: entry.sort_order }))
+        );
+        savedBlocks.forEach((savedBlock) => tripStore.updateCurrentOverviewBlock(savedBlock));
+        rerenderTripDetail();
+      } catch (error) {
+        console.error(error);
+        button.disabled = false;
+        showToast("Something went wrong saving. Please try again.", "error");
       }
     },
 
