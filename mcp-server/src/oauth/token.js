@@ -75,15 +75,17 @@ async function handleRefreshTokenGrant(params) {
 
   let rotated;
   try {
-    // No raw access token exists in this grant type (the client presents a
-    // refresh_token, not an access_token) — passing null skips the
-    // access-token-based re-read on a same-token-reuse collision and falls
-    // straight through to needs_reconnect for that rare case, same as
-    // before rotateSupabaseSession grew that 3rd parameter.
-    rotated = await rotateSupabaseSession(null, row.connection_id, row.encrypted_refresh_token);
+    rotated = await rotateSupabaseSession(row.connection_id, row.encrypted_refresh_token);
   } catch (error) {
     console.error("rotateSupabaseSession failed:", error);
-    throw oauthError(400, "invalid_grant", "Could not refresh the underlying session. Please reconnect.");
+    if (error.needsReconnect) {
+      throw oauthError(400, "invalid_grant", "Could not refresh the underlying session. Please reconnect.");
+    }
+    // Transient contention (another request is mid-rotation for this same
+    // connection) — not a dead credential. Rethrowing a plain error (no
+    // .oauthError set) surfaces as a 500 "server_error" instead of
+    // invalid_grant, so the client retries instead of forcing a reconnect.
+    throw error;
   }
 
   const tokens = await issueTokensForConnection(row.connection_id, rotated.encryptedSupabaseRefreshToken);

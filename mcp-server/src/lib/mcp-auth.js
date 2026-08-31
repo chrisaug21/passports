@@ -44,30 +44,74 @@ async function issueTokensForConnection(connectionId, encryptedSupabaseRefreshTo
   return { accessToken, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS };
 }
 
+const ROTATION_CLAIM_STALE_SECONDS = 15;
+const ROTATION_CLAIM_RETRY_DELAYS_MS = [250, 500, 750]; // ~1.5s of waiting across 3 retries
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Asks to be the one allowed to rotate this connection's Supabase session
+// right now. Always returns the connection's current state regardless of
+// whether the claim succeeded, so a caller that doesn't get it can still
+// see whether someone else already finished the rotation.
+async function claimRotation(connectionId) {
+  const rows = await callRpc("mcp_claim_rotation", {
+    p_connection_id: connectionId,
+    p_stale_after_seconds: ROTATION_CLAIM_STALE_SECONDS,
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+// Retries claimRotation with a short backoff until it succeeds or the
+// retries run out. Throws a plain (non-needsReconnect) error on giving up,
+// since losing this race is transient contention, not a dead credential.
+async function acquireRotationClaim(connectionId) {
+  let claim = await claimRotation(connectionId);
+  for (const delayMs of ROTATION_CLAIM_RETRY_DELAYS_MS) {
+    if (claim?.claimed) break;
+    await sleep(delayMs);
+    claim = await claimRotation(connectionId);
+  }
+
+  if (!claim?.claimed) {
+    throw new Error("Another request is already refreshing this connection. Try again shortly.");
+  }
+
+  return claim;
+}
+
 // Exchanges the stored (encrypted) Supabase refresh token for a fresh
 // Supabase access token, and rotates the stored refresh token — Supabase
-// rotates it on every use. Uses a compare-and-swap update so that if two
-// requests race on the same connection, the loser retries once against
-// whatever the winner just stored, instead of both trying to reuse a
-// refresh token Supabase has already invalidated.
+// rotates it on every use.
 //
-// There are two distinct ways a request can lose that race, and both need
-// the same "re-read latest and retry once" treatment:
-//   1. Our own CAS write loses (line ~row?.swapped false below) — the
-//      RPC itself hands back the current value, so we retry with that.
-//   2. Supabase's own /token endpoint rejects OUR refresh call with
-//      invalid_grant/400 because a concurrent request already consumed
-//      this exact refresh token before we got there. Unlike case 1, this
-//      fails before we ever reach the CAS RPC, so it has no "current
-//      value" handed back — mcp_validate_access_token does a plain
-//      (non-CAS) read of the connection's row, so re-calling it gets us
-//      the latest stored value to retry against once.
-// Only mark the connection needs_reconnect when this retry is exhausted
-// or the failure isn't a same-token-reused race at all (e.g. the
-// credential really is dead) — a transient network/5xx blip against
-// Supabase's own endpoint shouldn't be treated as "reconnect your account".
-async function rotateSupabaseSession(rawAccessToken, connectionId, encryptedRefreshToken) {
-  let currentEncrypted = encryptedRefreshToken;
+// Two independent code paths can end up calling this for the same
+// connection close together: a tool call's per-request lookup (index.js)
+// and Claude's own OAuth refresh_token grant (oauth/token.js). If both
+// present the same (not-yet-rotated) Supabase refresh token to Supabase's
+// /token endpoint within moments of each other, Supabase treats the second
+// one as a stolen-token replay and revokes the ENTIRE session chain —
+// including the token the first request just legitimately obtained. This
+// is exactly what broke the connector in production on 2026-08-31 (two
+// requests 12 seconds apart, confirmed via Supabase's own auth logs,
+// error_code "refresh_token_already_used").
+//
+// mcp_claim_rotation serializes this: only the request holding the claim
+// actually calls Supabase. A request that doesn't get the claim waits
+// briefly and tries again — by the time it gets in, the winner has either
+// already stored a fresh, not-yet-consumed refresh token (which this
+// request can then safely rotate itself), or the claim is released and
+// this request becomes the new owner.
+async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
+  const claim = await acquireRotationClaim(connectionId);
+
+  if (!claim.encrypted_refresh_token || claim.revoked_at || claim.status === "needs_reconnect") {
+    const error = new Error("This connection needs to be reconnected.");
+    error.needsReconnect = true;
+    throw error;
+  }
+
+  let currentEncrypted = claim.encrypted_refresh_token;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -86,16 +130,19 @@ async function rotateSupabaseSession(rawAccessToken, connectionId, encryptedRefr
         return { supabaseAccessToken: session.access_token, encryptedSupabaseRefreshToken: newEncrypted };
       }
 
-      // Another request rotated it first — retry once against the latest value.
+      // Shouldn't normally happen while we hold the claim — defensive
+      // fallback in case the stored value moved anyway.
       currentEncrypted = row?.current_encrypted_refresh_token;
       if (!currentEncrypted) break;
     } catch (error) {
       const isTokenReuseCollision = error.code === "invalid_grant" || error.status === 400;
 
+      // Still holding our claim, so this just re-reads the row rather than
+      // re-attempting the claim itself.
       if (attempt === 0 && isTokenReuseCollision) {
-        const fresh = await validateAccessToken(rawAccessToken);
-        if (fresh?.encryptedSupabaseRefreshToken) {
-          currentEncrypted = fresh.encryptedSupabaseRefreshToken;
+        const fresh = await claimRotation(connectionId);
+        if (fresh?.encrypted_refresh_token && fresh.encrypted_refresh_token !== currentEncrypted) {
+          currentEncrypted = fresh.encrypted_refresh_token;
           continue;
         }
       }
