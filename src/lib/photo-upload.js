@@ -3,12 +3,16 @@ const CROPPED_OUTPUT_WIDTH = 1200;
 const CROPPED_OUTPUT_HEIGHT = 800;
 const JPEG_QUALITY = 0.85;
 
+const SELECT_IMAGE_FALLBACK_TIMEOUT_MS = 120000;
+
 export function selectImageFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     let isResolved = false;
+    let fallbackTimeoutId = 0;
     const cleanup = () => {
       window.removeEventListener("focus", handleWindowFocus);
+      window.clearTimeout(fallbackTimeoutId);
       input.remove();
     };
     const finish = (file) => {
@@ -35,6 +39,14 @@ export function selectImageFile() {
       finish(input.files?.[0] || null);
     }, { once: true });
     window.addEventListener("focus", handleWindowFocus);
+    // Safety net: the "focus" listener above is a heuristic for detecting a
+    // canceled file picker, and it isn't reliable on every browser/OS
+    // combination. Without a hard fallback, an environment where it never
+    // fires leaves this promise pending forever — which, upstream, leaves
+    // the caller's busy lock stuck permanently, silently blocking every
+    // future photo upload with no error shown. Guarantee this always
+    // settles eventually regardless of that event firing.
+    fallbackTimeoutId = window.setTimeout(() => finish(null), SELECT_IMAGE_FALLBACK_TIMEOUT_MS);
     document.body.append(input);
     input.click();
   });
