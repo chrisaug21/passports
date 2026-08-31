@@ -202,7 +202,8 @@
 
 .day-item__subtype,
 .day-item__base,
-.day-item__details {
+.day-item__details,
+.day-item__notes {
   grid-column: 1;
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
