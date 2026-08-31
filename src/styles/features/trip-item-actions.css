@@ -159,7 +159,7 @@
   height: 0.875rem;
 }
 
-/* Truncated notes preview — expands to a read-only modal (item-notes-modal.js) */
+/* Truncated notes preview — opens the item editor (title, notes, and every other field live) */
 .item-notes-preview {
   display: block;
   width: 100%;
@@ -177,14 +177,6 @@
   margin-top: 0.1rem;
   color: var(--color-structure);
   font-weight: 600;
-}
-
-.item-notes-modal__body {
-  margin: 0;
-  color: var(--color-text);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
 }
 
 /* Truncated notes that expand in place — accordion-style, one open at a time (item-notes-expand.js) */

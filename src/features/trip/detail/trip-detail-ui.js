@@ -198,12 +198,10 @@ export function renderItemNotes(item, className) {
     <button
       class="${className} item-notes-preview"
       type="button"
-      data-open-item-notes
-      data-notes-title="${escapeHtml(item.title || "Untitled stop")}"
-      data-notes-full="${escapeHtml(notes)}"
+      data-edit-item="${escapeHtml(item.id)}"
     >
       <span>${escapeHtml(preview)}&hellip;</span>
-      <span class="item-notes-preview__cta">Read more</span>
+      <span class="item-notes-preview__cta">Read more or edit</span>
     </button>
   `;
 }
