@@ -63,6 +63,24 @@ async function claimRotation(connectionId) {
   return Array.isArray(rows) ? rows[0] : rows;
 }
 
+// Retries claimRotation with a short backoff until it succeeds or the
+// retries run out. Throws a plain (non-needsReconnect) error on giving up,
+// since losing this race is transient contention, not a dead credential.
+async function acquireRotationClaim(connectionId) {
+  let claim = await claimRotation(connectionId);
+  for (const delayMs of ROTATION_CLAIM_RETRY_DELAYS_MS) {
+    if (claim?.claimed) break;
+    await sleep(delayMs);
+    claim = await claimRotation(connectionId);
+  }
+
+  if (!claim?.claimed) {
+    throw new Error("Another request is already refreshing this connection. Try again shortly.");
+  }
+
+  return claim;
+}
+
 // Exchanges the stored (encrypted) Supabase refresh token for a fresh
 // Supabase access token, and rotates the stored refresh token — Supabase
 // rotates it on every use.
@@ -85,19 +103,7 @@ async function claimRotation(connectionId) {
 // request can then safely rotate itself), or the claim is released and
 // this request becomes the new owner.
 async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
-  let claim = await claimRotation(connectionId);
-  for (const delayMs of ROTATION_CLAIM_RETRY_DELAYS_MS) {
-    if (claim?.claimed) break;
-    await sleep(delayMs);
-    claim = await claimRotation(connectionId);
-  }
-
-  if (!claim?.claimed) {
-    // Someone else is still mid-rotation after all our waiting — transient
-    // contention, not a dead credential, so this deliberately does NOT set
-    // needsReconnect (callers treat that as "try again shortly").
-    throw new Error("Another request is already refreshing this connection. Try again shortly.");
-  }
+  const claim = await acquireRotationClaim(connectionId);
 
   if (!claim.encrypted_refresh_token || claim.revoked_at || claim.status === "needs_reconnect") {
     const error = new Error("This connection needs to be reconnected.");
