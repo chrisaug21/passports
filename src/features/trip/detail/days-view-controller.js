@@ -17,7 +17,7 @@ import { renderOverviewScopeSection } from "./overview-controller.js";
 export function renderDaysView(bases, days, assignedItems, unassignedItems, overviewBlocks, helpers) {
   const { getSortedUnassignedItems, renderDayItem } = helpers;
   const sortedUnassignedItems = getSortedUnassignedItems(unassignedItems);
-  const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
+  const groupedRows = buildAllocationRows(bases, days).filter((row) => row.kind === "base" || row.dayCount > 0);
 
   return `
     <section class="days-view">

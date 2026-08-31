@@ -19,6 +19,7 @@
   --color-action: #0ea87a;
   --color-action-strong: #0a8e67;
   --color-action-bright: #16b36a;
+  --color-action-tint: rgba(14, 168, 122, 0.12);
   --color-structure: #2b5be0;
   --color-structure-soft: rgba(43, 91, 224, 0.08);
   --color-structure-tint: rgba(43, 91, 224, 0.1);

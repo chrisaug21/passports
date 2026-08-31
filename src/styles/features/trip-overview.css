@@ -136,7 +136,7 @@
 }
 
 .overview-status-badge.is-published {
-  background: rgba(14, 168, 122, 0.12);
+  background: var(--color-action-tint);
   color: var(--color-action-strong);
 }
 

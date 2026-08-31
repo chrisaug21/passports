@@ -46,7 +46,7 @@ One new table, `trip_overview_blocks`:
 
 Fixed set, six categories, **alphabetical in all UI pickers** (add/edit dropdowns, Plan view grouping):
 
-```
+```text
 culture, food_drink, history, language, logistics, misc
 ```
 
