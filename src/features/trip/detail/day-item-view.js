@@ -3,6 +3,7 @@ import { formatTimeLabel } from "../../../lib/format.js";
 import {
   escapeHtml,
   renderAnchorIndicator,
+  renderItemNotes,
   renderItemStatusMeta,
   renderItemSubtypeLine,
   renderItemTypeIcon,
@@ -63,6 +64,7 @@ export function renderDayItem(item, options = {}) {
         ${renderItemSubtypeLine(item)}
         ${renderItemBaseLine(item)}
         ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
+        ${renderItemNotes(item, "day-item__notes")}
       </div>
     </article>
   `;

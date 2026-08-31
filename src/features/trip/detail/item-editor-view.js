@@ -132,6 +132,10 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
               <input name="url" type="url" value="${escapeHtml(draft.url || "")}" placeholder="https://..." />
             </label>
             <label class="field">
+              <span>Confirmation #</span>
+              <input name="confirmationRef" type="text" maxlength="120" value="${escapeHtml(draft.confirmationRef || "")}" placeholder="Booking reference or confirmation code" />
+            </label>
+            <label class="field">
               <span>Notes</span>
               <textarea name="notes" rows="4" placeholder="Booking notes, reminders, context">${escapeHtml(draft.notes || "")}</textarea>
             </label>
