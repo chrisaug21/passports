@@ -70,8 +70,9 @@ Follows the existing trip-scoped pattern exactly (mirror `trip_items` policies):
 ## Plan view (authoring)
 
 - New section, sibling to the existing trip-detail sections (master list, days, bases, etc. — see `src/features/trip/detail/`).
-- Grouped by scope then category: Trip-level content first, then each base in trip order, each showing its populated categories alphabetically.
-- Per category: "+ Add block" affordance, inline edit of `subtitle`/`body`/`is_published`, drag-or-arrow reordering for `sort_order` when a category has multiple blocks (reuse whatever reordering pattern items already use, e.g. `item-ordering.js`, rather than inventing a new one).
+- Grouped by scope then category: Trip-level content first, then each base in trip order, each showing its populated categories alphabetically, listing each block's `subtitle` (not full `body`) as a row.
+- **Modal edit workflow, not inline editing** — mirror the existing item-editor pattern (`item-editor-controller.js` / `item-editor-view.js` / `item-editor-modals.js` / `item-editor-dom.js` / `item-editor-draft.js` / `item-editor-actions.js` in `src/features/trip/detail/`) rather than editing `subtitle`/`body`/`is_published` in place in the list row. Same reasons that pattern exists for items apply here: consistent draft/cancel/save semantics, one modal shape the rest of the app already knows how to style and wire.
+- Per category: "+ Add block" affordance opens the same modal in create mode; drag-or-arrow reordering for `sort_order` when a category has multiple blocks (reuse whatever reordering pattern items already use, e.g. `item-ordering.js`, rather than inventing a new one).
 - No presentation-oriented tab/pill UI here — Plan view prioritizes CRUD efficiency over hype, per the discussion that led to this doc.
 
 ## Guide view (display)
@@ -92,11 +93,12 @@ This is the part that needs visual iteration — captured here as direction, not
 
 ## MCP server changes
 
-New tools in `mcp-server/` (see `passports-mcp-server-spec.md` for the auth/tool-registration pattern already established):
-- `list_overview_blocks` (read) — by trip, optionally filtered by base/category.
-- `create_overview_block` (additive write) — defaults `is_published = false`, `source = "mcp"`, regardless of what the caller asks for unless the user's prompt explicitly says to publish immediately (still worth a confirm step, matching the caution already applied to `create_trip_item`).
-- `update_overview_block` — edit `subtitle`/`body`/`sort_order`/`is_published`/`category` on an existing block the caller owns access to.
-- `delete_overview_block` — soft delete only, same rule as every other table.
+New tools in `mcp-server/` (see `passports-mcp-server-spec.md` for the auth/tool-registration pattern and phase numbering already established there — Phases 0–2 shipped, Phase 3 (editing existing items) about to be built, Phase 4 (soft delete) not started):
+
+- `list_overview_blocks` (read) — by trip, optionally filtered by base/category. Ships whenever this feature's MCP tools are built; no dependency on Phase 3/4.
+- `create_overview_block` (additive write) — defaults `is_published = false`, `source = "mcp"`, regardless of what the caller asks for unless the user's prompt explicitly says to publish immediately (still worth a confirm step, matching the caution already applied to `create_trip_item`). Direct write, no propose/confirm — mirrors `create_trip_item`'s Phase 2 shape, since a new block isn't overwriting anything.
+- `update_overview_block` — edit `subtitle`/`body`/`sort_order`/`is_published`/`category` on an existing block. This overwrites existing data the same way item edits do, so it likely wants the same propose-then-confirm shape Phase 3 establishes for `propose_update_trip_item`/`confirm_update_trip_item`, for consistency — worth confirming against however Phase 3 actually lands before building this.
+- `delete_overview_block` — **deferred, not part of the initial build.** The MCP server has not implemented soft delete for *anything* yet (Phase 4 of `passports-mcp-server-spec.md` is outlined but not started). This tool rides along whenever MCP Phase 4 ships, using whatever propose/confirm + audit-log shape gets established there for `propose_delete_trip_item`/`confirm_delete_trip_item` — not built ahead of it.
 
 Mirrors the existing `overview-service.js` (new file, `src/services/`) that Plan view also calls — one service, both surfaces (matches how the rest of the app shares services between UI and, where applicable, MCP tools calling the same Supabase tables under RLS).
 
@@ -108,13 +110,14 @@ src/
   services/overview-service.js — CRUD for trip_overview_blocks
   features/trip/detail/
     overview-controller.js     — Plan view section wiring
-    overview-view.js           — Plan view rendering
+    overview-view.js           — Plan view list rendering (grouped by scope/category)
+    overview-editor-modal.js   — create/edit modal, mirroring item-editor-modals.js's split
   features/trip/guide/
     overview-guide-view.js     — category-selector + inline-expand rendering for Guide view
   styles/features/overview.css — new component styles (selector row, expanded block card)
 
 mcp-server/src/tools/
-  overview-blocks.js           — list/create/update/delete tools
+  overview-blocks.js           — list/create/update tools (delete deferred to MCP Phase 4)
 ```
 
 ## Non-goals for v1
@@ -124,8 +127,8 @@ mcp-server/src/tools/
 - No Journal tab placement — overview content shows in the Itinerary tab only for v1 (open question below).
 - No per-block permissions beyond existing planner/traveler roles.
 
-## Open questions (resolve before or during implementation, not blocking the schema/Plan-view work)
+## Open questions
 
-1. **Journal tab** — should overview content ever surface there, or is Itinerary tab-only correct long-term? Journal is more retrospective/memory-focused; overview content is more "about the place" — plausible it never belongs there, but worth a deliberate call rather than a default.
-2. **Guide view selector component** — needs actual visual iteration (see above) before building; treat the "text-tab vs rounded-rect, icon fallback on mobile" question as a small design pass, not a coding task.
-3. **Empty-state handling** — a trip/base with zero published overview content should render nothing extra in Guide view (no empty category row) — confirm this is obviously true given "only categories with ≥1 visible block render a selector," but worth a explicit test case.
+1. **Journal tab** — genuinely TBD, not just unresolved-pending-a-decision. Ship Itinerary-tab-only for v1, use it for a while, then decide from real usage whether Journal tab ever gets it too, or whether it stays Itinerary-only permanently. Not a question to force an answer on before shipping.
+2. **Guide view selector component** — text-tab vs. rounded-rect is a build-time call, not a pre-decided spec detail. Pick one to prototype first (whichever reads faster to build against the existing `guide-hero__tab` / `components.css` conventions), with the explicit understanding it may get swapped for the other approach — or something else entirely — on review, even pre-merge. Don't over-invest in the first choice.
+3. **Empty-state handling** — confirmed: a trip/base with zero published blocks shows nothing extra in Guide view's Itinerary tab. No empty category selector, no placeholder section. Worth an explicit test case when building, but not an open design question.
