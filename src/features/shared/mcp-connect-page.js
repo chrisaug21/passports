@@ -19,7 +19,7 @@ export function renderMcpConnectPage() {
       <section class="auth-layout auth-layout--single">
         <section class="panel auth-panel" id="mcp-connect-panel">
           <p class="eyebrow">Connect AI Assistant</p>
-          <h2 class="hero-panel__title" id="mcp-connect-title">Loading…</h2>
+          <h2 class="mcp-connect__title" id="mcp-connect-title">Loading…</h2>
           <p class="muted" id="mcp-connect-copy"></p>
           <div class="mcp-connect__actions" id="mcp-connect-actions"></div>
         </section>
