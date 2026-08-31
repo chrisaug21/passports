@@ -57,7 +57,7 @@ export async function createOverviewBlock({
       trip_id: tripId,
       base_id: baseId || null,
       category: normalizedCategory,
-      subtitle,
+      subtitle: subtitle || null,
       body: body || "",
       sort_order: sortOrder,
       is_published: Boolean(isPublished),
@@ -93,7 +93,7 @@ export async function updateOverviewBlock({
     .from("trip_overview_blocks")
     .update({
       category: normalizedCategory,
-      subtitle,
+      subtitle: subtitle || null,
       body: body || "",
       is_published: Boolean(isPublished),
       updated_at: new Date().toISOString(),

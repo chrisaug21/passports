@@ -20,7 +20,7 @@ import { renderMembersModal } from "./members-controller.js";
 import {
   renderDeleteOverviewBlockConfirmModal,
   renderOverviewEditorModal,
-  renderOverviewSection,
+  renderOverviewScopeSection,
 } from "./overview-controller.js";
 import {
   buildAllocationRows,
@@ -153,6 +153,10 @@ export function renderTripDetailPageView() {
         </div>
       </section>
 
+      <section class="panel trip-overview-panel">
+        ${renderOverviewScopeSection(null, overviewBlocks)}
+      </section>
+
       <section class="trip-stat-tiles" aria-label="Trip stats">
         ${statTiles.map((tile) => `
           <article class="panel trip-stat-tile">
@@ -226,14 +230,12 @@ export function renderTripDetailPageView() {
         ${renderMasterListPlanningTable({ items, days, bases, tripDetail })}
       </section>
       `
-          : renderDaysView(bases, days, assignedItems, unassignedItems, {
+          : renderDaysView(bases, days, assignedItems, unassignedItems, overviewBlocks, {
               getInterleavedDayItems,
               getSortedUnassignedItems,
               renderDayItem,
             })
       }
-
-      ${renderOverviewSection(trip, bases, overviewBlocks)}
 
       ${renderItemEditorModal({
         item: editingItem,

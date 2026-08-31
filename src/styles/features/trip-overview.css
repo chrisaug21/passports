@@ -1,77 +1,95 @@
-.overview-panel__header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-bottom: 1rem;
-}
-
-.overview-groups {
-  display: grid;
-  gap: 1.25rem;
-}
-
-.overview-group {
+.overview-scope {
   display: grid;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-strong);
 }
 
-.overview-group__header {
+.trip-overview-panel {
+  padding: 1.25rem 1.5rem;
+}
+
+.days-base-section .overview-scope {
+  padding: 1rem 1.5rem 0;
+}
+
+.overview-scope__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
 }
 
-.overview-group__header h4 {
+.overview-scope__header .eyebrow {
   margin: 0;
 }
 
-.overview-group__empty {
+.overview-scope__empty {
   margin: 0;
 }
 
-.overview-category {
+.overview-card-grid {
   display: grid;
-  gap: 0.4rem;
+  grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
+  gap: var(--trip-detail-grid-gap);
+  justify-content: start;
+  align-items: stretch;
 }
 
-.overview-category__label {
-  margin: 0;
-  font-size: 0.78rem;
+.overview-card {
+  width: 100%;
+  border: 1px solid var(--color-border-card, var(--color-border));
+  border-radius: 18px;
+  background: var(--color-surface-strong);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+}
+
+.overview-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.overview-card__category {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.overview-block-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.overview-card__category-icon {
+  flex-shrink: 0;
   display: grid;
-  gap: 0.4rem;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-structure);
 }
 
-.overview-block-row {
+.overview-card__category-icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.overview-card__reorder-controls {
   display: flex;
-  align-items: stretch;
-  gap: 0.5rem;
-}
-
-.overview-block-row__reorder-controls {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex-shrink: 0;
 }
 
-.overview-block-row__reorder-button {
-  width: 44px;
-  min-height: 44px;
+.overview-card__reorder-button {
+  width: 36px;
+  min-height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid var(--color-border);
@@ -80,48 +98,36 @@
   color: var(--color-text);
 }
 
-.overview-block-row__reorder-button svg {
-  width: 0.95rem;
-  height: 0.95rem;
+.overview-card__reorder-button svg {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
-.overview-block-row__reorder-button:disabled {
+.overview-card__reorder-button:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.overview-block-row__button {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 44px;
-  padding: 0.6rem 0.85rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-control);
+.overview-card__button {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--color-text);
   font-family: var(--font-body);
   text-align: left;
   cursor: pointer;
 }
 
-.overview-block-row__button:hover,
-.overview-block-row__button:focus-visible {
-  border-color: var(--color-border-strong);
-}
-
-.overview-block-row__subtitle {
-  font-size: 0.9rem;
+.overview-card__subtitle {
+  font-size: 0.95rem;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .overview-status-badge {
+  justify-self: start;
   flex-shrink: 0;
   border-radius: var(--radius-pill);
   padding: 0.2rem 0.5rem;
@@ -168,8 +174,22 @@
   gap: 0.15rem;
 }
 
+@media (max-width: 1023px) {
+  .overview-card-grid {
+    grid-template-columns: repeat(2, minmax(0, var(--trip-detail-grid-card-width)));
+  }
+}
+
 @media (max-width: 639px) {
-  .overview-group {
-    padding: 0.85rem;
+  .overview-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .days-base-section .overview-scope {
+    padding-inline: 1rem;
+  }
+
+  .trip-overview-panel {
+    padding: 1rem;
   }
 }

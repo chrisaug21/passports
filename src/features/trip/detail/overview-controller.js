@@ -19,6 +19,15 @@ import {
   moveCombinedItemByStep,
 } from "./item-ordering.js";
 
+const OVERVIEW_CATEGORY_ICONS = {
+  culture: "palette",
+  food_drink: "utensils",
+  history: "landmark",
+  language: "languages",
+  logistics: "compass",
+  misc: "sparkles",
+};
+
 function compareBySortOrder(left, right) {
   return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0);
 }
@@ -31,88 +40,86 @@ function getOverviewScopeLabel(baseId, bases) {
   return bases.find((base) => base.id === baseId)?.name || "Untitled base";
 }
 
-function groupOverviewBlocksByScope(bases, overviewBlocks) {
-  const scopes = [{ baseId: null, label: "Trip-wide" }, ...bases.map((base) => ({ baseId: base.id, label: base.name || "Untitled base" }))];
+// Flat order: category (alphabetical), then sort_order within that category —
+// keeps the up/down reorder groups (scoped per category) visually adjacent
+// even though there's no category header/box separating them on screen.
+function buildOverviewCardModels(scopeBaseId, overviewBlocks) {
+  return OVERVIEW_CATEGORIES.flatMap((category) => {
+    const group = overviewBlocks
+      .filter((block) => (block.base_id || null) === scopeBaseId && block.category === category)
+      .sort(compareBySortOrder);
 
-  return scopes.map((scope) => ({
-    ...scope,
-    blocksByCategory: OVERVIEW_CATEGORIES
-      .map((category) => ({
-        category,
-        blocks: overviewBlocks
-          .filter((block) => (block.base_id || null) === scope.baseId && block.category === category)
-          .sort(compareBySortOrder),
-      }))
-      .filter((group) => group.blocks.length > 0),
-  }));
+    return group.map((block, index) => ({
+      block,
+      canMoveUp: index > 0,
+      canMoveDown: index < group.length - 1,
+    }));
+  });
 }
 
-function renderOverviewBlockRow(block, { canMoveUp, canMoveDown }) {
+function renderOverviewCard(block, { canMoveUp, canMoveDown }) {
+  const categoryLabel = OVERVIEW_CATEGORY_LABELS[block.category] || block.category;
+  const iconName = OVERVIEW_CATEGORY_ICONS[block.category] || "circle-dot";
+  const displayTitle = block.subtitle || categoryLabel;
+
   return `
-    <li class="overview-block-row">
-      <div class="overview-block-row__reorder-controls" aria-label="Reorder block">
-        <button
-          class="overview-block-row__reorder-button"
-          data-reorder-overview-block-up="${escapeHtml(block.id)}"
-          type="button"
-          aria-label="Move block up"
-          ${canMoveUp ? "" : "disabled"}
-        >
-          <i data-lucide="chevron-up"></i>
-        </button>
-        <button
-          class="overview-block-row__reorder-button"
-          data-reorder-overview-block-down="${escapeHtml(block.id)}"
-          type="button"
-          aria-label="Move block down"
-          ${canMoveDown ? "" : "disabled"}
-        >
-          <i data-lucide="chevron-down"></i>
-        </button>
+    <article class="overview-card">
+      <div class="overview-card__meta">
+        <span class="overview-card__category">
+          <span class="overview-card__category-icon"><i data-lucide="${iconName}" aria-hidden="true"></i></span>
+          <span>${escapeHtml(categoryLabel)}</span>
+        </span>
+        <div class="overview-card__reorder-controls" aria-label="Reorder block">
+          <button
+            class="overview-card__reorder-button"
+            data-reorder-overview-block-up="${escapeHtml(block.id)}"
+            type="button"
+            aria-label="Move block up"
+            ${canMoveUp ? "" : "disabled"}
+          >
+            <i data-lucide="chevron-up"></i>
+          </button>
+          <button
+            class="overview-card__reorder-button"
+            data-reorder-overview-block-down="${escapeHtml(block.id)}"
+            type="button"
+            aria-label="Move block down"
+            ${canMoveDown ? "" : "disabled"}
+          >
+            <i data-lucide="chevron-down"></i>
+          </button>
+        </div>
       </div>
-      <button class="overview-block-row__button" data-edit-overview-block="${escapeHtml(block.id)}" type="button">
-        <span class="overview-block-row__subtitle">${escapeHtml(block.subtitle || "Untitled")}</span>
+      <button class="overview-card__button" data-edit-overview-block="${escapeHtml(block.id)}" type="button">
+        <span class="overview-card__subtitle">${escapeHtml(displayTitle)}</span>
         <span class="overview-status-badge ${block.is_published ? "is-published" : "is-draft"}">${block.is_published ? "Published" : "Draft"}</span>
       </button>
-    </li>
+    </article>
   `;
 }
 
-export function renderOverviewSection(trip, bases, overviewBlocks) {
-  const scopeGroups = groupOverviewBlocksByScope(bases, overviewBlocks);
+// Renders one scope's overview content — call once near the trip header for
+// trip-wide content (scopeBaseId = null), and once per base, inline within
+// that base's own section, for base-level content.
+export function renderOverviewScopeSection(scopeBaseId, overviewBlocks) {
+  const cardModels = buildOverviewCardModels(scopeBaseId, overviewBlocks);
 
   return `
-    <section class="panel overview-panel">
-      <div class="overview-panel__header">
+    <div class="overview-scope">
+      <div class="overview-scope__header">
         <p class="eyebrow">Overview Content</p>
-        <h3>Trip & Base Overview</h3>
+        <button class="button button--secondary button--sm" data-add-overview-block="${escapeHtml(scopeBaseId || "")}" type="button">+ Add Content</button>
       </div>
-      <div class="overview-groups">
-        ${scopeGroups.map((scope) => `
-          <div class="overview-group">
-            <div class="overview-group__header">
-              <h4>${escapeHtml(scope.label)}</h4>
-              <button class="button button--secondary button--sm" data-add-overview-block="${escapeHtml(scope.baseId || "")}" type="button">+ Add Content</button>
+      ${
+        cardModels.length === 0
+          ? `<p class="muted overview-scope__empty">No overview content yet.</p>`
+          : `
+            <div class="overview-card-grid">
+              ${cardModels.map(({ block, canMoveUp, canMoveDown }) => renderOverviewCard(block, { canMoveUp, canMoveDown })).join("")}
             </div>
-            ${
-              scope.blocksByCategory.length === 0
-                ? `<p class="muted overview-group__empty">No overview content yet.</p>`
-                : scope.blocksByCategory.map((group) => `
-                  <div class="overview-category">
-                    <p class="overview-category__label">${escapeHtml(OVERVIEW_CATEGORY_LABELS[group.category] || group.category)}</p>
-                    <ul class="overview-block-list">
-                      ${group.blocks.map((block, index) => renderOverviewBlockRow(block, {
-                        canMoveUp: index > 0,
-                        canMoveDown: index < group.blocks.length - 1,
-                      })).join("")}
-                    </ul>
-                  </div>
-                `).join("")
-            }
-          </div>
-        `).join("")}
-      </div>
-    </section>
+          `
+      }
+    </div>
   `;
 }
 
@@ -150,8 +157,8 @@ export function renderOverviewEditorModal({ mode, block, scopeBaseId, bases, isS
             </label>
 
             <label class="field">
-              <span>Subtitle</span>
-              <input name="subtitle" type="text" maxlength="120" value="${escapeHtml(subtitle)}" placeholder="e.g. Currency & Payments" required />
+              <span>Subtitle (optional)</span>
+              <input name="subtitle" type="text" maxlength="120" value="${escapeHtml(subtitle)}" placeholder="e.g. Currency & Payments" />
             </label>
 
             <label class="field">
@@ -266,12 +273,6 @@ export function createOverviewHandlers() {
       const subtitle = String(formData.get("subtitle") || "").trim();
       const body = String(formData.get("body") || "").trim();
       const isPublished = formData.get("isPublished") === "on";
-
-      if (!subtitle) {
-        appStore.updateTripDetail({ overviewEditorError: "Add a subtitle first." });
-        rerenderTripDetail();
-        return;
-      }
 
       if (!session?.user?.id) {
         showToast("Your session expired. Sign in again.", "error");
