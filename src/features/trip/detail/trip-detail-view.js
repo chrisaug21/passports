@@ -114,7 +114,7 @@ export function renderTripDetailPageView() {
   return `
     <section class="trip-detail">
       <section class="panel trip-header">
-        <div class="trip-header__media photo-hero" ${!tripHeroPhotoUrl ? "data-trip-hero-upload" : ""}>
+        <div class="trip-header__media photo-hero" ${!tripHeroPhotoUrl ? "data-trip-hero-upload-area" : ""}>
           ${tripHeroPhotoUrl ? renderHeroPhotoImage(tripHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
           <div class="photo-hero__controls">
             <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Adjust trip photo crop" : "Add trip photo"}">

@@ -77,7 +77,15 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onViewModeChange?.(button.getAttribute("data-view-mode"));
   });
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
-  bindClick("[data-trip-hero-upload]", handlers.onUploadTripHero);
+  // The hero action button sits inside a container that's *also* a fallback
+  // click target when there's no photo yet (data-trip-hero-upload-area) —
+  // without stopPropagation, clicking the button would bubble and fire the
+  // container's listener too, double-invoking the upload flow on a single click.
+  bindAll("[data-trip-hero-upload]", "click", (_element, event) => {
+    event.stopPropagation();
+    handlers.onUploadTripHero?.();
+  });
+  bindClick("[data-trip-hero-upload-area]", handlers.onUploadTripHero);
   bindClick("[data-trip-hero-replace]", handlers.onReplaceTripHero);
   bindClick("#cancel-trip-settings", handlers.onCancelTripSettings);
   bindClick("[data-close-trip-settings]", handlers.onCancelTripSettings);
@@ -91,8 +99,15 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-edit-base]", "click", (button) => {
     handlers.onEditBase?.(button.getAttribute("data-edit-base"));
   });
-  bindAll("[data-base-hero-upload]", "click", (button) => {
+  // Same stopPropagation reasoning as the trip hero button above — this
+  // button's container is also a fallback click target when the base has
+  // no photo yet (data-base-hero-upload-area).
+  bindAll("[data-base-hero-upload]", "click", (button, event) => {
+    event.stopPropagation();
     handlers.onUploadBaseHero?.(button.getAttribute("data-base-hero-upload"));
+  });
+  bindAll("[data-base-hero-upload-area]", "click", (element) => {
+    handlers.onUploadBaseHero?.(element.getAttribute("data-base-hero-upload-area"));
   });
   bindAll("[data-base-hero-replace]", "click", (button) => {
     handlers.onReplaceBaseHero?.(button.getAttribute("data-base-hero-replace"));

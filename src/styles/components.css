@@ -246,7 +246,8 @@
 }
 
 /* Empty photo-hero tappable area */
-.photo-hero[data-trip-hero-upload] {
+.photo-hero[data-trip-hero-upload-area],
+.photo-hero[data-base-hero-upload-area] {
   cursor: pointer;
 }
 
