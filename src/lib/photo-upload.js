@@ -24,12 +24,20 @@ export function selectImageFile() {
       cleanup();
       resolve(file);
     };
+    // Fallback heuristic for browsers without the native "cancel" event
+    // below: on some browser/OS combinations, the window "focus" event can
+    // fire before the browser has finished populating input.files and
+    // dispatching "change" for a real selection — a 250ms grace window was
+    // observed to be too tight in practice and could read files as empty
+    // and resolve null out from under a selection that was already made,
+    // silently killing the rest of the upload flow with no error shown.
+    // Widened, and now only a fallback behind the "cancel" event.
     const handleWindowFocus = () => {
       window.setTimeout(() => {
         if (!input.files?.length) {
           finish(null);
         }
-      }, 250);
+      }, 750);
     };
 
     input.type = "file";
@@ -37,6 +45,13 @@ export function selectImageFile() {
     input.style.display = "none";
     input.addEventListener("change", () => {
       finish(input.files?.[0] || null);
+    }, { once: true });
+    // Primary cancel-detection signal where supported (modern Chromium,
+    // Firefox, Safari) — fires reliably on dialog dismissal without any
+    // dependency on window focus timing, sidestepping the race above
+    // entirely for browsers that have it.
+    input.addEventListener("cancel", () => {
+      finish(null);
     }, { once: true });
     window.addEventListener("focus", handleWindowFocus);
     // Safety net: the "focus" listener above is a heuristic for detecting a
