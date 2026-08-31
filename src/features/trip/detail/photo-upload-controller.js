@@ -59,7 +59,16 @@ export function createPhotoUploadHandlers() {
 }
 
 async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
-  if (isHandlerBusy) return;
+  if (isHandlerBusy) {
+    // Previously a silent no-op — with the file picker's cancel-detection
+    // now guaranteed to settle (see selectImageFile's fallback timeout),
+    // this lock can no longer stick permanently, but a click landing
+    // mid-upload should still say something rather than appear to do
+    // nothing.
+    showToast("Still working on the previous photo — try again in a moment.", "error");
+    return;
+  }
+
   isHandlerBusy = true;
 
   try {

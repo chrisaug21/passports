@@ -30,10 +30,12 @@ src/
 Files in `src/lib/vendor/` are third-party libraries and must never be edited.
 Do not read them for context. Do not modify them.
 
-## Three Modes
-- **Planning mode** — private; full edit access; idea/shortlisted items visible
-- **Traveling mode** — phone-first; shows today's plan based on trip dates
-- **Diary/share mode** — public read-only via `/trip/:id`; confirmed/reserved/done items only
+## Views
+- **Plan view** — private; full edit access; idea/shortlisted items visible; trip/base overview content is authored here
+- **Guide view** (`src/features/trip/guide/`) — the itinerary/diary experience, rendered once and filtered by `viewerRole` (owner/member/public) rather than as separate pages. Two tabs, matching the in-app labels:
+  - **Itinerary tab** — day-by-day plan; phone-first; on an Active trip shows today's plan based on trip dates
+  - **Journal tab** — trip memories; enabled once trip status is Active or done; shown to public viewers only when `trip.is_journal_public`
+  - Public read-only access via `/trip/:id` (no login) is Guide view with `viewerRole = "public"` — idea/shortlisted items, costs, reactions, and internal notes are always hidden
 
 ## Data Hierarchy
 ```

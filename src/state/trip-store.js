@@ -6,6 +6,7 @@ function createTripStore() {
   let currentBases = [];
   let currentDays = [];
   let currentItems = [];
+  let currentOverviewBlocks = [];
 
   return {
     getTrips() {
@@ -39,11 +40,24 @@ function createTripStore() {
     getCurrentItems() {
       return currentItems;
     },
+    getCurrentOverviewBlocks() {
+      return currentOverviewBlocks;
+    },
     setCurrentTripBundle(bundle) {
       currentTrip = bundle.trip;
       currentBases = bundle.bases;
       currentDays = bundle.days;
       currentItems = bundle.items;
+      currentOverviewBlocks = bundle.overviewBlocks || [];
+    },
+    appendCurrentOverviewBlock(block) {
+      currentOverviewBlocks = [...currentOverviewBlocks, block];
+    },
+    updateCurrentOverviewBlock(nextBlock) {
+      currentOverviewBlocks = currentOverviewBlocks.map((block) => (block.id === nextBlock.id ? nextBlock : block));
+    },
+    removeCurrentOverviewBlock(blockId) {
+      currentOverviewBlocks = currentOverviewBlocks.filter((block) => block.id !== blockId);
     },
     appendCurrentItem(item) {
       currentItems = [...currentItems, item];
@@ -75,6 +89,7 @@ function createTripStore() {
       currentBases = [];
       currentDays = [];
       currentItems = [];
+      currentOverviewBlocks = [];
     },
   };
 }

@@ -18,6 +18,11 @@ import {
 } from "./trip-settings-controller.js";
 import { renderMembersModal } from "./members-controller.js";
 import {
+  renderDeleteOverviewBlockConfirmModal,
+  renderOverviewEditorModal,
+  renderOverviewScopeSection,
+} from "./overview-controller.js";
+import {
   buildAllocationRows,
   getAllocationState,
   getAllocationSummary,
@@ -55,6 +60,8 @@ export function renderTripDetailPageView() {
   const selectedEditBase = bases.find((base) => base.id === tripDetail.editingBaseId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
+  const overviewBlocks = tripStore.getCurrentOverviewBlocks();
+  const editingOverviewBlock = overviewBlocks.find((block) => block.id === tripDetail.editingOverviewBlockId) || null;
 
   if (tripDetail.status === "loading") {
     return `
@@ -107,7 +114,7 @@ export function renderTripDetailPageView() {
   return `
     <section class="trip-detail">
       <section class="panel trip-header">
-        <div class="trip-header__media photo-hero" ${!tripHeroPhotoUrl ? "data-trip-hero-upload" : ""}>
+        <div class="trip-header__media photo-hero" ${!tripHeroPhotoUrl ? "data-trip-hero-upload-area" : ""}>
           ${tripHeroPhotoUrl ? renderHeroPhotoImage(tripHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
           <div class="photo-hero__controls">
             <button class="photo-hero__action" data-trip-hero-upload type="button" aria-label="${tripHeroPhotoUrl ? "Adjust trip photo crop" : "Add trip photo"}">
@@ -144,6 +151,10 @@ export function renderTripDetailPageView() {
           </div>
           ${renderTripSettingsSummary(trip)}
         </div>
+      </section>
+
+      <section class="panel trip-overview-panel">
+        ${renderOverviewScopeSection(null, overviewBlocks)}
       </section>
 
       <section class="trip-stat-tiles" aria-label="Trip stats">
@@ -219,7 +230,7 @@ export function renderTripDetailPageView() {
         ${renderMasterListPlanningTable({ items, days, bases, tripDetail })}
       </section>
       `
-          : renderDaysView(bases, days, assignedItems, unassignedItems, {
+          : renderDaysView(bases, days, assignedItems, unassignedItems, overviewBlocks, {
               getInterleavedDayItems,
               getSortedUnassignedItems,
               renderDayItem,
@@ -266,6 +277,19 @@ export function renderTripDetailPageView() {
       })}
       ${renderTimezoneOptionsDatalist()}
       ${renderMembersModal()}
+      ${tripDetail.overviewEditorMode ? renderOverviewEditorModal({
+        mode: tripDetail.overviewEditorMode,
+        block: editingOverviewBlock,
+        scopeBaseId: tripDetail.overviewEditorScopeBaseId,
+        bases,
+        isSaving: tripDetail.isSavingOverviewBlock,
+        error: tripDetail.overviewEditorError,
+      }) : ""}
+      ${renderDeleteOverviewBlockConfirmModal({
+        block: overviewBlocks.find((entry) => entry.id === tripDetail.deletingOverviewBlockId) || null,
+        isOpen: tripDetail.showDeleteOverviewBlockConfirm,
+        isDeleting: tripDetail.isDeletingOverviewBlock,
+      })}
     </section>
   `;
 }

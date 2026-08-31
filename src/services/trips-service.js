@@ -241,7 +241,7 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 
-  const [tripResult, basesResult, daysResult, itemsResult, photosResult] = await Promise.all([
+  const [tripResult, basesResult, daysResult, itemsResult, photosResult, overviewBlocksResult] = await Promise.all([
     supabase
       .from("trips")
       .select(
@@ -291,6 +291,12 @@ export async function fetchTripDetailBundle(tripId) {
       .is("day_id", null)
       .is("item_id", null)
       .order("updated_at", { ascending: false }),
+    supabase
+      .from("trip_overview_blocks")
+      .select("id, trip_id, base_id, category, subtitle, body, sort_order, is_published, source, created_by, created_at, updated_at")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true }),
   ]);
 
   if (tripResult.error) {
@@ -311,6 +317,10 @@ export async function fetchTripDetailBundle(tripId) {
 
   if (photosResult.error) {
     throw photosResult.error;
+  }
+
+  if (overviewBlocksResult.error) {
+    throw overviewBlocksResult.error;
   }
 
   const photos = photosResult.data || [];
@@ -340,6 +350,7 @@ export async function fetchTripDetailBundle(tripId) {
     }),
     days: daysResult.data || [],
     items: itemsResult.data || [],
+    overviewBlocks: overviewBlocksResult.data || [],
   };
 }
 

@@ -12,15 +12,16 @@ import {
   renderHeroPhotoImage,
 } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
+import { renderOverviewScopeSection } from "./overview-controller.js";
 
-export function renderDaysView(bases, days, assignedItems, unassignedItems, helpers) {
+export function renderDaysView(bases, days, assignedItems, unassignedItems, overviewBlocks, helpers) {
   const { getSortedUnassignedItems, renderDayItem } = helpers;
   const sortedUnassignedItems = getSortedUnassignedItems(unassignedItems);
-  const groupedRows = buildAllocationRows(bases, days).filter((row) => row.dayCount > 0);
+  const groupedRows = buildAllocationRows(bases, days).filter((row) => row.kind === "base" || row.dayCount > 0);
 
   return `
     <section class="days-view">
-      ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers)).join("")}
+      ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers, overviewBlocks)).join("")}
 
       <section class="panel days-view__pool">
         <div class="days-view__panel-header">
@@ -39,7 +40,7 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, help
   `;
 }
 
-export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
+export function renderBaseDaysSection(row, days, items, rowCount, helpers, overviewBlocks = []) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
   const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
   const shouldShowBaseHeader = !isSingleBaseTrip;
@@ -53,7 +54,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
       ${
         row.kind === "base" && !isSingleBaseTrip
           ? `
-            <div class="days-base-section__hero photo-hero">
+            <div class="days-base-section__hero photo-hero" ${!baseHeroPhotoUrl ? `data-base-hero-upload-area="${escapeHtml(row.base.id)}"` : ""}>
               ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
               ${
                 showBasePhotoAction
@@ -88,6 +89,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers) {
           <button class="button button--secondary section-action-button section-action-button--base" data-add-item-to-base="${escapeHtml(row.base.id)}" type="button"><span class="section-action-button__full">Add to ${escapeHtml(row.label)}</span><span class="section-action-button__short">Add</span></button>
         </div>
       ` : ``}
+      ${row.kind === "base" ? renderOverviewScopeSection(row.base.id, overviewBlocks) : ""}
       <div class="day-card-grid">
         ${baseDays.map((day) => renderDayCard(day, items, helpers)).join("")}
       </div>

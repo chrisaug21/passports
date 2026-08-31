@@ -5,6 +5,13 @@ Project-specific instructions. Global coding standards and git discipline are in
 ## What This Project Is
 Personal travel planner and diary PWA. Used on phone while traveling, desktop for planning, and tablet for browsing. Multi-user: Planners have full CRUD, Travelers can add items and react. Public share links expose curated read-only trip views with no login required.
 
+## Views
+- **Plan view** — private; full edit access; idea/shortlisted items visible; trip/base overview content is authored here
+- **Guide view** (`src/features/trip/guide/`) — the itinerary/diary experience, rendered once and filtered by `viewerRole` (owner/member/public) rather than as separate pages. Two tabs, matching the in-app labels:
+  - **Itinerary tab** — day-by-day plan; phone-first; on an Active trip shows today's plan based on trip dates
+  - **Journal tab** — trip memories; enabled once trip status is Active or done; shown to public viewers only when `trip.is_journal_public`
+  - Public read-only access via `/trip/:id` (no login) is Guide view with `viewerRole = "public"` — idea/shortlisted items, costs, reactions, and internal notes are always hidden
+
 ## File Structure
 ```text
 index.html                        — single HTML entry point

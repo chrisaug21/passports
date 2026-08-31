@@ -3,12 +3,16 @@ const CROPPED_OUTPUT_WIDTH = 1200;
 const CROPPED_OUTPUT_HEIGHT = 800;
 const JPEG_QUALITY = 0.85;
 
+const SELECT_IMAGE_FALLBACK_TIMEOUT_MS = 120000;
+
 export function selectImageFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     let isResolved = false;
+    let fallbackTimeoutId = 0;
     const cleanup = () => {
       window.removeEventListener("focus", handleWindowFocus);
+      window.clearTimeout(fallbackTimeoutId);
       input.remove();
     };
     const finish = (file) => {
@@ -20,12 +24,20 @@ export function selectImageFile() {
       cleanup();
       resolve(file);
     };
+    // Fallback heuristic for browsers without the native "cancel" event
+    // below: on some browser/OS combinations, the window "focus" event can
+    // fire before the browser has finished populating input.files and
+    // dispatching "change" for a real selection — a 250ms grace window was
+    // observed to be too tight in practice and could read files as empty
+    // and resolve null out from under a selection that was already made,
+    // silently killing the rest of the upload flow with no error shown.
+    // Widened, and now only a fallback behind the "cancel" event.
     const handleWindowFocus = () => {
       window.setTimeout(() => {
         if (!input.files?.length) {
           finish(null);
         }
-      }, 250);
+      }, 750);
     };
 
     input.type = "file";
@@ -34,7 +46,22 @@ export function selectImageFile() {
     input.addEventListener("change", () => {
       finish(input.files?.[0] || null);
     }, { once: true });
+    // Primary cancel-detection signal where supported (modern Chromium,
+    // Firefox, Safari) — fires reliably on dialog dismissal without any
+    // dependency on window focus timing, sidestepping the race above
+    // entirely for browsers that have it.
+    input.addEventListener("cancel", () => {
+      finish(null);
+    }, { once: true });
     window.addEventListener("focus", handleWindowFocus);
+    // Safety net: the "focus" listener above is a heuristic for detecting a
+    // canceled file picker, and it isn't reliable on every browser/OS
+    // combination. Without a hard fallback, an environment where it never
+    // fires leaves this promise pending forever — which, upstream, leaves
+    // the caller's busy lock stuck permanently, silently blocking every
+    // future photo upload with no error shown. Guarantee this always
+    // settles eventually regardless of that event firing.
+    fallbackTimeoutId = window.setTimeout(() => finish(null), SELECT_IMAGE_FALLBACK_TIMEOUT_MS);
     document.body.append(input);
     input.click();
   });

@@ -42,6 +42,14 @@ function createInitialTripDetail() {
     showDeleteTripConfirm: false,
     isDeletingTrip: false,
     isShowingMembersModal: false,
+    overviewEditorMode: null,
+    editingOverviewBlockId: null,
+    overviewEditorScopeBaseId: null,
+    isSavingOverviewBlock: false,
+    overviewEditorError: "",
+    showDeleteOverviewBlockConfirm: false,
+    deletingOverviewBlockId: null,
+    isDeletingOverviewBlock: false,
   };
 }
 
