@@ -60,7 +60,6 @@ function buildOverviewCardModels(scopeBaseId, overviewBlocks) {
 function renderOverviewCard(block, { canMoveUp, canMoveDown }) {
   const categoryLabel = OVERVIEW_CATEGORY_LABELS[block.category] || block.category;
   const iconName = OVERVIEW_CATEGORY_ICONS[block.category] || "circle-dot";
-  const displayTitle = block.subtitle || categoryLabel;
 
   return `
     <article class="overview-card">
@@ -91,7 +90,7 @@ function renderOverviewCard(block, { canMoveUp, canMoveDown }) {
         </div>
       </div>
       <button class="overview-card__button" data-edit-overview-block="${escapeHtml(block.id)}" type="button">
-        <span class="overview-card__subtitle">${escapeHtml(displayTitle)}</span>
+        ${block.subtitle ? `<span class="overview-card__subtitle">${escapeHtml(block.subtitle)}</span>` : ""}
         <span class="overview-status-badge ${block.is_published ? "is-published" : "is-draft"}">${block.is_published ? "Published" : "Draft"}</span>
       </button>
     </article>
