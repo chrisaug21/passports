@@ -53,6 +53,14 @@ export async function loadTripDetail(tripId) {
       itemEditorMode: "edit",
       itemEditorContext: null,
       editingItemId: persistedItemStillExists ? tripDetailState.persistedEditorItemId : null,
+      overviewEditorMode: null,
+      editingOverviewBlockId: null,
+      overviewEditorScopeBaseId: null,
+      isSavingOverviewBlock: false,
+      overviewEditorError: "",
+      showDeleteOverviewBlockConfirm: false,
+      deletingOverviewBlockId: null,
+      isDeletingOverviewBlock: false,
     });
     if (!isSameTrip) {
       tripDetailState.itemEditorInitialSnapshot = "";

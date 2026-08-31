@@ -1,6 +1,6 @@
 # Trip & Base Overview Content — Spec
 
-**Status:** Scoped, not started. No branch yet. This document is the output of a scoping conversation and is the starting point for implementation — likely split across multiple PRs/sessions (schema + Plan view first, Guide view display second, MCP tools third), possibly one.
+**Status:** Phase 1 (schema + Plan view authoring) is built on `claude/passports-overview-content-801f4t`, not yet merged. Guide view display (Phase 2) and MCP tools (Phase 3) are scoped below but not started.
 
 **Audience:** A fresh Claude Code session with no memory of how this was scoped. Read this whole document before writing any code.
 
@@ -56,9 +56,15 @@ Display labels (Title Case + `&` where natural): Culture, Food & Drink, History,
 
 ### RLS
 
-Follows the existing trip-scoped pattern exactly (mirror `trip_items` policies):
-- `authenticated` role, scoped via `trip_members` (planner or traveler can read/write; matches how items work — no separate "overview editor" role for v1).
-- Public/anon read policy, modeled on the `is_public` policy already used for `trip-export.js` / the public share view: **only rows where `is_published = true`** are visible to an anon/public read, regardless of `is_public` on the trip. A trip being publicly shared does not implicitly publish its draft overview content.
+Implemented (Phase 1) mirroring `trip_items`'s actual policy shape exactly, confirmed against `pg_policies` on the live project rather than guessed:
+- `authenticated` SELECT: `is_trip_member(trip_id)` or the trip is `is_public` — members always see every block, published or draft.
+- `authenticated` INSERT: `is_trip_member(trip_id) AND auth.uid() = created_by`.
+- `authenticated` UPDATE: `is_trip_planner(trip_id)` OR (`is_trip_member(trip_id)` AND `created_by = auth.uid()`) — same nuance as items: planners can edit any block, travelers only their own.
+- `authenticated` DELETE: `is_trip_planner(trip_id)` only.
+- `anon` SELECT — **two policies, a judgment call made during implementation, not discussed beforehand:**
+  - `anon_select_planning_trip_overview_blocks`: when `trips.is_planning_public = true`, every non-deleted block is visible regardless of `is_published` — this mirrors how the "LLM planning link" already exposes idea/shortlisted items (full internal state, not a curated view), so it's treated as the same kind of full-detail share.
+  - `anon_select_public_trip_overview_blocks`: when `trips.is_public = true`, only `is_published = true` blocks are visible — this is the curated share the Publish flow below is actually protecting.
+  - Worth a sanity check from the user: this means turning on the "LLM planning link" shows unpublished overview drafts to whoever holds that link, same as it already does for idea-stage items. If that's not the intended behavior for overview content specifically, this policy needs revisiting — it was not an explicit decision, just the most consistent extension of the existing convention.
 
 ## Publish flow
 
@@ -67,12 +73,14 @@ Follows the existing trip-scoped pattern exactly (mirror `trip_items` policies):
 - Plan view must make draft state visually obvious (a "Draft" badge or similar) — unpublished blocks are otherwise fully visible/editable there regardless of publish state; only Guide view's public path filters on `is_published`.
 - Trip owner/members viewing Guide view (not public) should see both published and unpublished blocks, likely with the same draft indicator — the point of the flag is protecting the *public* link, not hiding drafts from the trip's own people.
 
-## Plan view (authoring)
+## Plan view (authoring) — as built in Phase 1
 
-- New section, sibling to the existing trip-detail sections (master list, days, bases, etc. — see `src/features/trip/detail/`).
-- Grouped by scope then category: Trip-level content first, then each base in trip order, each showing its populated categories alphabetically, listing each block's `subtitle` (not full `body`) as a row.
-- **Modal edit workflow, not inline editing** — mirror the existing item-editor pattern (`item-editor-controller.js` / `item-editor-view.js` / `item-editor-modals.js` / `item-editor-dom.js` / `item-editor-draft.js` / `item-editor-actions.js` in `src/features/trip/detail/`) rather than editing `subtitle`/`body`/`is_published` in place in the list row. Same reasons that pattern exists for items apply here: consistent draft/cancel/save semantics, one modal shape the rest of the app already knows how to style and wire.
-- Per category: "+ Add block" affordance opens the same modal in create mode; drag-or-arrow reordering for `sort_order` when a category has multiple blocks (reuse whatever reordering pattern items already use, e.g. `item-ordering.js`, rather than inventing a new one).
+- New section (`renderOverviewSection`), sibling to the existing trip-detail sections (master list, days, bases — see `src/features/trip/detail/`), rendered near the bottom of the trip detail page.
+- Grouped by scope then category: Trip-level content first, then each base in trip order. A scope's category subheadings only render for categories that actually have ≥1 block — an empty scope just shows one "+ Add Content" button and a "No overview content yet" line, rather than six empty category headers. Each row shows the block's `subtitle` plus a Draft/Published badge.
+- **Modal edit workflow**, as requested — but built on the lighter form pattern `trip-settings-controller.js`/`renderTripSettingsForm` already uses (render straight from the block object, read values via `FormData` on submit), not the heavier item-editor machinery (`item-editor-draft.js`'s live draft object, dirty-checking, discard-confirm). Items need that weight because of type-dependent fields and time/base/day interdependencies; overview blocks are four independent fields with no such coupling, so the simpler existing pattern was the better fit and is fully sufficient.
+- Scope (trip-level vs. which base) is set when a block is created and is **not** editable afterward — move a block to a different base by deleting and recreating it. Category, subtitle, body, and published state are all editable.
+- Delete is a "Remove" link inside the edit modal, opening the same confirm-modal pattern as item/base/trip deletion, soft-deleting via `deleted_at`.
+- **Known gap, not built in Phase 1: no manual reordering UI.** `sort_order` is set automatically (`max existing sort_order in that scope+category, + 1`) when a block is created, but there is no drag/arrow control to reorder existing blocks afterward — the spec's original mention of reusing `item-ordering.js` for this did not get built. Low-priority since the field exists and works for that ordering to be interacted with directly in the database if needed; add it later if multiple-blocks-per-category turns out to need frequent reordering in practice.
 - No presentation-oriented tab/pill UI here — Plan view prioritizes CRUD efficiency over hype, per the discussion that led to this doc.
 
 ## Guide view (display)
@@ -102,23 +110,27 @@ New tools in `mcp-server/` (see `passports-mcp-server-spec.md` for the auth/tool
 
 Mirrors the existing `overview-service.js` (new file, `src/services/`) that Plan view also calls — one service, both surfaces (matches how the rest of the app shares services between UI and, where applicable, MCP tools calling the same Supabase tables under RLS).
 
-## File additions (proposed, following existing conventions)
+## File additions — Phase 1, as built
 
 ```text
 src/
-  config/constants.js          — add OVERVIEW_CATEGORIES (alphabetical order) + display labels
-  services/overview-service.js — CRUD for trip_overview_blocks
+  config/constants.js                     — OVERVIEW_CATEGORIES + OVERVIEW_CATEGORY_LABELS
+  services/overview-service.js            — fetchTripOverviewBlocks/createOverviewBlock/updateOverviewBlock/softDeleteOverviewBlock
+  services/trips-service.js               — fetchTripDetailBundle extended to fetch+return overviewBlocks alongside bases/days/items
+  state/trip-store.js                     — currentOverviewBlocks + append/update/remove helpers, wired into setCurrentTripBundle/resetCurrentTrip
+  state/app-store.js                      — overview editor/delete-confirm fields added to tripDetail's initial state
   features/trip/detail/
-    overview-controller.js     — Plan view section wiring
-    overview-view.js           — Plan view list rendering (grouped by scope/category)
-    overview-editor-modal.js   — create/edit modal, mirroring item-editor-modals.js's split
-  features/trip/guide/
-    overview-guide-view.js     — category-selector + inline-expand rendering for Guide view
-  styles/features/overview.css — new component styles (selector row, expanded block card)
+    overview-controller.js                — single file: renderOverviewSection, renderOverviewEditorModal, renderDeleteOverviewBlockConfirmModal, createOverviewHandlers — mirrors members-controller.js's self-contained shape rather than item-editor's multi-file split, since the feature is closer in size/complexity to members than to items
+    trip-detail-view.js / trip-detail-wire.js / trip-detail-loader.js — wired in (render calls, event bindings, state reset on trip load)
+  ../trip-detail-page.js                  — createOverviewHandlers() spread into the page's handler set; overview modal states added to syncTripDetailModalState's hasOpenModal check
+  styles/features/trip-overview.css       — new, imported from trip-detail.css's @import chain
 
-mcp-server/src/tools/
-  overview-blocks.js           — list/create/update tools (delete deferred to MCP Phase 4)
+Not yet built (Phase 2/3, still as scoped further down):
+  features/trip/guide/overview-guide-view.js  — Guide view display
+mcp-server/src/tools/overview-blocks.js       — MCP tools
 ```
+
+Supabase: `trip_overview_blocks` table + RLS policies + `trip_overview_blocks_updated_at` trigger (reusing the existing shared `update_updated_at()` function) applied directly via migration, confirmed against the live project's actual `trip_items`/`trip_bases` policies and helper functions (`is_trip_member`, `is_trip_planner`) rather than assumed from this doc's earlier draft.
 
 ## Non-goals for v1
 

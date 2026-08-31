@@ -29,6 +29,7 @@ import {
   getTripItemErrorMessage,
 } from "./detail/item-editor-controller.js";
 import { createMembersHandlers } from "./detail/members-controller.js";
+import { createOverviewHandlers } from "./detail/overview-controller.js";
 import { renderTripDetailPageView } from "./detail/trip-detail-view.js";
 
 export function setTripDetailRenderer(renderer) {
@@ -57,6 +58,8 @@ function syncTripDetailModalState(tripDetail) {
     tripDetail.showDeleteBaseConfirm ||
     tripDetail.showDeleteTripConfirm ||
     tripDetail.isShowingMembersModal ||
+    tripDetail.overviewEditorMode ||
+    tripDetail.showDeleteOverviewBlockConfirm ||
     tripDetailState.allocationConfirmState
   );
 
@@ -79,6 +82,7 @@ function createTripDetailHandlers(tripId) {
   });
   const itemEditorHandlers = createItemEditorHandlers();
   const membersHandlers = createMembersHandlers();
+  const overviewHandlers = createOverviewHandlers();
 
   return {
     onBackToDashboard: () => navigate("/app"),
@@ -99,6 +103,7 @@ function createTripDetailHandlers(tripId) {
     ...itemsHandlers,
     ...itemEditorHandlers,
     ...membersHandlers,
+    ...overviewHandlers,
   };
 }
 

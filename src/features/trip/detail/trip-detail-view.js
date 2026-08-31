@@ -18,6 +18,11 @@ import {
 } from "./trip-settings-controller.js";
 import { renderMembersModal } from "./members-controller.js";
 import {
+  renderDeleteOverviewBlockConfirmModal,
+  renderOverviewEditorModal,
+  renderOverviewSection,
+} from "./overview-controller.js";
+import {
   buildAllocationRows,
   getAllocationState,
   getAllocationSummary,
@@ -55,6 +60,8 @@ export function renderTripDetailPageView() {
   const selectedEditBase = bases.find((base) => base.id === tripDetail.editingBaseId) || null;
   const unassignedItems = items.filter((item) => !item.day_id);
   const assignedItems = items.filter((item) => item.day_id);
+  const overviewBlocks = tripStore.getCurrentOverviewBlocks();
+  const editingOverviewBlock = overviewBlocks.find((block) => block.id === tripDetail.editingOverviewBlockId) || null;
 
   if (tripDetail.status === "loading") {
     return `
@@ -226,6 +233,8 @@ export function renderTripDetailPageView() {
             })
       }
 
+      ${renderOverviewSection(trip, bases, overviewBlocks)}
+
       ${renderItemEditorModal({
         item: editingItem,
         bases,
@@ -266,6 +275,19 @@ export function renderTripDetailPageView() {
       })}
       ${renderTimezoneOptionsDatalist()}
       ${renderMembersModal()}
+      ${tripDetail.overviewEditorMode ? renderOverviewEditorModal({
+        mode: tripDetail.overviewEditorMode,
+        block: editingOverviewBlock,
+        scopeBaseId: tripDetail.overviewEditorScopeBaseId,
+        bases,
+        isSaving: tripDetail.isSavingOverviewBlock,
+        error: tripDetail.overviewEditorError,
+      }) : ""}
+      ${renderDeleteOverviewBlockConfirmModal({
+        block: overviewBlocks.find((entry) => entry.id === tripDetail.deletingOverviewBlockId) || null,
+        isOpen: tripDetail.showDeleteOverviewBlockConfirm,
+        isDeleting: tripDetail.isDeletingOverviewBlock,
+      })}
     </section>
   `;
 }

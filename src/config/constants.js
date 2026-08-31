@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.1.6";
+export const APP_VERSION = "1.1.7";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -32,6 +32,18 @@ export const ACTIVITY_TYPES = [
 ];
 
 export const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
+
+// Alphabetical — this order drives every add/edit category picker.
+export const OVERVIEW_CATEGORIES = ["culture", "food_drink", "history", "language", "logistics", "misc"];
+
+export const OVERVIEW_CATEGORY_LABELS = {
+  culture: "Culture",
+  food_drink: "Food & Drink",
+  history: "History",
+  language: "Language",
+  logistics: "Logistics",
+  misc: "Misc",
+};
 
 export const CANONICAL_TIMEZONES = [
   ["America/New_York", "Eastern Time - US & Canada"],

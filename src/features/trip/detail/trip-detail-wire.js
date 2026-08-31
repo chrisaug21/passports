@@ -258,6 +258,20 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onDayTitleTrigger?.(button.getAttribute("data-day-title-trigger"));
   });
 
+  bindAll("[data-add-overview-block]", "click", (button) => {
+    handlers.onAddOverviewBlock?.(button.getAttribute("data-add-overview-block"));
+  });
+  bindAll("[data-edit-overview-block]", "click", (button) => {
+    handlers.onEditOverviewBlock?.(button.getAttribute("data-edit-overview-block"));
+  });
+  bindClick("#close-overview-editor", handlers.onCloseOverviewEditor);
+  bindClick("[data-close-overview-editor]", handlers.onCloseOverviewEditor);
+  bindSubmit("#overview-editor-form", handlers.onOverviewEditorSubmit);
+  bindClick("#delete-overview-block-button", handlers.onRequestDeleteOverviewBlock);
+  bindClick("#cancel-delete-overview-block", handlers.onCancelDeleteOverviewBlock);
+  bindClick("[data-cancel-delete-overview-block]", handlers.onCancelDeleteOverviewBlock);
+  bindClick("#confirm-delete-overview-block", handlers.onConfirmDeleteOverviewBlock);
+
   document.querySelectorAll("#day-title-inline-input").forEach((dayTitleInput) => {
     handlers.onDayTitleInputReady?.(dayTitleInput);
     dayTitleInput.addEventListener("input", (event) => {
