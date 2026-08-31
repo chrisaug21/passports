@@ -186,3 +186,25 @@
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+
+/* Truncated notes that expand in place — accordion-style, one open at a time (item-notes-expand.js) */
+.item-notes-expand__text {
+  margin: 0;
+}
+
+.item-notes-expand__full {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.item-notes-expand__toggle {
+  display: block;
+  margin-top: 0.15rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-structure);
+  cursor: pointer;
+}

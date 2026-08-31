@@ -208,6 +208,32 @@ export function renderItemNotes(item, className) {
   `;
 }
 
+export function renderExpandableItemNotes(item, className) {
+  const notes = String(item.notes || "").trim();
+
+  if (!notes) {
+    return "";
+  }
+
+  const isTruncated = notes.length > ITEM_NOTES_PREVIEW_LENGTH;
+
+  if (!isTruncated) {
+    return `<p class="${className}">${escapeHtml(notes)}</p>`;
+  }
+
+  const preview = notes.slice(0, ITEM_NOTES_PREVIEW_LENGTH).trimEnd();
+
+  return `
+    <div class="${className} item-notes-expand" data-item-notes>
+      <p class="item-notes-expand__text">
+        <span class="item-notes-expand__preview">${escapeHtml(preview)}&hellip;</span>
+        <span class="item-notes-expand__full" hidden>${escapeHtml(notes)}</span>
+      </p>
+      <button class="item-notes-expand__toggle" type="button" data-item-notes-toggle aria-expanded="false">Read more</button>
+    </div>
+  `;
+}
+
 export function renderItemStatusMeta(status) {
   const safeStatus = String(status || "");
 

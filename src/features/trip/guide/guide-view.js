@@ -10,7 +10,7 @@ import {
   escapeHtml,
   getTripHeroPhotoUrl,
   getTripStatTiles,
-  renderItemNotes,
+  renderExpandableItemNotes,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -231,7 +231,7 @@ function renderGuideItemCard(item, viewerRole) {
         ${item.item_type === "meal" && item.meal_slot ? `<p class="guide-item-card__subtype">${escapeHtml(formatItemTypeLabel(item.meal_slot))}</p>` : ""}
         ${item.item_type === "activity" && item.activity_type ? `<p class="guide-item-card__subtype">${escapeHtml(formatItemTypeLabel(item.activity_type))}</p>` : ""}
         ${renderTransportRoute(item)}
-        ${renderItemNotes(item, "guide-item-card__notes")}
+        ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${item.url ? renderItemUrl(item.url) : ""}
         ${costSymbol ? `<p class="guide-item-card__cost" aria-label="Estimated cost: ${escapeHtml(costSymbol)}">${escapeHtml(costSymbol)}</p>` : ""}

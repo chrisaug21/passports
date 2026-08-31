@@ -7,6 +7,7 @@ import { showToast } from "../features/shared/toast.js";
 import { openProfileModal } from "../features/shared/profile-modal.js";
 import { openSettingsModal } from "../features/shared/settings-modal.js";
 import { initItemNotesModalDelegation } from "../features/shared/item-notes-modal.js";
+import { initItemNotesExpandDelegation } from "../features/shared/item-notes-expand.js";
 import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
@@ -26,6 +27,7 @@ export async function bootstrapApp() {
   try {
     appRoot.innerHTML = renderBootstrapLoadingScreen();
     initItemNotesModalDelegation();
+    initItemNotesExpandDelegation();
 
     const env = await initializeEnv();
     initializeSupabase(env);

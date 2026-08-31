@@ -8,7 +8,7 @@ import {
   escapeHtml,
   getCountLabel,
   getDoneTripStatTiles,
-  renderItemNotes,
+  renderExpandableItemNotes,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -440,7 +440,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
         ${item.item_type === "transport" && (item.transport_origin || item.transport_destination)
           ? `<p class="guide-item-card__route">${escapeHtml([item.transport_origin, item.transport_destination].filter(Boolean).join(" → "))}</p>`
           : ""}
-        ${renderItemNotes(item, "guide-item-card__notes")}
+        ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${itemUrl ? `<a class="guide-item-card__url" href="${escapeHtml(itemUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" aria-hidden="true"></i><span>${escapeHtml(urlLabel)}</span></a>` : ""}
       </div>
