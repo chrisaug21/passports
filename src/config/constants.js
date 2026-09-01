@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.1.17";
+export const APP_VERSION = "1.1.19";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -33,16 +33,29 @@ export const ACTIVITY_TYPES = [
 
 export const TRANSPORT_MODES = ["flight", "train", "car", "ferry", "bus", "other"];
 
-// Alphabetical — this order drives every add/edit category picker.
-export const OVERVIEW_CATEGORIES = ["culture", "food_drink", "history", "language", "logistics", "misc"];
+// "summary" always leads (a hype-up overview, meant to be seen first), then
+// the rest stay alphabetical. This order drives every add/edit category
+// picker and the Guide view tab row.
+export const OVERVIEW_CATEGORIES = ["summary", "culture", "food_drink", "history", "language", "logistics", "misc"];
 
 export const OVERVIEW_CATEGORY_LABELS = {
+  summary: "Summary",
   culture: "Culture",
   food_drink: "Food & Drink",
   history: "History",
   language: "Language",
   logistics: "Logistics",
   misc: "Misc",
+};
+
+export const OVERVIEW_CATEGORY_ICONS = {
+  summary: "flame",
+  culture: "palette",
+  food_drink: "utensils",
+  history: "landmark",
+  language: "languages",
+  logistics: "compass",
+  misc: "sparkles",
 };
 
 export const CANONICAL_TIMEZONES = [

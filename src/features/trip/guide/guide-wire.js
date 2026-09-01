@@ -3,8 +3,11 @@ import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
   filterItemsForViewer,
+  getBaseTransitionDayNumbers,
   getLodgingBands,
+  getOverviewNavEntries,
   renderFullDayContent,
+  renderOverviewSection,
   sortGuideItems,
   getTodayDayNumber,
 } from "./guide-view.js";
@@ -107,6 +110,7 @@ export function wireGuideView(state) {
   wireDashboardLink();
   wireTabSwitching();
   wireNavClicks();
+  wireOverviewAccordions();
   setupTouchScrollTracking();
   setupScrollTracking();
   setupDayNavStickyOffsetTracking();
@@ -114,11 +118,11 @@ export function wireGuideView(state) {
   setupLazyDays(state);
 
   if (_todayDayNumber) {
-    window.setTimeout(() => scrollOrJumpToDay(_todayDayNumber), 100);
+    window.setTimeout(() => scrollOrJumpToTarget(`guide-day-${_todayDayNumber}`), 100);
   }
 
   // Desktop: derive initial active state from scroll position.
-  // Mobile: scrollOrJumpToDay handles active state; default to day 1 otherwise.
+  // Mobile: scrollOrJumpToTarget handles active state; default to first item otherwise.
   if (!isMobileLayout()) {
     updateActiveSection();
   } else if (!_todayDayNumber) {
@@ -181,26 +185,30 @@ function wireDashboardLink() {
 // Day nav click → scroll / jump
 // ---------------------------------------------------------------------------
 
+// Every nav item (day or overview section) carries data-nav-id equal to its
+// target section's own element id, so click/scroll-spy/active-highlight work
+// uniformly across both kinds without separate code paths.
 function wireNavClicks() {
-  document.querySelectorAll("[data-guide-nav-day]").forEach((button) => {
+  document.querySelectorAll(".guide-nav-item[data-nav-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      const dayNumber = parseInt(button.dataset.guideNavDay, 10);
-      scrollOrJumpToDay(dayNumber);
+      scrollOrJumpToTarget(button.dataset.navId);
     });
   });
 }
 
 // Desktop: smooth-scroll to offset position; scroll-spy updates active state.
 // Mobile: set active pill immediately then scrollIntoView — no scroll-spy.
-function scrollOrJumpToDay(dayNumber) {
+function scrollOrJumpToTarget(targetId) {
+  if (!targetId) return;
+
   if (isMobileLayout()) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
-      item.classList.toggle("is-active", item.dataset.dayNumber === String(dayNumber));
+      item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
 
     syncMobileDayNavOffset();
     const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight();
-    const section = document.getElementById(`guide-day-${dayNumber}`);
+    const section = document.getElementById(targetId);
     if (!section) {
       return;
     }
@@ -208,7 +216,7 @@ function scrollOrJumpToDay(dayNumber) {
     const top = section.getBoundingClientRect().top + window.scrollY - stickyOffset;
     window.scrollTo({ top, behavior: "smooth" });
   } else {
-    scrollToDay(dayNumber);
+    scrollToTarget(targetId);
   }
 }
 
@@ -240,9 +248,9 @@ function setupTouchScrollTracking() {
   });
 }
 
-function scrollToDay(dayNumber) {
+function scrollToTarget(targetId) {
   if (isUserScrolling) return;
-  const section = document.getElementById(`guide-day-${dayNumber}`);
+  const section = document.getElementById(targetId);
   if (!section) return;
   const OFFSET = 80;
   const top = section.getBoundingClientRect().top + window.scrollY - OFFSET;
@@ -276,20 +284,20 @@ function setupScrollTracking() {
 
 function updateActiveSection() {
   const OFFSET = 120;
-  const sections = [...document.querySelectorAll(".guide-day-section[data-day-number]")];
+  const sections = [...document.querySelectorAll(".guide-nav-anchor")];
   if (sections.length === 0) return;
 
-  let activeDayNumber = sections[0].dataset.dayNumber;
+  let activeId = sections[0].id;
 
   for (const section of sections) {
     const rect = section.getBoundingClientRect();
     if (rect.top <= OFFSET) {
-      activeDayNumber = section.dataset.dayNumber;
+      activeId = section.id;
     }
   }
 
   document.querySelectorAll(".guide-nav-item").forEach((item) => {
-    item.classList.toggle("is-active", item.dataset.dayNumber === activeDayNumber);
+    item.classList.toggle("is-active", item.dataset.navId === activeId);
   });
 }
 
@@ -342,6 +350,50 @@ function setupLazyDays(state) {
 
   placeholders.forEach((el) => observer.observe(el));
   cleanupFns.push(() => observer.disconnect());
+}
+
+// ---------------------------------------------------------------------------
+// Overview content accordion — single-select category tabs
+// ---------------------------------------------------------------------------
+
+// Delegated on .guide-content, which persists across itinerary/journal tab
+// switches and lazy day loads (only its innerHTML is replaced), so this only
+// needs to be bound once per guide page load.
+function wireOverviewAccordions() {
+  const content = document.querySelector(".guide-content");
+  if (!content || content.dataset.overviewAccordionDelegated === "true") {
+    return;
+  }
+  content.dataset.overviewAccordionDelegated = "true";
+
+  content.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-overview-category]");
+    if (!button || !content.contains(button)) return;
+
+    const section = button.closest(".guide-overview");
+    if (!section) return;
+
+    const wasActive = button.classList.contains("is-active");
+
+    section.querySelectorAll("[data-overview-category]").forEach((tab) => {
+      tab.classList.remove("is-active");
+      tab.setAttribute("aria-selected", "false");
+    });
+    section.querySelectorAll("[data-overview-panel]").forEach((panel) => {
+      panel.classList.remove("is-active");
+      panel.setAttribute("hidden", "");
+    });
+
+    if (wasActive) return;
+
+    button.classList.add("is-active");
+    button.setAttribute("aria-selected", "true");
+    const panel = section.querySelector(`[data-overview-panel="${button.dataset.overviewCategory}"]`);
+    if (panel) {
+      panel.classList.add("is-active");
+      panel.removeAttribute("hidden");
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -478,11 +530,13 @@ function renderItineraryModeContent() {
   const content = document.querySelector(".guide-content");
   if (!nav || !content || !_guideState) return;
 
-  const { trip, bases, days, items, viewerRole } = _guideState;
+  const { trip, bases, days, items, overviewBlocks, viewerRole } = _guideState;
   renderJournalHeroControls();
 
+  const overviewNavEntries = getOverviewNavEntries(days, bases, overviewBlocks || []);
+
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
-  nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber);
+  nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
 
   const visibleItems = filterItemsForViewer(items, viewerRole);
   const isMember = viewerRole !== "public";
@@ -490,6 +544,8 @@ function renderItineraryModeContent() {
   const statTiles = getTripStatTiles(trip, bases, statItems);
   const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
   const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
+  const baseTransitionDayNumbers = getBaseTransitionDayNumbers(days);
+  const tripOverviewHtml = renderOverviewSection(null, overviewBlocks || [], "Trip Overview", "guide-trip-overview");
 
   const daySections = days
     .map((day, index) => {
@@ -498,12 +554,18 @@ function renderItineraryModeContent() {
       const dayBands = lodgingBands.filter(
         (b) => b.checkInDayNumber === day.day_number || b.checkOutDayNumber === day.day_number
       );
+      const dayBase = bases.find((b) => b.id === day.base_id);
+      const baseName = dayBase?.name || dayBase?.location_name || "This base";
+      const baseOverviewHtml = baseTransitionDayNumbers.has(day.day_number)
+        ? renderOverviewSection(day.base_id, overviewBlocks || [], `${baseName} Overview`, `guide-base-overview-${day.base_id}`)
+        : "";
+
       if (index === 0) {
-        return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+        return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
           ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date)}
         </section>`;
       }
-      return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+      return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
         <div class="guide-day-placeholder" data-lazy-day="${day.day_number}"></div>
       </section>`;
     })
@@ -518,6 +580,7 @@ function renderItineraryModeContent() {
         </article>
       `).join("")}
     </section>
+    ${tripOverviewHtml}
     ${daySections}
   `;
 
@@ -525,7 +588,7 @@ function renderItineraryModeContent() {
   wireNavClicks();
   setupLazyDays(_guideState);
 
-  if (_todayDayNumber) scrollOrJumpToDay(_todayDayNumber);
+  if (_todayDayNumber) scrollOrJumpToTarget(`guide-day-${_todayDayNumber}`);
   else if (!isMobileLayout()) updateActiveSection();
   else document.querySelector(".guide-nav-item")?.classList.add("is-active");
 }
@@ -561,6 +624,7 @@ function syncGuideStateFromTripStore() {
   _guideState.bases = tripStore.getCurrentBases();
   _guideState.days = tripStore.getCurrentDays();
   _guideState.items = tripStore.getCurrentItems();
+  _guideState.overviewBlocks = tripStore.getCurrentOverviewBlocks();
 }
 
 function renderJournalItemEditorOverlays() {
@@ -780,6 +844,7 @@ async function refreshJournalData({ showLoading }) {
       bases: bundle.bases,
       days: bundle.days,
       items: bundle.items,
+      overviewBlocks: bundle.overviewBlocks || [],
     };
     _journalState.entries = data.entries;
     _journalState.photos = data.photos;
@@ -809,8 +874,9 @@ function restoreDayNavSelection() {
   }
 
   if (_todayDayNumber) {
+    const targetId = `guide-day-${_todayDayNumber}`;
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
-      item.classList.toggle("is-active", item.dataset.dayNumber === String(_todayDayNumber));
+      item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
     return;
   }

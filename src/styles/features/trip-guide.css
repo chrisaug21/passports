@@ -329,6 +329,127 @@
   align-self: start;
 }
 
+/* ---------------------------------------------------------------------------
+   Overview content ("Trip Overview" / "{Base} Overview")
+   --------------------------------------------------------------------------- */
+
+.guide-overview-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guide-overview-section__title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.guide-overview {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guide-overview__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.guide-overview__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: none;
+  padding: 0.35rem 0.1rem 0.6rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.guide-overview__tab i {
+  width: 1rem;
+  height: 1rem;
+}
+
+.guide-overview__tab:hover {
+  color: var(--color-text);
+}
+
+.guide-overview__tab.is-active {
+  color: var(--color-structure);
+  border-bottom-color: var(--color-structure);
+}
+
+.guide-overview__panels {
+  display: grid;
+}
+
+/* Only the active panel renders. display:none on the base rule (rather than
+   relying on the [hidden] attribute alone) — an author rule setting display
+   on an element beats the UA stylesheet's [hidden]{display:none}, so a plain
+   display:grid here would silently show every panel at once regardless of
+   the hidden attribute JS sets. */
+.guide-overview__panel {
+  display: none;
+}
+
+.guide-overview__panel.is-active {
+  display: block;
+}
+
+.guide-overview__block {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Divider between blocks in the same category — deliberately more space
+   than a paragraph break within a block's body (~1.5rem from line-height)
+   and more than the tight header-to-body gap above, so the hierarchy reads
+   tightest (header→body) < paragraph break < block→block. */
+.guide-overview__block + .guide-overview__block {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.guide-overview__block-subtitle {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.guide-overview__block-body {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* Mobile: category labels don't fit a horizontal row alongside seven icons —
+   fall back to icon-only tabs under the same breakpoint the day nav uses. */
+@media (max-width: 767px) {
+  .guide-overview__tab-label {
+    display: none;
+  }
+
+  .guide-overview__tabs {
+    gap: var(--space-3);
+  }
+}
+
 .guide-day-section {
   display: grid;
   gap: 1rem;
@@ -751,7 +872,15 @@
     margin-top: 0;
   }
 
+  /* min-width: 0 stops the nav shell's un-scrolled content (the horizontally-
+     overflowing pill row) from contributing its own wider min-content size to
+     the shared 1fr column — without it, .guide-body's single column sizes to
+     fit the nav's full content width whenever the nav isn't position:fixed
+     (i.e. before scrolling far enough for is-sticky-active to apply), which
+     stretches .guide-content — and everything inside it, stat tiles included
+     — wider than the viewport until you scroll past that point. */
   .guide-day-nav-shell {
+    min-width: 0;
     margin-bottom: 1.5rem;
   }
 

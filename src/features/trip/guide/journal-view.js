@@ -12,7 +12,7 @@ import {
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
-import { filterItemsForViewer, sortGuideItems } from "./guide-view.js";
+import { filterItemsForViewer, renderOverviewNavItem, sortGuideItems } from "./guide-view.js";
 
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
@@ -537,9 +537,12 @@ export function renderProfilePromptBanner() {
 // Journal day nav (same structure as itinerary nav)
 // ---------------------------------------------------------------------------
 
-export function renderJournalDayNav(days, trip, todayDayNumber) {
-  const items = days
+export function renderJournalDayNav(days, trip, todayDayNumber, overviewNavEntries = []) {
+  const tripEntry = overviewNavEntries.find((entry) => entry.beforeDayNumber === null);
+
+  const dayItems = days
     .map((day) => {
+      const baseEntry = overviewNavEntries.find((entry) => entry.beforeDayNumber === day.day_number);
       let dateLabel = "";
       const isToday = todayDayNumber === day.day_number;
       if (trip.start_date) {
@@ -550,8 +553,10 @@ export function renderJournalDayNav(days, trip, todayDayNumber) {
       }
 
       return `
+        ${baseEntry ? renderOverviewNavItem(baseEntry) : ""}
         <button
           class="guide-nav-item${isToday ? " is-today" : ""}"
+          data-nav-id="guide-day-${day.day_number}"
           data-day-number="${day.day_number}"
           data-guide-nav-day="${day.day_number}"
           type="button"
@@ -564,7 +569,7 @@ export function renderJournalDayNav(days, trip, todayDayNumber) {
     })
     .join("");
 
-  return items;
+  return `${tripEntry ? renderOverviewNavItem(tripEntry) : ""}${dayItems}`;
 }
 
 function shouldShowProfilePrompt(state, journalState) {
@@ -640,13 +645,13 @@ export function renderJournalContent(state, journalState) {
     .map((day, index) => {
       if (index === 0) {
         return `
-          <section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+          <section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
             ${renderJournalDaySection(day, state, journalState)}
           </section>
         `;
       }
       return `
-        <section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
+        <section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
           <div class="guide-day-placeholder" data-lazy-journal-day="${day.day_number}"></div>
         </section>
       `;
