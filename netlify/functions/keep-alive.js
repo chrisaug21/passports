@@ -1,4 +1,29 @@
+// OPTIONS is the cheapest real request each of these functions handles —
+// every one of them answers a preflight before ever touching Supabase, so
+// this only exercises Netlify's own cold-start path (a separate Lambda
+// container per function, so pinging Supabase alone below never warmed
+// these). Best-effort and silent on failure: keeping Supabase itself from
+// auto-pausing (below) is the one thing this run must not let slip, this
+// is a bonus on top of that. Confirmed via the 2026-08-31 connector
+// reliability investigation that connect/reconnect chains several
+// sequential calls into these functions, so a cold start on any one of
+// them adds directly to the "takes 3-5 tries" users were hitting.
+async function pingOAuthFunctions() {
+  const baseUrl = process.env.URL || "https://passports.chrisaug.com";
+  const paths = ["/api/mcp", "/api/mcp-oauth-token", "/api/mcp-oauth-approve", "/api/mcp-oauth-register"];
+
+  await Promise.allSettled(
+    paths.map((path) =>
+      fetch(`${baseUrl}${path}`, { method: "OPTIONS" }).catch((error) => {
+        console.error(`Keep-alive ping to ${path} failed:`, error);
+      })
+    )
+  );
+}
+
 exports.handler = async function handler() {
+  await pingOAuthFunctions();
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_ANON_KEY;
 

@@ -15,7 +15,7 @@ const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-i
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.3.7";
+const MCP_SERVER_VERSION = "1.3.8";
 
 // The app's existing PWA icon, reused here so the connector shows the same
 // logo in Claude's connector list and tool-call UI as the app itself uses —

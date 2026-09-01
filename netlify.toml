@@ -3,8 +3,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# Was @daily (fine for keeping Supabase itself from auto-pausing, but far
+# too infrequent to keep the OAuth-critical functions it now also pings
+# warm between real requests). Every 10 minutes keeps them from going cold
+# without pinging so often it looks like real traffic.
 [functions."keep-alive"]
-  schedule = "@daily"
+  schedule = "*/10 * * * *"
 
 [[headers]]
   for = "/sw.js"
