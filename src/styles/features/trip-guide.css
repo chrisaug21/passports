@@ -356,7 +356,7 @@
 .guide-overview__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-6);
+  gap: var(--space-4);
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-1);
 }
@@ -439,17 +439,14 @@
 }
 
 /* Mobile: category labels don't fit a horizontal row alongside seven icons —
-   fall back to icon-only tabs under the same breakpoint the day nav uses.
-   Icon-only tabs are much narrower than icon+label ones, so a wider gap
-   (matching the desktop treatment) spreads them across the row instead of
-   leaving them clustered at the left. */
+   fall back to icon-only tabs under the same breakpoint the day nav uses. */
 @media (max-width: 767px) {
   .guide-overview__tab-label {
     display: none;
   }
 
   .guide-overview__tabs {
-    gap: var(--space-5);
+    gap: var(--space-3);
   }
 }
 
