@@ -15,7 +15,15 @@ const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-i
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.3.6";
+const MCP_SERVER_VERSION = "1.3.8";
+
+// The app's existing PWA icon, reused here so the connector shows the same
+// logo in Claude's connector list and tool-call UI as the app itself uses —
+// absolute URLs since this is served to Claude, not the browser.
+const SERVER_ICONS = [
+  { src: "https://passports.chrisaug.com/android-chrome-192x192.png", mimeType: "image/png", sizes: ["192x192"] },
+  { src: "https://passports.chrisaug.com/android-chrome-512x512.png", mimeType: "image/png", sizes: ["512x512"] },
+];
 
 // ctx: { getSupabaseAccessToken, userId, connectionId } — getSupabaseAccessToken()
 // lazily resolves (and memoizes for the rest of this request) the connected
@@ -27,7 +35,7 @@ const MCP_SERVER_VERSION = "1.3.6";
 // connectionId is needed by write tools (Phase 2+) to check/increment the
 // per-connection rate limit and record the audit log entry.
 function createMcpServer(ctx) {
-  const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION });
+  const server = new McpServer({ name: "passports", version: MCP_SERVER_VERSION, icons: SERVER_ICONS });
   registerListTrips(server, ctx);
   registerGetTrip(server, ctx);
   registerGetTripJournal(server, ctx);

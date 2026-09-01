@@ -59,17 +59,30 @@ async function renderConnectPrompt() {
     return;
   }
 
-  // try/catch, not .catch(): the object .rpc() returns is a thenable, not a
-  // Promise — it defines then() and nothing else. Calling .catch() on it threw
-  // TypeError before the request was ever sent, which is why no network call
-  // for this RPC appeared in the logs and the page hung on "Loading…".
+  // Fired together, not one after the other: the redirect check and the
+  // client name lookup don't depend on each other, and this connect flow
+  // already chains several sequential Supabase round trips end to end —
+  // running these two at the same time instead of back to back is one less
+  // hop of wall-clock time (and one less place to catch a transient blip)
+  // in a flow users have hit repeatedly.
+  //
+  // Promise.allSettled, not .catch() on the individual calls: the object
+  // .rpc() returns is a thenable, not a Promise — it defines then() and
+  // nothing else. Calling .catch() on it directly threw TypeError before
+  // the request was ever sent, which is why no network call for that RPC
+  // appeared in the logs and the page hung on "Loading…". allSettled calls
+  // .then() under the hood, which this thenable does support.
+  const [redirectResult, clientNameResult] = await Promise.allSettled([
+    getSupabase().rpc("mcp_is_redirect_uri_allowed", { p_client_id: clientId, p_redirect_uri: redirectUri }),
+    getSupabase().rpc("mcp_get_client_name", { p_client_id: clientId }),
+  ]);
+
   let redirectAllowed = false;
-  try {
-    const { data, error } = await getSupabase()
-      .rpc("mcp_is_redirect_uri_allowed", { p_client_id: clientId, p_redirect_uri: redirectUri });
+  if (redirectResult.status === "fulfilled") {
+    const { data, error } = redirectResult.value;
     redirectAllowed = !error && data === true;
-  } catch (error) {
-    console.error("Could not check the redirect address:", error);
+  } else {
+    console.error("Could not check the redirect address:", redirectResult.reason);
   }
 
   if (!redirectAllowed) {
@@ -79,17 +92,15 @@ async function renderConnectPrompt() {
   }
 
   let clientName = "An AI assistant";
-  try {
-    const { data, error } = await getSupabase().rpc("mcp_get_client_name", { p_client_id: clientId });
+  if (clientNameResult.status === "fulfilled") {
+    const { data, error } = clientNameResult.value;
     if (!error && data) {
       clientName = data;
     }
-  } catch {
-    // fall back to the generic label below
   }
 
   titleEl.textContent = `Connect ${clientName}?`;
-  copyEl.textContent = `${clientName} will be able to read and, in a future update, suggest changes to your trips — using your own account, the same as if you were using the app yourself. You can revoke this anytime from Settings.`;
+  copyEl.textContent = `${clientName} will be able to read your trips and make changes — adding new items and editing existing ones — using your own account, the same as if you were using the app yourself. You can revoke this anytime from Settings.`;
 
   actionsEl.innerHTML = `
     <button class="button" id="mcp-connect-allow" type="button">Allow</button>
