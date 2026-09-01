@@ -61,10 +61,8 @@ Implemented (Phase 1) mirroring `trip_items`'s actual policy shape exactly, conf
 - `authenticated` INSERT: `is_trip_member(trip_id) AND auth.uid() = created_by`.
 - `authenticated` UPDATE: `is_trip_planner(trip_id)` OR (`is_trip_member(trip_id)` AND `created_by = auth.uid()`) — same nuance as items: planners can edit any block, travelers only their own.
 - `authenticated` DELETE: `is_trip_planner(trip_id)` only.
-- `anon` SELECT — **two policies, a judgment call made during implementation, not discussed beforehand:**
-  - `anon_select_planning_trip_overview_blocks`: when `trips.is_planning_public = true`, every non-deleted block is visible regardless of `is_published` — this mirrors how the "LLM planning link" already exposes idea/shortlisted items (full internal state, not a curated view), so it's treated as the same kind of full-detail share.
-  - `anon_select_public_trip_overview_blocks`: when `trips.is_public = true`, only `is_published = true` blocks are visible — this is the curated share the Publish flow below is actually protecting.
-  - Worth a sanity check from the user: this means turning on the "LLM planning link" shows unpublished overview drafts to whoever holds that link, same as it already does for idea-stage items. If that's not the intended behavior for overview content specifically, this policy needs revisiting — it was not an explicit decision, just the most consistent extension of the existing convention.
+- `anon` SELECT — one policy: `anon_select_public_trip_overview_blocks`, when `trips.is_public = true` and `is_published = true` — the curated public-share view the Publish flow below protects.
+  - The "LLM planning link" (`is_planning_public`) does **not** expose overview blocks at all, unlike idea/shortlisted items which it does expose in full. An earlier `anon_select_planning_trip_overview_blocks` policy mirrored the items convention, but was removed as a deliberate decision: that link is for agent trip-planning, and overview content (history/culture/language/etc.) isn't planning-relevant the way item data is. If a planning-context use for overview content ever comes up, this would need a new, intentionally-scoped policy — not a revival of the old one.
 
 ## Publish flow
 
