@@ -33,7 +33,7 @@ One new table, `trip_overview_blocks`:
 | `id` | uuid, PK | |
 | `trip_id` | uuid, FK → `trips` | required |
 | `base_id` | uuid, FK → `trip_bases`, nullable | `null` = trip-level content; set = content specific to that base. Same nullable pattern as `trip_items.base_id` — never enforce a dependency. |
-| `category` | text | fixed set, see below. Enforced at the app layer (constants.js), not a Postgres enum type — adding a category later is a code change, not a migration. |
+| `category` | text | fixed set, see below. No Postgres enum type, but there is a `CHECK` constraint listing the allowed values — adding a category is a code change (`constants.js`) **and** a migration to widen that constraint, not a code change alone. (An earlier version of this doc claimed no migration was needed; that was wrong — confirmed by a save failure when `summary` was added to `constants.js` without updating the `CHECK`.) |
 | `subtitle` | text, nullable | freeform per-block heading, e.g. "Currency & Payments", "Common Phrases", "Drinking Culture". **Optional** — for a trip/base with only one block in a category, the category label alone (always shown on the card) is often enough and a subtitle would just be restating it (e.g. a single History block doesn't need a subtitle literally saying "History"). Add a subtitle once a category has more than one block, or whenever it's otherwise useful to be more specific than the category alone. When absent, the card simply shows no subtitle line — it does **not** fall back to repeating the category name. |
 | `body` | text | plain text, paragraph breaks preserved (rendered like journal entries — no markdown, no rich text editor; see Non-Goals). |
 | `sort_order` | integer | controls order within the same `(trip_id, base_id, category)` group — multiple blocks per category per scope are expected and intentional (e.g. two `logistics` blocks: one for currency/payments, one for weather). |
@@ -44,15 +44,15 @@ One new table, `trip_overview_blocks`:
 
 ### Category taxonomy
 
-Fixed set, six categories, **alphabetical in all UI pickers** (add/edit dropdowns, Plan view grouping):
+Fixed set, seven categories. `summary` always leads (a hype-up overview, meant to be seen first); the rest are **alphabetical** in all UI pickers (add/edit dropdowns, Plan view grouping, Guide view tab row):
 
 ```text
-culture, food_drink, history, language, logistics, misc
+summary, culture, food_drink, history, language, logistics, misc
 ```
 
-Display labels (Title Case + `&` where natural): Culture, Food & Drink, History, Language, Logistics, Misc.
+Display labels (Title Case + `&` where natural): Summary, Culture, Food & Drink, History, Language, Logistics, Misc.
 
-`sort_order` (per block) is independent of this alphabetical category ordering and gives control over block sequence *within* a category group — the two are not in tension.
+`sort_order` (per block) is independent of this category ordering and gives control over block sequence *within* a category group — the two are not in tension.
 
 ### RLS
 
@@ -81,7 +81,7 @@ The first pass grouped every scope into one combined panel at the bottom of the 
   - Trip-wide (`scopeBaseId = null`): wrapped in its own panel directly under the trip header, before the stat tiles — visible immediately, near trip settings.
   - Per-base: called from `days-view-controller.js`'s `renderBaseDaysSection`, injected between that base's photo/name header and its day-card grid — so it's colocated with the base you're already looking at, not a separate flat list you have to scroll to and match up mentally.
 - **Flat card grid, not nested category groups**: no more category sub-headings/boxes. Every block in a scope renders as one card in a responsive grid (`overview-card-grid`, `repeat(3, minmax(0, var(--trip-detail-grid-card-width)))` — the same 3→2→1 column breakpoint pattern `day-card-grid`/`allocation-list` already use), each card carrying its own category icon + label so the grouping is legible per-card instead of via a wrapping box. Cards are ordered category-then-`sort_order` internally (so the per-category reorder groups stay contiguous) without a visible seam between categories.
-- **Category icons** — reuses the lucide-icon-per-subtype convention `getItemIconName` already establishes for items: `culture` → `palette`, `food_drink` → `utensils`, `history` → `landmark`, `language` → `languages`, `logistics` → `compass`, `misc` → `sparkles`.
+- **Category icons** — reuses the lucide-icon-per-subtype convention `getItemIconName` already establishes for items: `summary` → `flame`, `culture` → `palette`, `food_drink` → `utensils`, `history` → `landmark`, `language` → `languages`, `logistics` → `compass`, `misc` → `sparkles`.
 - **Subtitle is optional** (schema: `alter table trip_overview_blocks alter column subtitle drop not null`, migration `make_overview_block_subtitle_optional`). The category (with its icon) always renders on the card regardless, so a card with no subtitle just omits the subtitle line rather than repeating the category name a second time as a fake title — that repetition read as an obvious bug on first review (a single History block showing both "History" the category and "History" the subtitle) and was corrected before merge, not shipped and then fixed.
 - **Modal edit workflow**, as requested — but built on the lighter form pattern `trip-settings-controller.js`/`renderTripSettingsForm` already uses (render straight from the block object, read values via `FormData` on submit), not the heavier item-editor machinery (`item-editor-draft.js`'s live draft object, dirty-checking, discard-confirm). Items need that weight because of type-dependent fields and time/base/day interdependencies; overview blocks have no such coupling, so the simpler existing pattern was the better fit and is fully sufficient.
 - Scope (trip-level vs. which base) is set when a block is created and is **not** editable afterward — move a block to a different base by deleting and recreating it. Category, subtitle, body, and published state are all editable.
