@@ -286,20 +286,6 @@
   overflow: hidden;
 }
 
-.days-view__pool-list > .day-item .day-item__notes:not(.item-notes-preview) {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow: hidden;
-}
-
-.days-view__pool-list > .day-item .item-notes-preview > span:first-child {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow: hidden;
-}
-
 @media (max-width: 840px) {
     .day-card__edit-title {
       opacity: 1;

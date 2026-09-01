@@ -64,7 +64,7 @@ export function renderDayItem(item, options = {}) {
         ${renderItemSubtypeLine(item)}
         ${renderItemBaseLine(item)}
         ${detailParts.length > 0 ? `<p class="day-item__details">${detailParts.join(" · ")}</p>` : ""}
-        ${renderItemNotes(item, "day-item__notes")}
+        ${renderItemNotes(item, "day-item__notes", { compact: !dayId })}
       </div>
     </article>
   `;
