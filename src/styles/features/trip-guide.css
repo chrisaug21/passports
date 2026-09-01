@@ -438,15 +438,18 @@
   color: var(--color-text);
 }
 
-/* Mobile: category labels don't fit a horizontal row alongside six icons —
-   fall back to icon-only tabs under the same breakpoint the day nav uses. */
+/* Mobile: category labels don't fit a horizontal row alongside seven icons —
+   fall back to icon-only tabs under the same breakpoint the day nav uses.
+   Icon-only tabs are much narrower than icon+label ones, so a wider gap
+   (matching the desktop treatment) spreads them across the row instead of
+   leaving them clustered at the left. */
 @media (max-width: 767px) {
   .guide-overview__tab-label {
     display: none;
   }
 
   .guide-overview__tabs {
-    gap: var(--space-4);
+    gap: var(--space-5);
   }
 }
 
@@ -872,7 +875,15 @@
     margin-top: 0;
   }
 
+  /* min-width: 0 stops the nav shell's un-scrolled content (the horizontally-
+     overflowing pill row) from contributing its own wider min-content size to
+     the shared 1fr column — without it, .guide-body's single column sizes to
+     fit the nav's full content width whenever the nav isn't position:fixed
+     (i.e. before scrolling far enough for is-sticky-active to apply), which
+     stretches .guide-content — and everything inside it, stat tiles included
+     — wider than the viewport until you scroll past that point. */
   .guide-day-nav-shell {
+    min-width: 0;
     margin-bottom: 1.5rem;
   }
 
