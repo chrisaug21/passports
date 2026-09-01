@@ -23,6 +23,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Codacy flags both fetch(url, ...) calls below as user-controlled-URL /
+// SSRF (CWE-918) — a false positive against this specific function: every
+// call site in this file builds `url` from process.env.SUPABASE_URL, never
+// from request or tool-call input, so there's no path for this to reach an
+// attacker-chosen host. Documented rather than restructured, same as this
+// repo's existing "require not import" false-positive precedent.
 async function fetchWithRetry(url, options) {
   try {
     const response = await fetch(url, options);
