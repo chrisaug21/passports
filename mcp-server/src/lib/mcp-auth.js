@@ -209,14 +209,17 @@ async function logWrite({ connectionId, userId, toolName, tripId, itemId, payloa
   return row?.id;
 }
 
-// Creates a pending proposal row and returns its id. Never touches
-// trip_items — propose_update_trip_item only validates and records intent.
-async function createProposal({ connectionId, userId, tripId, changeset, summary }) {
+// Creates a pending proposal row and returns its id. Never touches the
+// underlying table itself — a propose_* tool only validates and records
+// intent; toolName is whichever propose_* tool is calling this, so the
+// audit log (and any future per-tool filtering of it) reflects the real
+// source instead of always reading as trip-item activity.
+async function createProposal({ connectionId, userId, tripId, toolName, changeset, summary }) {
   const expiresAt = new Date(Date.now() + PROPOSAL_EXPIRY_MINUTES * 60 * 1000).toISOString();
   return logWrite({
     connectionId,
     userId,
-    toolName: "propose_update_trip_item",
+    toolName,
     tripId,
     payload: { changeset, summary },
     state: "pending",

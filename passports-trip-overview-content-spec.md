@@ -1,6 +1,6 @@
 # Trip & Base Overview Content — Spec
 
-**Status:** Phase 1 (schema + Plan view authoring) is built on `claude/passports-overview-content-801f4t`, not yet merged. Guide view display (Phase 2) and MCP tools (Phase 3) are scoped below but not started.
+**Status:** Phase 1 (schema + Plan view authoring) and Phase 3 (MCP tools) are built and merged. Guide view display (Phase 2) is scoped below but not started.
 
 **Audience:** A fresh Claude Code session with no memory of how this was scoped. Read this whole document before writing any code.
 
@@ -105,14 +105,14 @@ This is the part that needs visual iteration — captured here as direction, not
 
 ## MCP server changes
 
-New tools in `mcp-server/` (see `passports-mcp-server-spec.md` for the auth/tool-registration pattern and phase numbering already established there — Phases 0–2 shipped, Phase 3 (editing existing items) about to be built, Phase 4 (soft delete) not started):
+Built, in `mcp-server/src/tools/` (see `passports-mcp-server-spec.md` for the auth/tool-registration pattern and phase numbering — Phases 0–3 shipped, Phase 4 (soft delete) not started):
 
-- `list_overview_blocks` (read) — by trip, optionally filtered by base/category. Ships whenever this feature's MCP tools are built; no dependency on Phase 3/4.
-- `create_overview_block` (additive write) — defaults `is_published = false`, `source = "mcp"`, regardless of what the caller asks for unless the user's prompt explicitly says to publish immediately (still worth a confirm step, matching the caution already applied to `create_trip_item`). Direct write, no propose/confirm — mirrors `create_trip_item`'s Phase 2 shape, since a new block isn't overwriting anything.
-- `update_overview_block` — edit `subtitle`/`body`/`sort_order`/`is_published`/`category` on an existing block. This overwrites existing data the same way item edits do, so it likely wants the same propose-then-confirm shape Phase 3 establishes for `propose_update_trip_item`/`confirm_update_trip_item`, for consistency — worth confirming against however Phase 3 actually lands before building this.
-- `delete_overview_block` — **deferred, not part of the initial build.** The MCP server has not implemented soft delete for *anything* yet (Phase 4 of `passports-mcp-server-spec.md` is outlined but not started). This tool rides along whenever MCP Phase 4 ships, using whatever propose/confirm + audit-log shape gets established there for `propose_delete_trip_item`/`confirm_delete_trip_item` — not built ahead of it.
+- `list_overview_blocks` (read) — by trip, optionally filtered by `baseId`/`category`.
+- `create_overview_block` (additive write) — defaults `isPublished = false`, always sets `source = "mcp"`, regardless of what the caller asks for unless the user's prompt explicitly says to publish immediately. Direct write, no propose/confirm — mirrors `create_trip_item`'s shape, since a new block isn't overwriting anything.
+- `propose_update_overview_block` / `confirm_update_overview_block` — edits `subtitle`/`body`/`sortOrder`/`isPublished`/`category` on one or more existing blocks. Mirrors `propose_update_trip_item`/`confirm_update_trip_item`'s propose-then-confirm shape exactly, since this overwrites existing data. Cannot change a block's trip/base scope — that's fixed at create time (see Plan view section above); moving a block means creating a new one and deleting the old one.
+- `delete_overview_block` — **deferred, not part of the current build.** The MCP server has not implemented soft delete for *anything* yet (Phase 4 of `passports-mcp-server-spec.md` is outlined but not started). This tool rides along whenever MCP Phase 4 ships, using whatever propose/confirm + audit-log shape gets established there for `propose_delete_trip_item`/`confirm_delete_trip_item` — not built ahead of it.
 
-Mirrors the existing `overview-service.js` (new file, `src/services/`) that Plan view also calls — one service, both surfaces (matches how the rest of the app shares services between UI and, where applicable, MCP tools calling the same Supabase tables under RLS).
+Reads/writes go through the same `trip_overview_blocks` table Plan view's `overview-service.js` calls, each under the connected user's own Supabase session — RLS is the real gate, same as every other MCP write in this app. The MCP tools live in their own CommonJS files (`mcp-server/src/tools/`) rather than importing `overview-service.js` directly, matching how the existing trip-item tools duplicate rather than share code with the ES-module `src/services/` layer.
 
 ## File additions — Phase 1, as built
 
@@ -130,9 +130,15 @@ src/
   ../trip-detail-page.js                  — createOverviewHandlers() spread into the page's handler set; overview modal states added to syncTripDetailModalState's hasOpenModal check
   styles/features/trip-overview.css       — new, imported from trip-detail.css's @import chain
 
-Not yet built (Phase 2/3, still as scoped further down):
+mcp-server/src/
+  lib/overview-fields.js                      — OVERVIEW_CATEGORIES/OVERVIEW_CATEGORY_LABELS, mirrored from src/config/constants.js (this package is plain CommonJS and can't import the app's ES modules)
+  tools/list-overview-blocks.js               — list_overview_blocks
+  tools/create-overview-block.js              — create_overview_block
+  tools/propose-update-overview-block.js      — propose_update_overview_block
+  tools/confirm-update-overview-block.js      — confirm_update_overview_block
+
+Not yet built (Phase 2, still as scoped further down):
   features/trip/guide/overview-guide-view.js  — Guide view display
-mcp-server/src/tools/overview-blocks.js       — MCP tools
 ```
 
 Supabase: `trip_overview_blocks` table + RLS policies + `trip_overview_blocks_updated_at` trigger (reusing the existing shared `update_updated_at()` function) applied directly via migration, confirmed against the live project's actual `trip_items`/`trip_bases` policies and helper functions (`is_trip_member`, `is_trip_planner`) rather than assumed from this doc's earlier draft.

@@ -10,12 +10,16 @@ const { registerGetTripJournal } = require("./tools/get-trip-journal.js");
 const { registerCreateTripItem } = require("./tools/create-trip-item.js");
 const { registerProposeUpdateTripItem } = require("./tools/propose-update-trip-item.js");
 const { registerConfirmUpdateTripItem } = require("./tools/confirm-update-trip-item.js");
+const { registerListOverviewBlocks } = require("./tools/list-overview-blocks.js");
+const { registerCreateOverviewBlock } = require("./tools/create-overview-block.js");
+const { registerProposeUpdateOverviewBlock } = require("./tools/propose-update-overview-block.js");
+const { registerConfirmUpdateOverviewBlock } = require("./tools/confirm-update-overview-block.js");
 
 // Keep in sync with APP_VERSION in src/config/constants.js. Unlike that
 // number, this one is actually visible from an MCP client (MCP Inspector
 // shows it on connect) — it's the fastest way to confirm you're talking to
 // the build you just deployed, without relying on anything in the app UI.
-const MCP_SERVER_VERSION = "1.3.8";
+const MCP_SERVER_VERSION = "1.4.0";
 
 // The app's existing PWA icon, reused here so the connector shows the same
 // logo in Claude's connector list and tool-call UI as the app itself uses —
@@ -42,6 +46,10 @@ function createMcpServer(ctx) {
   registerCreateTripItem(server, ctx);
   registerProposeUpdateTripItem(server, ctx);
   registerConfirmUpdateTripItem(server, ctx);
+  registerListOverviewBlocks(server, ctx);
+  registerCreateOverviewBlock(server, ctx);
+  registerProposeUpdateOverviewBlock(server, ctx);
+  registerConfirmUpdateOverviewBlock(server, ctx);
   return server;
 }
 

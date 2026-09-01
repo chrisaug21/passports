@@ -208,6 +208,7 @@ function registerProposeUpdateTripItem(server, ctx) {
         connectionId: ctx.connectionId,
         userId: ctx.userId,
         tripId,
+        toolName: "propose_update_trip_item",
         changeset: itemIds.map((itemId) => ({ itemId, patch: patchesByItemId.get(itemId) })),
         summary,
       });
