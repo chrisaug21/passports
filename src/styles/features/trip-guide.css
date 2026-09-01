@@ -330,8 +330,22 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Overview content accordion ("About this trip" / "About this base")
+   Overview content ("Trip Overview" / "{Base} Overview")
    --------------------------------------------------------------------------- */
+
+.guide-overview-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guide-overview-section__title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+}
 
 .guide-overview {
   padding: var(--space-5);
@@ -342,7 +356,7 @@
 .guide-overview__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-5);
+  gap: var(--space-6);
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-1);
 }
@@ -381,26 +395,32 @@
   display: grid;
 }
 
+/* Only the active panel renders. display:none on the base rule (rather than
+   relying on the [hidden] attribute alone) — an author rule setting display
+   on an element beats the UA stylesheet's [hidden]{display:none}, so a plain
+   display:grid here would silently show every panel at once regardless of
+   the hidden attribute JS sets. */
 .guide-overview__panel {
-  display: grid;
-  gap: var(--space-4);
+  display: none;
+}
+
+.guide-overview__panel.is-active {
+  display: block;
 }
 
 .guide-overview__block {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
+/* Divider between blocks in the same category — deliberately more space
+   than a paragraph break within a block's body (~1.5rem from line-height)
+   and more than the tight header-to-body gap above, so the hierarchy reads
+   tightest (header→body) < paragraph break < block→block. */
 .guide-overview__block + .guide-overview__block {
-  padding-top: var(--space-4);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
   border-top: 1px solid var(--color-border);
-}
-
-.guide-overview__block-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
 }
 
 .guide-overview__block-subtitle {
