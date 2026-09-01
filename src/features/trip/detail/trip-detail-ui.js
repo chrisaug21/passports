@@ -179,24 +179,11 @@ export function getItemSubtypeLabel(item) {
 
 const ITEM_NOTES_PREVIEW_LENGTH = 140;
 
-export function renderItemNotes(item, className, options = {}) {
-  const { compact = false } = options;
+export function renderItemNotes(item, className) {
   const notes = String(item.notes || "").trim();
 
   if (!notes) {
     return "";
-  }
-
-  if (compact) {
-    return `
-      <button
-        class="${className} item-notes-preview item-notes-preview--compact"
-        type="button"
-        data-edit-item="${escapeHtml(item.id)}"
-      >
-        <span class="item-notes-preview__cta">Read more or edit</span>
-      </button>
-    `;
   }
 
   const isTruncated = notes.length > ITEM_NOTES_PREVIEW_LENGTH;
