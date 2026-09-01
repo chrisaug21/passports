@@ -89,7 +89,7 @@ async function renderConnectPrompt() {
   }
 
   titleEl.textContent = `Connect ${clientName}?`;
-  copyEl.textContent = `${clientName} will be able to read and, in a future update, suggest changes to your trips — using your own account, the same as if you were using the app yourself. You can revoke this anytime from Settings.`;
+  copyEl.textContent = `${clientName} will be able to read your trips and make changes — adding new items and editing existing ones — using your own account, the same as if you were using the app yourself. You can revoke this anytime from Settings.`;
 
   actionsEl.innerHTML = `
     <button class="button" id="mcp-connect-allow" type="button">Allow</button>
