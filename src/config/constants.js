@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.1.15";
+export const APP_VERSION = "1.1.16";
 
 export const TRIP_STATUSES = ["planning", "upcoming", "active", "done"];
 
@@ -43,6 +43,15 @@ export const OVERVIEW_CATEGORY_LABELS = {
   language: "Language",
   logistics: "Logistics",
   misc: "Misc",
+};
+
+export const OVERVIEW_CATEGORY_ICONS = {
+  culture: "palette",
+  food_drink: "utensils",
+  history: "landmark",
+  language: "languages",
+  logistics: "compass",
+  misc: "sparkles",
 };
 
 export const CANONICAL_TIMEZONES = [

@@ -95,6 +95,7 @@ export async function loadGuidePage(tripId) {
       bases: bundle.bases,
       days: bundle.days,
       items: bundle.items,
+      overviewBlocks: bundle.overviewBlocks || [],
       members,
       viewerRole,
       userId,

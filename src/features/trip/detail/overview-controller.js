@@ -3,6 +3,7 @@ import { tripStore } from "../../../state/trip-store.js";
 import { sessionStore } from "../../../state/session-store.js";
 import {
   OVERVIEW_CATEGORIES,
+  OVERVIEW_CATEGORY_ICONS,
   OVERVIEW_CATEGORY_LABELS,
 } from "../../../config/constants.js";
 import {
@@ -18,15 +19,6 @@ import {
   assignDaySortOrdersFromCombinedItems,
   moveCombinedItemByStep,
 } from "./item-ordering.js";
-
-const OVERVIEW_CATEGORY_ICONS = {
-  culture: "palette",
-  food_drink: "utensils",
-  history: "landmark",
-  language: "languages",
-  logistics: "compass",
-  misc: "sparkles",
-};
 
 function compareBySortOrder(left, right) {
   return (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0);

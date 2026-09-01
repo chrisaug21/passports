@@ -329,6 +329,107 @@
   align-self: start;
 }
 
+/* ---------------------------------------------------------------------------
+   Overview content accordion ("About this trip" / "About this base")
+   --------------------------------------------------------------------------- */
+
+.guide-overview {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guide-overview__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.guide-overview__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: none;
+  padding: 0.35rem 0.1rem 0.6rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.guide-overview__tab i {
+  width: 1rem;
+  height: 1rem;
+}
+
+.guide-overview__tab:hover {
+  color: var(--color-text);
+}
+
+.guide-overview__tab.is-active {
+  color: var(--color-structure);
+  border-bottom-color: var(--color-structure);
+}
+
+.guide-overview__panels {
+  display: grid;
+}
+
+.guide-overview__panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guide-overview__block {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guide-overview__block + .guide-overview__block {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.guide-overview__block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.guide-overview__block-subtitle {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.guide-overview__block-body {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* Mobile: category labels don't fit a horizontal row alongside six icons —
+   fall back to icon-only tabs under the same breakpoint the day nav uses. */
+@media (max-width: 767px) {
+  .guide-overview__tab-label {
+    display: none;
+  }
+
+  .guide-overview__tabs {
+    gap: var(--space-4);
+  }
+}
+
 .guide-day-section {
   display: grid;
   gap: 1rem;

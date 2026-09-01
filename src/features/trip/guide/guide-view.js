@@ -7,6 +7,11 @@ import {
 } from "../../../lib/format.js";
 import { deriveTripStatus } from "../../../lib/derive.js";
 import {
+  OVERVIEW_CATEGORIES,
+  OVERVIEW_CATEGORY_ICONS,
+  OVERVIEW_CATEGORY_LABELS,
+} from "../../../config/constants.js";
+import {
   escapeHtml,
   getTripHeroPhotoUrl,
   getTripStatTiles,
@@ -262,6 +267,115 @@ function renderLodgingBand(lodging, type) {
 }
 
 // ---------------------------------------------------------------------------
+// Overview content ("About this trip" / "About this base" accordion)
+// ---------------------------------------------------------------------------
+
+function compareByOverviewSortOrder(a, b) {
+  return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+}
+
+// RLS already restricts anon reads to published blocks; filter defensively
+// here too, matching the pattern filterItemsForViewer already uses for items.
+export function filterOverviewBlocksForViewer(overviewBlocks, viewerRole) {
+  if (viewerRole !== "public") return overviewBlocks;
+  return overviewBlocks.filter((block) => block.is_published);
+}
+
+// Day numbers where a new base's overview content should surface — the first
+// day belonging to each base, in day-number order. Computed once per render
+// pass and shared across all three places guide day content gets built
+// (initial render, tab-switch rebuild, lazy-scroll load) so the "shows up
+// when you arrive at a base" behavior is consistent no matter which path
+// produced the day section.
+export function getBaseTransitionDayNumbers(days) {
+  const sorted = [...days].sort((a, b) => a.day_number - b.day_number);
+  const transitions = new Set();
+  let previousBaseId = null;
+
+  sorted.forEach((day) => {
+    const baseId = day.base_id || null;
+    if (baseId && baseId !== previousBaseId) {
+      transitions.add(day.day_number);
+    }
+    previousBaseId = baseId;
+  });
+
+  return transitions;
+}
+
+function renderOverviewBlock(block, isMember) {
+  const showDraftBadge = isMember && !block.is_published;
+
+  return `
+    <article class="guide-overview__block">
+      <div class="guide-overview__block-header">
+        ${block.subtitle ? `<h3 class="guide-overview__block-subtitle">${escapeHtml(block.subtitle)}</h3>` : ""}
+        ${showDraftBadge ? `<span class="overview-status-badge is-draft">Draft</span>` : ""}
+      </div>
+      <p class="guide-overview__block-body">${escapeHtml(block.body || "")}</p>
+    </article>
+  `;
+}
+
+// scopeBaseId = null renders trip-wide content; a base id renders that base's
+// content. Returns "" when there's nothing visible to this viewer in scope —
+// no empty selector row, per spec (zero published blocks = show nothing).
+export function renderOverviewSection(scopeBaseId, overviewBlocks, viewerRole, sectionLabel) {
+  const isMember = viewerRole !== "public";
+  const visibleBlocks = filterOverviewBlocksForViewer(overviewBlocks, viewerRole).filter(
+    (block) => (block.base_id || null) === scopeBaseId
+  );
+
+  if (visibleBlocks.length === 0) return "";
+
+  const groups = OVERVIEW_CATEGORIES.map((category) => ({
+    category,
+    blocks: visibleBlocks.filter((block) => block.category === category).sort(compareByOverviewSortOrder),
+  })).filter((group) => group.blocks.length > 0);
+
+  const tabs = groups
+    .map(({ category }, index) => {
+      const label = OVERVIEW_CATEGORY_LABELS[category] || category;
+      const icon = OVERVIEW_CATEGORY_ICONS[category] || "circle-dot";
+      return `
+        <button
+          class="guide-overview__tab${index === 0 ? " is-active" : ""}"
+          role="tab"
+          aria-selected="${index === 0 ? "true" : "false"}"
+          data-overview-category="${escapeHtml(category)}"
+          type="button"
+        >
+          <i data-lucide="${icon}" aria-hidden="true"></i>
+          <span class="guide-overview__tab-label">${escapeHtml(label)}</span>
+        </button>
+      `;
+    })
+    .join("");
+
+  const panels = groups
+    .map(
+      ({ category, blocks }, index) => `
+        <div
+          class="guide-overview__panel${index === 0 ? " is-active" : ""}"
+          role="tabpanel"
+          data-overview-panel="${escapeHtml(category)}"
+          ${index === 0 ? "" : "hidden"}
+        >
+          ${blocks.map((block) => renderOverviewBlock(block, isMember)).join("")}
+        </div>
+      `
+    )
+    .join("");
+
+  return `
+    <section class="panel guide-overview" aria-label="${escapeHtml(sectionLabel)}">
+      <div class="guide-overview__tabs" role="tablist" aria-label="${escapeHtml(sectionLabel)} categories">${tabs}</div>
+      <div class="guide-overview__panels">${panels}</div>
+    </section>
+  `;
+}
+
+// ---------------------------------------------------------------------------
 // Day header
 // ---------------------------------------------------------------------------
 
@@ -294,7 +408,7 @@ function renderDayHeader(day, base, startDate) {
 // Full day content (exported so guide-wire.js can use it for lazy loading)
 // ---------------------------------------------------------------------------
 
-export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate) {
+export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, baseOverviewHtml = "") {
   const base = bases.find((b) => b.id === day.base_id) || null;
   const checkInBands = dayLodgingBands.filter((b) => b.checkInDayNumber === day.day_number);
   const checkOutBands = dayLodgingBands.filter((b) => b.checkOutDayNumber === day.day_number);
@@ -302,6 +416,7 @@ export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBan
 
   return `
     ${renderDayHeader(day, base, startDate)}
+    ${baseOverviewHtml}
     <div class="guide-day-items">
       ${checkOutBands.map((b) => renderLodgingBand(b.lodging, "check-out")).join("")}
       ${checkInBands.map((b) => renderLodgingBand(b.lodging, "check-in")).join("")}
@@ -315,7 +430,7 @@ export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBan
 // Day section (lazy placeholder or full)
 // ---------------------------------------------------------------------------
 
-function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isLazy) {
+function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isLazy, baseOverviewHtml = "") {
   if (isLazy) {
     return `
       <section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
@@ -326,7 +441,7 @@ function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, 
 
   return `
     <section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
-      ${renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate)}
+      ${renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, baseOverviewHtml)}
     </section>
   `;
 }
@@ -461,7 +576,7 @@ export function renderGuideErrorView() {
 // ---------------------------------------------------------------------------
 
 export function renderGuideView(state) {
-  const { trip, bases, days, items, members, viewerRole } = state;
+  const { trip, bases, days, items, overviewBlocks = [], members, viewerRole } = state;
   const derivedStatus = deriveTripStatus(trip);
   const isMember = viewerRole !== "public";
   const heroPhotoUrl = getTripHeroPhotoUrl(trip);
@@ -472,6 +587,9 @@ export function renderGuideView(state) {
   const statTiles = getTripStatTiles(trip, bases, statItems);
   const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
   const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
+  const baseTransitionDayNumbers = getBaseTransitionDayNumbers(days);
+
+  const tripOverviewHtml = renderOverviewSection(null, overviewBlocks, viewerRole, "About this trip");
 
   const daySections = days
     .map((day, index) => {
@@ -483,8 +601,13 @@ export function renderGuideView(state) {
         (b) => b.checkInDayNumber === day.day_number || b.checkOutDayNumber === day.day_number
       );
       const isLazy = index > 0;
+      const dayBase = bases.find((b) => b.id === day.base_id);
+      const baseName = dayBase?.name || dayBase?.location_name || "this base";
+      const baseOverviewHtml = baseTransitionDayNumbers.has(day.day_number)
+        ? renderOverviewSection(day.base_id, overviewBlocks, viewerRole, `About ${baseName}`)
+        : "";
 
-      return renderDaySection(day, sorted, viewerRole, dayBands, bases, trip.start_date, isLazy);
+      return renderDaySection(day, sorted, viewerRole, dayBands, bases, trip.start_date, isLazy, baseOverviewHtml);
     })
     .join("");
 
@@ -503,6 +626,7 @@ export function renderGuideView(state) {
             </article>
           `).join("")}
         </section>
+        ${tripOverviewHtml}
         ${daySections}
       </div>
     </div>

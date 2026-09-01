@@ -3,8 +3,10 @@ import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
   filterItemsForViewer,
+  getBaseTransitionDayNumbers,
   getLodgingBands,
   renderFullDayContent,
+  renderOverviewSection,
   sortGuideItems,
   getTodayDayNumber,
 } from "./guide-view.js";
@@ -107,6 +109,7 @@ export function wireGuideView(state) {
   wireDashboardLink();
   wireTabSwitching();
   wireNavClicks();
+  wireOverviewAccordions();
   setupTouchScrollTracking();
   setupScrollTracking();
   setupDayNavStickyOffsetTracking();
@@ -301,6 +304,8 @@ function setupLazyDays(state) {
   const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-day]");
   if (placeholders.length === 0) return;
 
+  const baseTransitionDayNumbers = getBaseTransitionDayNumbers(state.days);
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -325,6 +330,11 @@ function setupLazyDays(state) {
         const dayBands = allBands.filter(
           (b) => b.checkInDayNumber === dayNumber || b.checkOutDayNumber === dayNumber
         );
+        const dayBase = state.bases.find((b) => b.id === day.base_id);
+        const baseName = dayBase?.name || dayBase?.location_name || "this base";
+        const baseOverviewHtml = baseTransitionDayNumbers.has(dayNumber)
+          ? renderOverviewSection(day.base_id, state.overviewBlocks || [], state.viewerRole, `About ${baseName}`)
+          : "";
 
         section.innerHTML = renderFullDayContent(
           day,
@@ -332,7 +342,8 @@ function setupLazyDays(state) {
           state.viewerRole,
           dayBands,
           state.bases,
-          state.trip.start_date
+          state.trip.start_date,
+          baseOverviewHtml
         );
         window.lucide?.createIcons?.();
       });
@@ -342,6 +353,50 @@ function setupLazyDays(state) {
 
   placeholders.forEach((el) => observer.observe(el));
   cleanupFns.push(() => observer.disconnect());
+}
+
+// ---------------------------------------------------------------------------
+// Overview content accordion — single-select category tabs
+// ---------------------------------------------------------------------------
+
+// Delegated on .guide-content, which persists across itinerary/journal tab
+// switches and lazy day loads (only its innerHTML is replaced), so this only
+// needs to be bound once per guide page load.
+function wireOverviewAccordions() {
+  const content = document.querySelector(".guide-content");
+  if (!content || content.dataset.overviewAccordionDelegated === "true") {
+    return;
+  }
+  content.dataset.overviewAccordionDelegated = "true";
+
+  content.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-overview-category]");
+    if (!button || !content.contains(button)) return;
+
+    const section = button.closest(".guide-overview");
+    if (!section) return;
+
+    const wasActive = button.classList.contains("is-active");
+
+    section.querySelectorAll("[data-overview-category]").forEach((tab) => {
+      tab.classList.remove("is-active");
+      tab.setAttribute("aria-selected", "false");
+    });
+    section.querySelectorAll("[data-overview-panel]").forEach((panel) => {
+      panel.classList.remove("is-active");
+      panel.setAttribute("hidden", "");
+    });
+
+    if (wasActive) return;
+
+    button.classList.add("is-active");
+    button.setAttribute("aria-selected", "true");
+    const panel = section.querySelector(`[data-overview-panel="${button.dataset.overviewCategory}"]`);
+    if (panel) {
+      panel.classList.add("is-active");
+      panel.removeAttribute("hidden");
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -478,7 +533,7 @@ function renderItineraryModeContent() {
   const content = document.querySelector(".guide-content");
   if (!nav || !content || !_guideState) return;
 
-  const { trip, bases, days, items, viewerRole } = _guideState;
+  const { trip, bases, days, items, overviewBlocks, viewerRole } = _guideState;
   renderJournalHeroControls();
 
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
@@ -490,6 +545,8 @@ function renderItineraryModeContent() {
   const statTiles = getTripStatTiles(trip, bases, statItems);
   const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);
   const lodgingBandItemIds = new Set(lodgingBands.map((b) => b.lodging.id));
+  const baseTransitionDayNumbers = getBaseTransitionDayNumbers(days);
+  const tripOverviewHtml = renderOverviewSection(null, overviewBlocks || [], viewerRole, "About this trip");
 
   const daySections = days
     .map((day, index) => {
@@ -498,9 +555,14 @@ function renderItineraryModeContent() {
       const dayBands = lodgingBands.filter(
         (b) => b.checkInDayNumber === day.day_number || b.checkOutDayNumber === day.day_number
       );
+      const dayBase = bases.find((b) => b.id === day.base_id);
+      const baseName = dayBase?.name || dayBase?.location_name || "this base";
+      const baseOverviewHtml = baseTransitionDayNumbers.has(day.day_number)
+        ? renderOverviewSection(day.base_id, overviewBlocks || [], viewerRole, `About ${baseName}`)
+        : "";
       if (index === 0) {
         return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
-          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date)}
+          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date, baseOverviewHtml)}
         </section>`;
       }
       return `<section class="guide-day-section" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
@@ -518,6 +580,7 @@ function renderItineraryModeContent() {
         </article>
       `).join("")}
     </section>
+    ${tripOverviewHtml}
     ${daySections}
   `;
 
@@ -561,6 +624,7 @@ function syncGuideStateFromTripStore() {
   _guideState.bases = tripStore.getCurrentBases();
   _guideState.days = tripStore.getCurrentDays();
   _guideState.items = tripStore.getCurrentItems();
+  _guideState.overviewBlocks = tripStore.getCurrentOverviewBlocks();
 }
 
 function renderJournalItemEditorOverlays() {
@@ -780,6 +844,7 @@ async function refreshJournalData({ showLoading }) {
       bases: bundle.bases,
       days: bundle.days,
       items: bundle.items,
+      overviewBlocks: bundle.overviewBlocks || [],
     };
     _journalState.entries = data.entries;
     _journalState.photos = data.photos;
