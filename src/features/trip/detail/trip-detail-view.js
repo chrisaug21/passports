@@ -153,10 +153,6 @@ export function renderTripDetailPageView() {
         </div>
       </section>
 
-      <section class="panel trip-overview-panel">
-        ${renderOverviewScopeSection(null, overviewBlocks)}
-      </section>
-
       <section class="trip-stat-tiles" aria-label="Trip stats">
         ${statTiles.map((tile) => `
           <article class="panel trip-stat-tile">
@@ -164,6 +160,10 @@ export function renderTripDetailPageView() {
             <p>${tile.label}</p>
           </article>
         `).join("")}
+      </section>
+
+      <section class="panel trip-overview-panel">
+        ${renderOverviewScopeSection(null, overviewBlocks)}
       </section>
 
       ${
