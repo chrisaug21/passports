@@ -150,6 +150,11 @@ function registerProposeUpdateTripItem(server, ctx) {
         "rather than one call per item — up to 10 items per proposal. For a bigger reorganization " +
         "spanning many days, make one proposal per day rather than one giant proposal, so the user can " +
         "review each one clearly.\n\n" +
+        "Ordering: you almost never need to set sortOrder yourself. Any non-anchor item with a " +
+        "timeStart is automatically placed in chronological order among that day's other timed items " +
+        "the moment you set/change its dayId or timeStart — just set the time and move on. Only set " +
+        "sortOrder explicitly when manually ordering items that have no time, or breaking a tie between " +
+        "items that share the exact same timeStart.\n\n" +
         "Changing itemType requires explicitly setting the new sub-type field (mealSlot/activityType/" +
         "transportMode) and clearing the old one (pass it as null) in the same change — otherwise the " +
         "proposal is rejected for an inconsistent item.",

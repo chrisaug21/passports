@@ -10,6 +10,8 @@ import {
   renderItemTypeIcon,
 } from "./trip-detail-ui.js";
 
+const TIME_LOCKED_REORDER_TITLE = "Timed items stay in chronological order — change the time to move it, or reorder it against other items at the same time.";
+
 export function renderDayItem(item, options = {}) {
   const {
     dayId = "",
@@ -42,6 +44,7 @@ export function renderDayItem(item, options = {}) {
                       data-reorder-day-id="${escapeHtml(dayId)}"
                       type="button"
                       aria-label="Move stop up"
+                      ${!canMoveUp && item.time_start ? `title="${escapeHtml(TIME_LOCKED_REORDER_TITLE)}"` : ""}
                       ${canMoveUp ? "" : "disabled"}
                     >
                       <i data-lucide="chevron-up"></i>
@@ -52,6 +55,7 @@ export function renderDayItem(item, options = {}) {
                       data-reorder-day-id="${escapeHtml(dayId)}"
                       type="button"
                       aria-label="Move stop down"
+                      ${!canMoveDown && item.time_start ? `title="${escapeHtml(TIME_LOCKED_REORDER_TITLE)}"` : ""}
                       ${canMoveDown ? "" : "disabled"}
                     >
                       <i data-lucide="chevron-down"></i>
