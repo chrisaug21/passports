@@ -35,7 +35,7 @@ export function renderDayItem(item, options = {}) {
             ${renderItemMapLink(item, "day-item__map-link")}
             ${renderItemActionsMenu(item)}
             ${
-              !item.is_anchor && dayId
+              dayId
                 ? `
                   <div class="day-item__reorder-controls" aria-label="Reorder stop">
                     <button

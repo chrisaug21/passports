@@ -1,35 +1,37 @@
 -- Run this in the Supabase SQL editor (project: tqxvtsdghobustiatiqm).
 --
--- Auto-slots a flex item's sort_order chronologically among its day's other
--- timed flex items whenever time_start (or day_id, or is_anchor) changes, so
+-- Auto-slots any timed item -- anchor or flex -- into chronological sort_order
+-- among its day's other timed items whenever time_start or day_id changes, so
 -- every writer -- the app UI, the MCP tools, anything else -- gets
 -- consistent time-based ordering without having to compute sort_order by
 -- hand. This is the same "insert by time" rule the app's own edit form has
--- always used (see insertFlexItemByTime in src/features/trip/detail/
--- item-ordering.js) -- moved here so it applies no matter who writes the row.
+-- always used for flex items (see insertFlexItemByTime in src/features/trip/
+-- detail/item-ordering.js) -- moved here, and extended to anchors, so it
+-- applies no matter who writes the row.
 --
--- Scope: only flex items (is_anchor = false) that belong to a day and have a
--- time_start.
---   - Anchors are untouched -- they're already always rendered in strict
---     time order and are never manually reordered (the app doesn't even
---     show reorder arrows for them), so their sort_order keeps being
---     managed the way it already is.
+-- Scope: any item that belongs to a day and has a time_start -- is_anchor no
+-- longer matters. Anchors and timed flex items now share one ordering pool:
+-- getInterleavedDayItems (src/features/trip/detail/item-ordering.js) already
+-- treats an anchor's sort_order as its position relative to flex items, but
+-- until now that value was just an item count from whenever the anchor was
+-- created/moved, not a real chronological position -- which is why an anchor
+-- could render out of order relative to other items. Giving anchors a real,
+-- trigger-computed sort_order fixes that without needing to change the
+-- render logic itself.
 --   - Items with no time_start are untouched -- their position stays fully
 --     manual, and they can sit anywhere relative to timed items, including
 --     between two of them.
---   - A pure sort_order change (e.g. dragging/arrow-reordering two items
---     that share the same time_start) does NOT get overridden -- the
---     trigger only recomputes when time_start/day_id/is_anchor actually
---     changes.
+--   - A pure sort_order change (e.g. arrow-reordering two items that share
+--     the same time_start) does NOT get overridden -- the trigger only
+--     recomputes when time_start/day_id actually changes.
 --
--- sort_order becomes `numeric` so a new item can slot in at the midpoint
--- between its neighbors' existing values without renumbering any other row
--- -- this keeps the trigger a single-row write with no risk of cascading
--- into other items' (including anchors') sort_order.
+-- sort_order is `numeric` so a new item can slot in at the midpoint between
+-- its neighbors' existing values without renumbering any other row -- this
+-- keeps the trigger a single-row write with no cascading updates.
 --
--- No backfill: existing rows keep their current sort_order until they're
--- next written with a time_start/day_id/is_anchor change (through the app
--- or MCP), at which point they self-correct.
+-- No backfill here for existing anchors -- see
+-- sql/backfill_anchor_sort_order.sql for the one-time correction of anchors
+-- that already have a stale, pre-this-trigger sort_order value.
 
 ALTER TABLE trip_items
   ALTER COLUMN sort_order TYPE numeric USING sort_order::numeric;
@@ -45,8 +47,7 @@ DECLARE
   next_sort_order numeric;
   fallback_sort_order numeric;
 BEGIN
-  IF NEW.is_anchor IS TRUE
-     OR NEW.day_id IS NULL
+  IF NEW.day_id IS NULL
      OR NEW.time_start IS NULL
      OR NEW.deleted_at IS NOT NULL
   THEN
@@ -56,18 +57,16 @@ BEGIN
   IF TG_OP = 'UPDATE'
      AND NEW.time_start IS NOT DISTINCT FROM OLD.time_start
      AND NEW.day_id IS NOT DISTINCT FROM OLD.day_id
-     AND NEW.is_anchor IS NOT DISTINCT FROM OLD.is_anchor
   THEN
     RETURN NEW;
   END IF;
 
-  -- Last timed flex sibling at or before NEW's time (ties go to whichever
-  -- of them currently sorts last, so a new same-time item lands at the end
-  -- of that time's existing group).
+  -- Last timed sibling (anchor or flex) at or before NEW's time (ties go to
+  -- whichever of them currently sorts last, so a new same-time item lands
+  -- at the end of that time's existing group).
   SELECT sort_order INTO prev_sort_order
   FROM trip_items
   WHERE day_id = NEW.day_id
-    AND is_anchor = false
     AND deleted_at IS NULL
     AND time_start IS NOT NULL
     AND id <> NEW.id
@@ -75,11 +74,10 @@ BEGIN
   ORDER BY time_start DESC, sort_order DESC
   LIMIT 1;
 
-  -- First timed flex sibling strictly after NEW's time.
+  -- First timed sibling (anchor or flex) strictly after NEW's time.
   SELECT sort_order INTO next_sort_order
   FROM trip_items
   WHERE day_id = NEW.day_id
-    AND is_anchor = false
     AND deleted_at IS NULL
     AND time_start IS NOT NULL
     AND id <> NEW.id
@@ -94,7 +92,7 @@ BEGIN
   ELSIF next_sort_order IS NOT NULL THEN
     NEW.sort_order := next_sort_order - 1;
   ELSE
-    -- No other timed flex items in this day -- append after everything
+    -- No other timed items in this day -- append after everything
     -- currently in the day (timed or not) rather than guessing at a value.
     SELECT MAX(sort_order) INTO fallback_sort_order
     FROM trip_items
