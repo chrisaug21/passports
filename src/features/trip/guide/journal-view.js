@@ -618,23 +618,6 @@ export function renderJournalStatTiles(state, journalState) {
   `;
 }
 
-export function renderJournalRefreshButton(journalState) {
-  const isRefreshing = Boolean(journalState.isManualRefreshing);
-
-  return `
-    <button
-      class="journal-refresh-button${isRefreshing ? " is-loading" : ""}"
-      data-journal-refresh
-      type="button"
-      aria-label="${isRefreshing ? "Reloading journal" : "Reload journal"}"
-      title="${isRefreshing ? "Reloading journal" : "Reload journal"}"
-      ${isRefreshing ? "disabled" : ""}
-    >
-      <i data-lucide="refresh-cw" aria-hidden="true"></i>
-    </button>
-  `;
-}
-
 // ---------------------------------------------------------------------------
 // Full Journal Mode content (guide-content area)
 // ---------------------------------------------------------------------------
