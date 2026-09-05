@@ -75,7 +75,11 @@ function registerConfirmUpdateTripItem(server, ctx) {
       },
     },
     withToolErrorHandling(async ({ proposalId }) => {
-      const claim = await claimProposal({ proposalId, connectionId: ctx.connectionId });
+      const claim = await claimProposal({
+        proposalId,
+        connectionId: ctx.connectionId,
+        expectedToolName: "propose_update_trip_item",
+      });
       if (!claim.ok) {
         const text = REJECTION_MESSAGES[claim.reason] || "Could not confirm that proposal right now.";
         return { isError: true, content: [{ type: "text", text }] };
