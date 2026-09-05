@@ -3,6 +3,7 @@ import { formatTimeLabel } from "../../../lib/format.js";
 import {
   escapeHtml,
   renderAnchorIndicator,
+  renderItemMapLink,
   renderItemNotes,
   renderItemStatusMeta,
   renderItemSubtypeLine,
@@ -29,6 +30,7 @@ export function renderDayItem(item, options = {}) {
             <h5 title="${escapeHtml(item.title || "Untitled stop")}">${escapeHtml(item.title || "Untitled stop")}</h5>
           </div>
           <div class="day-item__header-actions">
+            ${renderItemMapLink(item, "day-item__map-link")}
             ${renderItemActionsMenu(item)}
             ${
               !item.is_anchor && dayId

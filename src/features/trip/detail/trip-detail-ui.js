@@ -274,6 +274,25 @@ export function sanitizeCoverUrl(value) {
   }
 }
 
+function buildMapsUrl(address) {
+  const query = encodeURIComponent(address);
+  const isApplePlatform = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+  return isApplePlatform
+    ? `https://maps.apple.com/?q=${query}`
+    : `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
+
+export function renderItemMapLink(item, className) {
+  const address = String(item?.address || "").trim();
+  if (!address) return "";
+  const url = buildMapsUrl(address);
+  return `
+    <a class="${className}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="Open address in maps" title="${escapeHtml(address)}">
+      <i data-lucide="map-pin" aria-hidden="true"></i>
+    </a>
+  `;
+}
+
 export function getDisplayTitleForToast(value, fallback) {
   const title = String(value || "").trim();
   return title || fallback;
