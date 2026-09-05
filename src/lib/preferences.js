@@ -2,9 +2,9 @@ const MAPS_APP_PREFERENCE_KEY = "passports-maps-app-preference";
 
 export function getMapsAppPreference() {
   try {
-    return localStorage.getItem(MAPS_APP_PREFERENCE_KEY) || "auto";
+    return localStorage.getItem(MAPS_APP_PREFERENCE_KEY) || "apple";
   } catch {
-    return "auto";
+    return "apple";
   }
 }
 

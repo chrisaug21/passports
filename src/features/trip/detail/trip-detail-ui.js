@@ -278,12 +278,9 @@ export function sanitizeCoverUrl(value) {
 function buildMapsUrl(item, address) {
   const title = String(item?.title || "").trim();
   const query = encodeURIComponent(title ? `${title}, ${address}` : address);
-  const preference = getMapsAppPreference();
-  const useAppleMaps = preference === "apple"
-    || (preference !== "google" && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent));
-  return useAppleMaps
-    ? `https://maps.apple.com/?q=${query}`
-    : `https://www.google.com/maps/search/?api=1&query=${query}`;
+  return getMapsAppPreference() === "google"
+    ? `https://www.google.com/maps/search/?api=1&query=${query}`
+    : `https://maps.apple.com/?q=${query}`;
 }
 
 export function renderItemMapLink(item, className) {
