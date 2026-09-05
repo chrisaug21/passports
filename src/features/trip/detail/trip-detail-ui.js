@@ -275,7 +275,10 @@ export function sanitizeCoverUrl(value) {
   }
 }
 
-function buildMapsUrl(item, address) {
+export function getItemMapsUrl(item) {
+  const address = String(item?.address || "").trim();
+  if (!address) return "";
+
   const title = String(item?.title || "").trim();
   const query = encodeURIComponent(title ? `${title}, ${address}` : address);
   return getMapsAppPreference() === "google"
@@ -285,8 +288,8 @@ function buildMapsUrl(item, address) {
 
 export function renderItemMapLink(item, className) {
   const address = String(item?.address || "").trim();
-  if (!address) return "";
-  const url = buildMapsUrl(item, address);
+  const url = getItemMapsUrl(item);
+  if (!url) return "";
   return `
     <a class="${className}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="Open address in maps" title="${escapeHtml(address)}">
       <i data-lucide="map-pin" aria-hidden="true"></i>

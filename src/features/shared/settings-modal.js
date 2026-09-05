@@ -39,11 +39,18 @@ function renderSettingsModalHTML() {
         <section class="settings-modal__section">
           <h4 class="settings-modal__section-title">Maps App</h4>
           <p class="muted settings-modal__section-copy">Which app should open when you tap an address on a trip?</p>
-          <select id="maps-app-preference-select" aria-label="Preferred maps app">
+          <div class="settings-toggle" role="group" aria-label="Preferred maps app">
             ${MAPS_APP_PREFERENCE_OPTIONS.map(
-              (option) => `<option value="${option.value}" ${getMapsAppPreference() === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`
+              (option) => `
+                <button
+                  class="settings-toggle__option${getMapsAppPreference() === option.value ? " is-active" : ""}"
+                  type="button"
+                  data-maps-app-option="${option.value}"
+                  aria-pressed="${getMapsAppPreference() === option.value}"
+                >${escapeHtml(option.label)}</button>
+              `
             ).join("")}
-          </select>
+          </div>
         </section>
 
         <section class="settings-modal__section">
@@ -71,26 +78,44 @@ function wireSettingsModal() {
     el.addEventListener("click", close);
   });
 
-  modal.querySelector("#maps-app-preference-select")?.addEventListener("change", async (event) => {
-    const select = event.target;
-    const previousValue = getMapsAppPreference();
-    const nextValue = select.value;
-    const { session } = sessionStore.getState();
-    const userId = session?.user?.id;
+  modal.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextValue = button.getAttribute("data-maps-app-option");
+      const previousValue = getMapsAppPreference();
+      if (nextValue === previousValue) return;
 
-    select.disabled = true;
+      const { session } = sessionStore.getState();
+      const userId = session?.user?.id;
 
-    try {
-      if (!userId) throw new Error("Not signed in.");
-      await updateMapsAppPreference(userId, nextValue);
-      setMapsAppPreferenceCache(nextValue);
-    } catch (error) {
-      console.error(error);
-      select.value = previousValue;
-      showToast("Couldn't save that. Try again.", "error");
-    } finally {
-      select.disabled = false;
-    }
+      setMapsAppToggleUI(nextValue);
+      setMapsAppToggleDisabled(true);
+
+      try {
+        if (!userId) throw new Error("Not signed in.");
+        await updateMapsAppPreference(userId, nextValue);
+        setMapsAppPreferenceCache(nextValue);
+      } catch (error) {
+        console.error(error);
+        setMapsAppToggleUI(previousValue);
+        showToast("Couldn't save that. Try again.", "error");
+      } finally {
+        setMapsAppToggleDisabled(false);
+      }
+    });
+  });
+}
+
+function setMapsAppToggleUI(value) {
+  document.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    const isActive = button.getAttribute("data-maps-app-option") === value;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function setMapsAppToggleDisabled(disabled) {
+  document.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    button.disabled = disabled;
   });
 }
 
@@ -103,8 +128,7 @@ async function refreshMapsAppPreference() {
     const profile = await fetchUserProfile(userId);
     const preference = profile?.preferred_maps_app === "google" ? "google" : "apple";
     setMapsAppPreferenceCache(preference);
-    const select = document.querySelector("#maps-app-preference-select");
-    if (select) select.value = preference;
+    setMapsAppToggleUI(preference);
   } catch (error) {
     console.error(error);
   }

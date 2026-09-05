@@ -230,7 +230,7 @@ function renderGuideItemCard(item, viewerRole) {
       <span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
-        <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}${item.is_anchor ? ` <i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}</h4>
+        <h4 class="guide-item-card__title${item.address ? " guide-item-card__title--with-map" : ""}">${escapeHtml(item.title || "Untitled stop")}${item.is_anchor ? ` <i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}</h4>
       </div>
       <div class="guide-item-card__details">
         ${timeLabel ? `<p class="guide-item-card__time">${escapeHtml(timeLabel)}</p>` : ""}

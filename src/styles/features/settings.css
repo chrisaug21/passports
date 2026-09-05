@@ -30,6 +30,40 @@
   line-height: 1.4;
 }
 
+.settings-toggle {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.settings-toggle__option {
+  border: 0;
+  border-radius: 0;
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  min-height: var(--touch-target);
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.settings-toggle__option + .settings-toggle__option {
+  border-left: 1px solid var(--color-border);
+}
+
+.settings-toggle__option.is-active {
+  background: var(--color-action);
+  color: white;
+}
+
+.settings-toggle__option:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .mcp-connections-list {
   display: flex;
   flex-direction: column;

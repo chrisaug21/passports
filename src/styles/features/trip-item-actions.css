@@ -67,6 +67,7 @@
   padding: 0.75rem 0.9rem;
   text-align: left;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .item-actions-menu__item--danger {
