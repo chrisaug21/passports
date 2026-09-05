@@ -1,7 +1,9 @@
 import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
 import { fetchMcpConnections, revokeMcpConnection } from "../../services/mcp-connections-service.js";
-import { getMapsAppPreference, setMapsAppPreference } from "../../lib/preferences.js";
+import { fetchUserProfile, updateMapsAppPreference } from "../../services/journal-service.js";
+import { getMapsAppPreference, setMapsAppPreferenceCache } from "../../lib/preferences.js";
+import { sessionStore } from "../../state/session-store.js";
 
 const MAPS_APP_PREFERENCE_OPTIONS = [
   { value: "apple", label: "Apple Maps" },
@@ -22,6 +24,7 @@ export function openSettingsModal() {
 
   wireSettingsModal();
   void loadConnections();
+  void refreshMapsAppPreference();
 }
 
 function renderSettingsModalHTML() {
@@ -35,7 +38,7 @@ function renderSettingsModalHTML() {
       <div class="item-editor-form__content">
         <section class="settings-modal__section">
           <h4 class="settings-modal__section-title">Maps App</h4>
-          <p class="muted settings-modal__section-copy">Which app should open when you tap an address on a trip.</p>
+          <p class="muted settings-modal__section-copy">Which app should open when you tap an address on a trip?</p>
           <select id="maps-app-preference-select" aria-label="Preferred maps app">
             ${MAPS_APP_PREFERENCE_OPTIONS.map(
               (option) => `<option value="${option.value}" ${getMapsAppPreference() === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`
@@ -68,9 +71,43 @@ function wireSettingsModal() {
     el.addEventListener("click", close);
   });
 
-  modal.querySelector("#maps-app-preference-select")?.addEventListener("change", (event) => {
-    setMapsAppPreference(event.target.value);
+  modal.querySelector("#maps-app-preference-select")?.addEventListener("change", async (event) => {
+    const select = event.target;
+    const previousValue = getMapsAppPreference();
+    const nextValue = select.value;
+    const { session } = sessionStore.getState();
+    const userId = session?.user?.id;
+
+    select.disabled = true;
+
+    try {
+      if (!userId) throw new Error("Not signed in.");
+      await updateMapsAppPreference(userId, nextValue);
+      setMapsAppPreferenceCache(nextValue);
+    } catch (error) {
+      console.error(error);
+      select.value = previousValue;
+      showToast("Couldn't save that. Try again.", "error");
+    } finally {
+      select.disabled = false;
+    }
   });
+}
+
+async function refreshMapsAppPreference() {
+  const { session } = sessionStore.getState();
+  const userId = session?.user?.id;
+  if (!userId) return;
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    const preference = profile?.preferred_maps_app === "google" ? "google" : "apple";
+    setMapsAppPreferenceCache(preference);
+    const select = document.querySelector("#maps-app-preference-select");
+    if (select) select.value = preference;
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 async function loadConnections() {

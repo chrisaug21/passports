@@ -11,6 +11,7 @@ import { appStore } from "../state/app-store.js";
 import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
 import { fetchUserProfile } from "../services/journal-service.js";
+import { setMapsAppPreferenceCache } from "../lib/preferences.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
@@ -218,6 +219,7 @@ async function hydrateAccountMenuProfile({ userId, email }) {
     const profile = await fetchUserProfile(userId);
     if (token !== profileRequestToken) return;
     updateAccountMenuProfile(profile || { email });
+    setMapsAppPreferenceCache(profile?.preferred_maps_app);
   } catch (_error) {
     if (token !== profileRequestToken) return;
     updateAccountMenuProfile({ email });
