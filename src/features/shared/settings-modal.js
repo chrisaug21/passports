@@ -2,7 +2,7 @@ import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
 import { fetchMcpConnections, revokeMcpConnection } from "../../services/mcp-connections-service.js";
 import { fetchUserProfile, updateMapsAppPreference } from "../../services/journal-service.js";
-import { getMapsAppPreference, setMapsAppPreferenceCache } from "../../lib/preferences.js";
+import { getMapsAppPreference, getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../../lib/preferences.js";
 import { sessionStore } from "../../state/session-store.js";
 
 const MAPS_APP_PREFERENCE_OPTIONS = [
@@ -124,8 +124,11 @@ async function refreshMapsAppPreference() {
   const userId = session?.user?.id;
   if (!userId) return;
 
+  const versionAtStart = getMapsAppPreferenceVersion();
+
   try {
     const profile = await fetchUserProfile(userId);
+    if (getMapsAppPreferenceVersion() !== versionAtStart) return; // a newer read or save already landed
     const preference = profile?.preferred_maps_app === "google" ? "google" : "apple";
     setMapsAppPreferenceCache(preference);
     setMapsAppToggleUI(preference);
