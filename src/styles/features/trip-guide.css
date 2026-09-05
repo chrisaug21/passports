@@ -726,6 +726,18 @@
   flex-shrink: 0;
 }
 
+.guide-item-card__map-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-structure);
+}
+
+.guide-item-card__map-link svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 /* ---------------------------------------------------------------------------
    Lodging bands (spec §6)
    --------------------------------------------------------------------------- */

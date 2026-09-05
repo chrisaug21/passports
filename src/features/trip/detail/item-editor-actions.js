@@ -228,6 +228,7 @@ export function createItemEditorHandlers() {
         cost_high: String(draft.costHigh || "").trim() || null,
         url: String(draft.url || "").trim() || null,
         confirmation_ref: String(draft.confirmationRef || "").trim() || null,
+        address: String(draft.address || "").trim() || null,
         notes: String(draft.notes || "").trim() || null,
       };
 
@@ -267,6 +268,7 @@ export function createItemEditorHandlers() {
             costHigh: itemPayload.cost_high,
             url: itemPayload.url,
             confirmationRef: itemPayload.confirmation_ref,
+            address: itemPayload.address,
             notes: itemPayload.notes,
             sortOrder: items.reduce((max, item) => Math.max(max, Number(item.sort_order) || 0), -1) + 1,
           });
