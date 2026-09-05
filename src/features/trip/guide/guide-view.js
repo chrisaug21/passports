@@ -226,11 +226,11 @@ function renderGuideItemCard(item, viewerRole) {
       data-status="${escapeHtml(item.status)}"
       data-item-type="${escapeHtml(item.item_type)}"
     >
-      ${item.is_anchor ? `<i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}
+      ${renderItemMapLink(item, "guide-item-card__map-button")}
       <span class="guide-item-card__status-badge guide-item-card__status-badge--${escapeHtml(item.status)}">${escapeHtml(formatStatusLabel(item.status))}</span>
       <div class="guide-item-card__header">
         ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
-        <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
+        <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}${item.is_anchor ? ` <i data-lucide="lock" class="guide-item-card__anchor-icon" aria-hidden="true"></i>` : ""}</h4>
       </div>
       <div class="guide-item-card__details">
         ${timeLabel ? `<p class="guide-item-card__time">${escapeHtml(timeLabel)}</p>` : ""}
@@ -240,7 +240,6 @@ function renderGuideItemCard(item, viewerRole) {
         ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${item.url ? renderItemUrl(item.url) : ""}
-        ${renderItemMapLink(item, "guide-item-card__map-link")}
         ${costSymbol ? `<p class="guide-item-card__cost" aria-label="Estimated cost: ${escapeHtml(costSymbol)}">${escapeHtml(costSymbol)}</p>` : ""}
       </div>
     </article>
