@@ -72,6 +72,7 @@ export function syncItemEditorDraftFromForm() {
     costHigh: String(formData.get("costHigh") || "").trim(),
     url: String(formData.get("url") || "").trim(),
     confirmationRef: String(formData.get("confirmationRef") || "").trim(),
+    address: String(formData.get("address") || "").trim(),
     notes: String(formData.get("notes") || "").trim(),
   };
 }
@@ -121,6 +122,7 @@ export function buildItemEditorDraft(item) {
     costHigh: item.cost_high == null ? "" : String(item.cost_high),
     url: item.url || "",
     confirmationRef: item.confirmation_ref || "",
+    address: item.address || "",
     notes: item.notes || "",
   };
 }
@@ -171,6 +173,7 @@ export function buildAddItemEditorDraft(context = null) {
     costHigh: "",
     url: "",
     confirmationRef: "",
+    address: "",
     notes: "",
   };
 }

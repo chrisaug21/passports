@@ -16,6 +16,7 @@ import {
   getTripHeroPhotoUrl,
   getTripStatTiles,
   renderExpandableItemNotes,
+  renderItemMapLink,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -239,6 +240,7 @@ function renderGuideItemCard(item, viewerRole) {
         ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${item.url ? renderItemUrl(item.url) : ""}
+        ${renderItemMapLink(item, "guide-item-card__map-link")}
         ${costSymbol ? `<p class="guide-item-card__cost" aria-label="Estimated cost: ${escapeHtml(costSymbol)}">${escapeHtml(costSymbol)}</p>` : ""}
       </div>
     </article>

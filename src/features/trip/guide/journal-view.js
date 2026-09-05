@@ -9,6 +9,7 @@ import {
   getCountLabel,
   getDoneTripStatTiles,
   renderExpandableItemNotes,
+  renderItemMapLink,
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
@@ -443,6 +444,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
         ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${itemUrl ? `<a class="guide-item-card__url" href="${escapeHtml(itemUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" aria-hidden="true"></i><span>${escapeHtml(urlLabel)}</span></a>` : ""}
+        ${renderItemMapLink(item, "guide-item-card__map-link")}
       </div>
       ${journalArea ? `<div class="journal-item-card__journal">${journalArea}</div>` : ""}
     </article>
