@@ -34,7 +34,7 @@ async function validateTripReferences(tripId, baseId, dayId, bearer) {
 // Builds and inserts the actual trip_items row. status/is_anchor are always
 // the Phase 2 defaults — never taken from the caller.
 function insertTripItem(fields, bearer) {
-  const { tripId, userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, sortOrder } = fields;
+  const { tripId, userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, address, sortOrder } = fields;
   return insertRow(
     "trip_items",
     {
@@ -51,6 +51,7 @@ function insertTripItem(fields, bearer) {
       transport_mode: transportMode || null,
       notes: notes || null,
       url: url || null,
+      address: address || null,
       sort_order: sortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -95,9 +96,12 @@ function registerCreateTripItem(server, ctx) {
         transportMode: optionalOf(z.enum(TRANSPORT_MODES)).describe("Required only when itemType is 'transport'."),
         notes: optionalOf(z.string()).describe("Any free-text notes about the idea."),
         url: optionalOf(z.string()).describe("A link related to the idea (restaurant site, listing, article, etc.)."),
+        address: optionalOf(z.string()).describe(
+          "A physical address for this item — renders as a tap-to-navigate map link in the app."
+        ),
       },
     },
-    withToolErrorHandling(async ({ tripId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url }) => {
+    withToolErrorHandling(async ({ tripId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, address }) => {
       const fieldError = validateItemTypeFields(itemType, { mealSlot, activityType, transportMode });
       if (fieldError) {
         return { isError: true, content: [{ type: "text", text: fieldError }] };
@@ -120,7 +124,7 @@ function registerCreateTripItem(server, ctx) {
 
       const sortOrder = await nextSortOrderForTrip(tripId, bearer);
       const created = await insertTripItem(
-        { tripId, userId: ctx.userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, sortOrder },
+        { tripId, userId: ctx.userId, title, itemType, baseId, dayId, mealSlot, activityType, transportMode, notes, url, address, sortOrder },
         bearer
       );
 
