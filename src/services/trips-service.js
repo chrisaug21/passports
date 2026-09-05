@@ -31,6 +31,7 @@ const TRIP_ITEM_SELECT = `
   confirmation_ref,
   url,
   notes,
+  address,
   sort_order,
   check_out_date,
   created_at,
@@ -406,6 +407,7 @@ export async function createDetailedTripItem({
   url,
   confirmationRef,
   notes,
+  address,
   sortOrder,
 }) {
   const normalizedStatus = String(status || "idea").trim();
@@ -439,6 +441,7 @@ export async function createDetailedTripItem({
       url: url || null,
       confirmation_ref: confirmationRef || null,
       notes: notes || null,
+      address: address || null,
       sort_order: sortOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -473,6 +476,7 @@ export async function updateTripItem({
   costHigh,
   url,
   notes,
+  address,
 }) {
   const supabase = getSupabase();
   const normalizedStatus = String(status || "").trim();
@@ -499,6 +503,7 @@ export async function updateTripItem({
     cost_high: costHigh === "" ? null : costHigh,
     url: url || null,
     notes: notes || null,
+    address: address || null,
     updated_at: new Date().toISOString(),
   };
 
@@ -555,6 +560,7 @@ export async function batchUpdateTripItems(itemUpdates) {
           confirmation_ref: item.confirmation_ref,
           url: item.url,
           notes: item.notes,
+          address: item.address,
           sort_order: item.sort_order,
           check_out_date: item.check_out_date,
           updated_at: now,
