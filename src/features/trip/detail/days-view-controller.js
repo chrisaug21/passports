@@ -13,6 +13,7 @@ import {
 } from "./trip-detail-ui.js";
 import { buildAllocationRows } from "./base-allocation-controller.js";
 import { renderOverviewScopeSection } from "./overview-controller.js";
+import { canMoveItemInDirection } from "./item-ordering.js";
 
 export function renderDaysView(bases, days, assignedItems, unassignedItems, overviewBlocks, helpers) {
   const { getSortedUnassignedItems, renderDayItem } = helpers;
@@ -137,8 +138,8 @@ export function renderDayCard(day, items, helpers) {
           ? `<div class="day-card__empty"><p class="muted">Nothing assigned yet.</p></div>`
           : `<div class="days-view__list">${combinedItems.map((item, index) => renderDayItem(item, {
               dayId: day.id,
-              canMoveUp: index > 0,
-              canMoveDown: index < combinedItems.length - 1,
+              canMoveUp: canMoveItemInDirection(combinedItems, index, -1),
+              canMoveDown: canMoveItemInDirection(combinedItems, index, 1),
             })).join("")}</div>`
       }
     </article>

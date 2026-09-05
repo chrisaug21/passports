@@ -84,6 +84,21 @@ export function assignDaySortOrdersFromCombinedItems(combinedItems) {
 
   return updatedItems;
 }
+export function canMoveItemInDirection(items, index, direction) {
+  const item = items[index];
+  const neighbor = items[index + direction];
+
+  if (!item || !neighbor) {
+    return false;
+  }
+
+  if (!item.time_start) {
+    return true;
+  }
+
+  return String(neighbor.time_start || "") === String(item.time_start);
+}
+
 export function moveCombinedItemByStep(items, itemId, direction) {
   const currentIndex = items.findIndex((item) => item.id === itemId);
   const targetIndex = currentIndex + direction;
