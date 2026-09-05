@@ -16,8 +16,6 @@ import {
   renderJournalContent,
   renderJournalDayNav,
   renderJournalDaySection,
-  renderJournalRefreshButton,
-  renderItineraryRefreshButton,
 } from "./journal-view.js";
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
@@ -685,6 +683,27 @@ function wireItineraryControls() {
   });
 }
 
+// Built via DOM APIs rather than an innerHTML template — both callers here
+// only ever pass a boolean and hardcoded label text, so there's nothing to
+// escape, but this sidesteps SAST tools that flag innerHTML-from-a-function
+// as a blanket XSS anti-pattern regardless of what's actually in the string.
+function buildRefreshButton({ isRefreshing, dataAttribute, label }) {
+  const button = document.createElement("button");
+  button.className = `journal-refresh-button${isRefreshing ? " is-loading" : ""}`;
+  button.type = "button";
+  button.setAttribute(dataAttribute, "");
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.disabled = isRefreshing;
+
+  const icon = document.createElement("i");
+  icon.setAttribute("data-lucide", "refresh-cw");
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon);
+
+  return button;
+}
+
 // Shared hero-overlay refresh control for both tabs — same markup/CSS, just
 // swaps which mode's refresh button (and refresh function) it wires up.
 function renderGuideHeroControls() {
@@ -700,9 +719,20 @@ function renderGuideHeroControls() {
   const controls = document.createElement("div");
   controls.className = "journal-hero-controls";
   controls.setAttribute("data-journal-hero-controls", "");
-  controls.innerHTML = _currentMode === "journal"
-    ? renderJournalRefreshButton(_journalState)
-    : renderItineraryRefreshButton(_isItineraryManualRefreshing);
+
+  const button = _currentMode === "journal"
+    ? buildRefreshButton({
+        isRefreshing: Boolean(_journalState.isManualRefreshing),
+        dataAttribute: "data-journal-refresh",
+        label: _journalState.isManualRefreshing ? "Reloading journal" : "Reload journal",
+      })
+    : buildRefreshButton({
+        isRefreshing: _isItineraryManualRefreshing,
+        dataAttribute: "data-itinerary-refresh",
+        label: _isItineraryManualRefreshing ? "Reloading itinerary" : "Reload itinerary",
+      });
+
+  controls.append(button);
   hero.append(controls);
   window.lucide?.createIcons?.();
 }
