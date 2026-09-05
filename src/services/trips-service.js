@@ -869,7 +869,7 @@ export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
 
   const newTrip = await createTripWithDefaults({
     ownerId,
-    title: sourceTrip.title,
+    title: `Next Trip to ${sourceTrip.title || "Untitled trip"}`,
     description: sourceTrip.description,
     tripLength: sourceTrip.trip_length,
     startDate: null,

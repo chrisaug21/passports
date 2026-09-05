@@ -52,12 +52,6 @@
   padding-top: 1rem;
 }
 
-.trip-settings-form__footer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
 .modal-card__actions--column {
   flex-direction: column;
   align-items: stretch;

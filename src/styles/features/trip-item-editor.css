@@ -248,7 +248,7 @@
   justify-content: flex-end;
 }
 
-.modal-card__header {
+.modal-card--editor .modal-card__header {
   flex-shrink: 0;
   padding: 20px 24px 16px;
   background: var(--color-surface-muted);

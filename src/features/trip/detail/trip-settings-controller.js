@@ -7,7 +7,7 @@ import {
   softDeleteTrip,
   updateTripSettings,
 } from "../../../services/trips-service.js";
-import { deriveTripStatus, getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
+import { getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -516,12 +516,7 @@ export function renderTripSettingsForm(trip, isSaving) {
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
-            <div class="trip-settings-form__footer-actions">
-              <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
-              ${deriveTripStatus(trip) === "past" ? `
-                <button class="button-link" id="open-move-to-next-trip-confirm" type="button">Move to Next Trip</button>
-              ` : ""}
-            </div>
+            <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
         </form>
@@ -598,7 +593,7 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
           </div>
         </div>
         <p class="muted">
-          Creates a new trip called "${escapeHtml(trip.title || "Untitled trip")}" with the same length and no dates yet,
+          Creates a new trip called "Next Trip to ${escapeHtml(trip.title || "Untitled trip")}" with the same length and no dates yet,
           then moves the items you pick over from this trip (they're removed from here).
         </p>
         <div class="modal-card__actions modal-card__actions--column">
