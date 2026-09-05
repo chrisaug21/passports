@@ -161,11 +161,13 @@ async function rotateSupabaseSession(connectionId, encryptedRefreshToken) {
   throw error;
 }
 
-// Starting points chosen from estimated usage (most days hold well under 10
-// items), not tuned from real data — revisit all three if real Phase 3
-// usage shows they're too tight (legitimate proposals getting rejected) or
+// Starting points chosen from estimated usage, not tuned from real data.
+// Raised from 10 to 20 writes/60s after real Phase 3 usage showed 10 was too
+// tight: a multi-day itinerary reshuffle (moving a meal cascades into moving
+// other items to different days/times) routinely needs more than 10 confirmed
+// edits in a burst. Revisit again if this still gets hit, or if it turns out
 // too loose (meaningful spam/mess risk).
-const RATE_LIMIT_MAX_WRITES = 10;
+const RATE_LIMIT_MAX_WRITES = 20;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const MAX_CHANGESET_ITEMS = 10;
 const PROPOSAL_EXPIRY_MINUTES = 30;
