@@ -231,14 +231,19 @@ async function createProposal({ connectionId, userId, tripId, toolName, changese
 
 // Atomically validates + rate-limit-checks + claims a proposal in one
 // transaction (see mcp-server-spec.md's Phase 3 design decisions for why
-// this can't be two separate steps without a race between them). Returns
+// this can't be two separate steps without a race between them).
+// expectedToolName must match the tool_name the proposal was created with
+// (i.e. the propose_* tool that called createProposal) — this is what stops
+// confirm_update_trip_item from claiming an overview-block proposal (or vice
+// versa), since both share the same mcp_write_log table. Returns
 // { ok: true, tripId, changeset, summary } on success, or
 // { ok: false, reason } where reason is one of:
 // "not_found" | "already_resolved" | "expired" | "rate_limited".
-async function claimProposal({ proposalId, connectionId }) {
+async function claimProposal({ proposalId, connectionId, expectedToolName }) {
   const rows = await callRpc("mcp_claim_proposal", {
     p_proposal_id: proposalId,
     p_connection_id: connectionId,
+    p_expected_tool_name: expectedToolName,
     p_rate_limit: RATE_LIMIT_MAX_WRITES,
     p_rate_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
   });
