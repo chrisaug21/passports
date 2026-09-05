@@ -864,6 +864,90 @@ export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {
   });
 }
 
+export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
+  const supabase = getSupabase();
+
+  const newTrip = await createTripWithDefaults({
+    ownerId,
+    title: sourceTrip.title,
+    description: sourceTrip.description,
+    tripLength: sourceTrip.trip_length,
+    startDate: null,
+  });
+
+  const { data: candidateItems, error: itemsError } = await supabase
+    .from("trip_items")
+    .select(TRIP_ITEM_SELECT)
+    .eq("trip_id", sourceTrip.id)
+    .is("deleted_at", null);
+
+  if (itemsError) {
+    throw itemsError;
+  }
+
+  const itemsToMove = (candidateItems || []).filter((item) =>
+    scope === "not_done" ? !item.is_done : !item.day_id
+  );
+
+  if (itemsToMove.length === 0) {
+    return { trip: newTrip, movedCount: 0 };
+  }
+
+  const now = new Date().toISOString();
+  const insertPayload = itemsToMove.map((item, index) => ({
+    id: crypto.randomUUID(),
+    trip_id: newTrip.id,
+    base_id: null,
+    day_id: null,
+    created_by: ownerId,
+    title: item.title,
+    item_type: item.item_type,
+    status: item.status,
+    is_anchor: false,
+    is_done: false,
+    done_by: null,
+    done_at: null,
+    meal_slot: item.meal_slot,
+    activity_type: item.activity_type,
+    transport_mode: item.transport_mode,
+    transport_origin: item.transport_origin,
+    transport_destination: item.transport_destination,
+    time_start: item.time_start,
+    time_end: item.time_end,
+    time_is_estimated: item.time_is_estimated,
+    cost_low: item.cost_low,
+    cost_high: item.cost_high,
+    confirmation_ref: item.confirmation_ref,
+    url: item.url,
+    notes: item.notes,
+    address: item.address,
+    sort_order: index,
+    check_out_date: null,
+    created_at: now,
+    updated_at: now,
+  }));
+
+  const { error: insertError } = await supabase.from("trip_items").insert(insertPayload);
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  const { error: deleteError } = await supabase
+    .from("trip_items")
+    .update({ deleted_at: now, updated_at: now })
+    .in(
+      "id",
+      itemsToMove.map((item) => item.id)
+    );
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  return { trip: newTrip, movedCount: itemsToMove.length };
+}
+
 export async function softDeleteTrip(tripId) {
   const { error } = await getSupabase().rpc("soft_delete_trip_cascade", {
     p_trip_id: tripId,

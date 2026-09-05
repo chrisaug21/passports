@@ -254,6 +254,12 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("#cancel-delete-trip", handlers.onCancelDeleteTrip);
   bindClick("[data-cancel-delete-trip]", handlers.onCancelDeleteTrip);
   bindClick("#confirm-delete-trip", handlers.onConfirmDeleteTrip);
+  bindClick("#open-move-to-next-trip-confirm", handlers.onOpenMoveToNextTripConfirm);
+  bindClick("#cancel-move-to-next-trip", handlers.onCancelMoveToNextTripConfirm);
+  bindClick("[data-cancel-move-to-next-trip]", handlers.onCancelMoveToNextTripConfirm);
+  bindAll("[data-move-to-next-trip-scope]", "click", (button) => {
+    handlers.onConfirmMoveToNextTrip?.(button.getAttribute("data-move-to-next-trip-scope"));
+  });
   bindClick("[data-open-guide]", handlers.onOpenGuide);
   bindClick("#open-members-modal", handlers.onOpenMembersModal);
   bindClick("#close-members-modal", handlers.onCloseMembersModal);

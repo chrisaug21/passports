@@ -1,11 +1,13 @@
 import { navigate } from "../../../app/router.js";
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
+import { sessionStore } from "../../../state/session-store.js";
 import {
+  moveItemsToNextTrip,
   softDeleteTrip,
   updateTripSettings,
 } from "../../../services/trips-service.js";
-import { getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
+import { deriveTripStatus, getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -514,7 +516,12 @@ export function renderTripSettingsForm(trip, isSaving) {
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
-            <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
+            <div class="trip-settings-form__footer-actions">
+              <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
+              ${deriveTripStatus(trip) === "past" ? `
+                <button class="button-link" id="open-move-to-next-trip-confirm" type="button">Move to Next Trip</button>
+              ` : ""}
+            </div>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
         </form>
@@ -569,6 +576,47 @@ export function renderDeleteTripConfirmModal({ trip, isOpen, isDeleting }) {
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-delete-trip" type="button">Cancel</button>
           <button class="button button--danger" id="confirm-delete-trip" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Trip"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unassignedCount, notDoneCount }) {
+  if (!isOpen || !trip) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-move-to-next-trip></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Move to Next Trip</p>
+            <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
+          </div>
+        </div>
+        <p class="muted">
+          Creates a new trip called "${escapeHtml(trip.title || "Untitled trip")}" with the same length and no dates yet,
+          then moves the items you pick over from this trip (they're removed from here).
+        </p>
+        <div class="modal-card__actions modal-card__actions--column">
+          <button
+            class="button button--secondary"
+            data-move-to-next-trip-scope="unassigned"
+            type="button"
+            ${isMoving || unassignedCount === 0 ? "disabled" : ""}
+          >${isMoving ? "Moving…" : `Just unassigned items (${unassignedCount})`}</button>
+          <button
+            class="button button--secondary"
+            data-move-to-next-trip-scope="not_done"
+            type="button"
+            ${isMoving || notDoneCount === 0 ? "disabled" : ""}
+          >${isMoving ? "Moving…" : `All items not marked done (${notDoneCount})`}</button>
+        </div>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-move-to-next-trip" type="button" ${isMoving ? "disabled" : ""}>Cancel</button>
         </div>
       </section>
     </div>
@@ -725,6 +773,51 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         });
         rerenderTripDetail();
         showToast(getTripItemErrorMessage("tripDelete"), "error");
+      }
+    },
+    onOpenMoveToNextTripConfirm: () => {
+      appStore.updateTripDetail({
+        showMoveToNextTripConfirm: true,
+      });
+      rerenderTripDetail();
+    },
+    onCancelMoveToNextTripConfirm: () => {
+      appStore.updateTripDetail({
+        showMoveToNextTripConfirm: false,
+        isMovingToNextTrip: false,
+      });
+      rerenderTripDetail();
+    },
+    onConfirmMoveToNextTrip: async (scope) => {
+      const trip = tripStore.getCurrentTrip();
+      const { session } = sessionStore.getState();
+
+      if (!trip?.id || !session?.user?.id) {
+        return;
+      }
+
+      appStore.updateTripDetail({
+        isMovingToNextTrip: true,
+      });
+      rerenderTripDetail();
+
+      try {
+        const { trip: newTrip, movedCount } = await moveItemsToNextTrip({
+          sourceTrip: trip,
+          ownerId: session.user.id,
+          scope,
+        });
+        tripStore.prependTrip(newTrip);
+        appStore.resetTripDetail();
+        navigate(`/app/trip/${newTrip.id}`);
+        showToast(`Moved ${movedCount} item${movedCount === 1 ? "" : "s"} to ${getDisplayTitleForToast(newTrip.title, "the new trip")}.`, "success");
+      } catch (error) {
+        console.error(error);
+        appStore.updateTripDetail({
+          isMovingToNextTrip: false,
+        });
+        rerenderTripDetail();
+        showToast(getTripItemErrorMessage("moveToNextTrip"), "error");
       }
     },
   };

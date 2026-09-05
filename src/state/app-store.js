@@ -41,6 +41,8 @@ function createInitialTripDetail() {
     deletingBaseId: null,
     showDeleteTripConfirm: false,
     isDeletingTrip: false,
+    showMoveToNextTripConfirm: false,
+    isMovingToNextTrip: false,
     isShowingMembersModal: false,
     overviewEditorMode: null,
     editingOverviewBlockId: null,

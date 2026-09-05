@@ -13,6 +13,7 @@ import {
 import { tripDetailState } from "./trip-detail-state.js";
 import {
   renderDeleteTripConfirmModal,
+  renderMoveToNextTripConfirmModal,
   renderTripSettingsForm,
   renderTripSettingsSummary,
 } from "./trip-settings-controller.js";
@@ -277,6 +278,13 @@ export function renderTripDetailPageView() {
         trip,
         isOpen: tripDetail.showDeleteTripConfirm,
         isDeleting: tripDetail.isDeletingTrip,
+      })}
+      ${renderMoveToNextTripConfirmModal({
+        trip,
+        isOpen: tripDetail.showMoveToNextTripConfirm,
+        isMoving: tripDetail.isMovingToNextTrip,
+        unassignedCount: items.filter((item) => !item.day_id).length,
+        notDoneCount: items.filter((item) => !item.is_done).length,
       })}
       ${renderTimezoneOptionsDatalist()}
       ${renderMembersModal()}
