@@ -390,8 +390,9 @@ function renderJournalEditButton(item, isWritable) {
   `;
 }
 
-function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneUi) {
+function renderJournalItemCard(item, entries, photos, members, profiles, isWritable, currentUserId, showDoneUi, viewerRole) {
   const isDone = item.is_done === true;
+  const isPublicViewer = viewerRole === "public";
 
   let timeLabel = "";
   if (item.time_start) {
@@ -426,10 +427,11 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
       data-is-done="${String(isDone)}"
       data-show-done-ui="${String(showDoneUi)}"
     >
+      ${isPublicViewer ? renderItemMapLink(item, "guide-item-card__map-button") : ""}
       <div class="guide-item-card__header">
         <div class="journal-item-card__title-group">
           ${renderItemTypeIcon(item, "guide-item-card__type-icon")}
-          <h4 class="guide-item-card__title">${escapeHtml(item.title || "Untitled stop")}</h4>
+          <h4 class="guide-item-card__title${isPublicViewer && item.address ? " guide-item-card__title--with-map" : ""}">${escapeHtml(item.title || "Untitled stop")}</h4>
         </div>
         ${renderJournalEditButton(item, isWritable)}
         ${doneHeaderBlock}
@@ -444,7 +446,6 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
         ${renderExpandableItemNotes(item, "guide-item-card__notes")}
         ${item.confirmation_ref ? `<p class="guide-item-card__confirm-ref"><i data-lucide="hash" aria-hidden="true"></i>${escapeHtml(item.confirmation_ref)}</p>` : ""}
         ${itemUrl ? `<a class="guide-item-card__url" href="${escapeHtml(itemUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link" aria-hidden="true"></i><span>${escapeHtml(urlLabel)}</span></a>` : ""}
-        ${renderItemMapLink(item, "guide-item-card__map-link")}
       </div>
       ${journalArea ? `<div class="journal-item-card__journal">${journalArea}</div>` : ""}
     </article>
@@ -492,7 +493,7 @@ export function renderJournalDaySection(day, state, journalState) {
     : "";
 
   const itemCards = sorted.map((item) =>
-    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneUi)
+    renderJournalItemCard(item, entries, photos, members, profiles, isWritable, userId, showDoneUi, viewerRole)
   ).join("");
 
   const hasContent = sorted.length > 0 || dayJournalArea;

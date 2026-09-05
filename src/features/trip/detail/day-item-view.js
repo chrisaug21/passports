@@ -2,8 +2,8 @@ import { tripStore } from "../../../state/trip-store.js";
 import { formatTimeLabel } from "../../../lib/format.js";
 import {
   escapeHtml,
+  getItemMapsUrl,
   renderAnchorIndicator,
-  renderItemMapLink,
   renderItemNotes,
   renderItemStatusMeta,
   renderItemSubtypeLine,
@@ -32,7 +32,6 @@ export function renderDayItem(item, options = {}) {
             <h5 title="${escapeHtml(item.title || "Untitled stop")}">${escapeHtml(item.title || "Untitled stop")}</h5>
           </div>
           <div class="day-item__header-actions">
-            ${renderItemMapLink(item, "day-item__map-link")}
             ${renderItemActionsMenu(item)}
             ${
               dayId
@@ -90,12 +89,15 @@ export function renderItemBaseLine(item) {
 }
 
 export function renderItemActionsMenu(item, options = {}) {
+  const mapsUrl = getItemMapsUrl(item);
+
   return `
     <details class="item-actions-menu">
       <summary class="item-actions-menu__trigger" aria-label="Open stop actions">⋮</summary>
       <div class="item-actions-menu__panel">
         <button class="item-actions-menu__item" data-edit-item="${escapeHtml(item.id)}" type="button">Edit</button>
         <button class="item-actions-menu__item" data-open-move-item="${escapeHtml(item.id)}" type="button">Move</button>
+        ${mapsUrl ? `<a class="item-actions-menu__item" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Map</a>` : ""}
         ${options.includeRemove ? `<button class="item-actions-menu__item item-actions-menu__item--danger" data-request-delete-item="${escapeHtml(item.id)}" type="button">Remove from trip</button>` : ""}
       </div>
     </details>

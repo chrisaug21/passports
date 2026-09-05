@@ -1,6 +1,14 @@
 import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
 import { fetchMcpConnections, revokeMcpConnection } from "../../services/mcp-connections-service.js";
+import { fetchUserProfile, updateMapsAppPreference } from "../../services/journal-service.js";
+import { getMapsAppPreference, getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../../lib/preferences.js";
+import { sessionStore } from "../../state/session-store.js";
+
+const MAPS_APP_PREFERENCE_OPTIONS = [
+  { value: "apple", label: "Apple Maps" },
+  { value: "google", label: "Google Maps" },
+];
 
 export function openSettingsModal() {
   if (document.querySelector("#settings-modal")) return;
@@ -16,6 +24,7 @@ export function openSettingsModal() {
 
   wireSettingsModal();
   void loadConnections();
+  void refreshMapsAppPreference();
 }
 
 function renderSettingsModalHTML() {
@@ -27,11 +36,30 @@ function renderSettingsModalHTML() {
         <button class="icon-button" data-close-settings-modal type="button" aria-label="Close settings">×</button>
       </div>
       <div class="item-editor-form__content">
-        <h4 class="settings-modal__section-title">Connected Apps</h4>
-        <p class="muted settings-modal__section-copy">AI assistants you've connected to your Passports account. They can act as you, using your own permissions — revoke anytime.</p>
-        <div id="mcp-connections-list" class="mcp-connections-list">
-          <p class="muted">Loading…</p>
-        </div>
+        <section class="settings-modal__section">
+          <h4 class="settings-modal__section-title">Maps App</h4>
+          <p class="muted settings-modal__section-copy">Which app should open when you tap an address on a trip?</p>
+          <div class="settings-toggle" role="group" aria-label="Preferred maps app">
+            ${MAPS_APP_PREFERENCE_OPTIONS.map(
+              (option) => `
+                <button
+                  class="settings-toggle__option${getMapsAppPreference() === option.value ? " is-active" : ""}"
+                  type="button"
+                  data-maps-app-option="${option.value}"
+                  aria-pressed="${getMapsAppPreference() === option.value}"
+                >${escapeHtml(option.label)}</button>
+              `
+            ).join("")}
+          </div>
+        </section>
+
+        <section class="settings-modal__section">
+          <h4 class="settings-modal__section-title">Connected Apps</h4>
+          <p class="muted settings-modal__section-copy">AI assistants you've connected to your Passports account. They can act as you, using your own permissions — revoke anytime.</p>
+          <div id="mcp-connections-list" class="mcp-connections-list">
+            <p class="muted">Loading…</p>
+          </div>
+        </section>
       </div>
     </section>
   `;
@@ -49,6 +77,64 @@ function wireSettingsModal() {
   modal.querySelectorAll("[data-close-settings-modal]").forEach((el) => {
     el.addEventListener("click", close);
   });
+
+  modal.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextValue = button.getAttribute("data-maps-app-option");
+      const previousValue = getMapsAppPreference();
+      if (nextValue === previousValue) return;
+
+      const { session } = sessionStore.getState();
+      const userId = session?.user?.id;
+
+      setMapsAppToggleUI(nextValue);
+      setMapsAppToggleDisabled(true);
+
+      try {
+        if (!userId) throw new Error("Not signed in.");
+        await updateMapsAppPreference(userId, nextValue);
+        setMapsAppPreferenceCache(nextValue);
+      } catch (error) {
+        console.error(error);
+        setMapsAppToggleUI(previousValue);
+        showToast("Couldn't save that. Try again.", "error");
+      } finally {
+        setMapsAppToggleDisabled(false);
+      }
+    });
+  });
+}
+
+function setMapsAppToggleUI(value) {
+  document.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    const isActive = button.getAttribute("data-maps-app-option") === value;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function setMapsAppToggleDisabled(disabled) {
+  document.querySelectorAll("[data-maps-app-option]").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+async function refreshMapsAppPreference() {
+  const { session } = sessionStore.getState();
+  const userId = session?.user?.id;
+  if (!userId) return;
+
+  const versionAtStart = getMapsAppPreferenceVersion();
+
+  try {
+    const profile = await fetchUserProfile(userId);
+    if (getMapsAppPreferenceVersion() !== versionAtStart) return; // a newer read or save already landed
+    const preference = profile?.preferred_maps_app === "google" ? "google" : "apple";
+    setMapsAppPreferenceCache(preference);
+    setMapsAppToggleUI(preference);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 async function loadConnections() {
