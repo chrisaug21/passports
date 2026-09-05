@@ -17,6 +17,7 @@ import {
   renderJournalDayNav,
   renderJournalDaySection,
   renderJournalRefreshButton,
+  renderItineraryRefreshButton,
 } from "./journal-view.js";
 import { wireJournalMode, teardownJournalMode } from "./journal-wire.js";
 import { fetchJournalData } from "../../../services/journal-service.js";
@@ -65,6 +66,8 @@ let _journalState = {
 };
 let _journalAutoRefreshTimer = null;
 let _journalItemEditorHandlers = null;
+let _itineraryRefreshInFlight = false;
+let _isItineraryManualRefreshing = false;
 
 let dayNavOffsetRafId = null;
 let dayNavStickyRafId = null;
@@ -82,6 +85,8 @@ export function teardownGuideView() {
   _currentMode = "itinerary";
   _todayDayNumber = null;
   _journalState = { hasFetched: false, isFetching: false, isRefreshing: false, isManualRefreshing: false, entries: [], photos: [], profiles: [] };
+  _itineraryRefreshInFlight = false;
+  _isItineraryManualRefreshing = false;
   if (dayNavOffsetRafId) {
     cancelAnimationFrame(dayNavOffsetRafId);
     dayNavOffsetRafId = null;
@@ -116,6 +121,7 @@ export function wireGuideView(state) {
   setupDayNavStickyOffsetTracking();
   setupMobileDayNavStickyState();
   setupLazyDays(state);
+  setupGuideFocusRefresh();
 
   if (_todayDayNumber) {
     window.setTimeout(() => scrollOrJumpToTarget(`guide-day-${_todayDayNumber}`), 100);
@@ -506,7 +512,7 @@ function renderJournalModeContent() {
 
   syncGuideStateFromTripStore();
   syncTripDetailModalState();
-  renderJournalHeroControls();
+  renderGuideHeroControls();
   // Replace only the nav items, not the <nav> element itself
   nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
   content.innerHTML = `
@@ -531,7 +537,7 @@ function renderItineraryModeContent() {
   if (!nav || !content || !_guideState) return;
 
   const { trip, bases, days, items, overviewBlocks, viewerRole } = _guideState;
-  renderJournalHeroControls();
+  renderGuideHeroControls();
 
   const overviewNavEntries = getOverviewNavEntries(days, bases, overviewBlocks || []);
 
@@ -587,6 +593,7 @@ function renderItineraryModeContent() {
   window.lucide?.createIcons?.();
   wireNavClicks();
   setupLazyDays(_guideState);
+  wireItineraryControls();
 
   if (_todayDayNumber) scrollOrJumpToTarget(`guide-day-${_todayDayNumber}`);
   else if (!isMobileLayout()) updateActiveSection();
@@ -672,20 +679,30 @@ function wireJournalControls() {
   });
 }
 
-function renderJournalHeroControls() {
+function wireItineraryControls() {
+  bindJournalTap("[data-itinerary-refresh]", () => {
+    void refreshItineraryData({ showLoading: true });
+  });
+}
+
+// Shared hero-overlay refresh control for both tabs — same markup/CSS, just
+// swaps which mode's refresh button (and refresh function) it wires up.
+function renderGuideHeroControls() {
   const hero = document.querySelector(".guide-hero");
   if (!hero) return;
 
   hero.querySelector("[data-journal-hero-controls]")?.remove();
 
-  if (_currentMode !== "journal") {
+  if (_currentMode !== "journal" && _currentMode !== "itinerary") {
     return;
   }
 
   const controls = document.createElement("div");
   controls.className = "journal-hero-controls";
   controls.setAttribute("data-journal-hero-controls", "");
-  controls.innerHTML = renderJournalRefreshButton(_journalState);
+  controls.innerHTML = _currentMode === "journal"
+    ? renderJournalRefreshButton(_journalState)
+    : renderItineraryRefreshButton(_isItineraryManualRefreshing);
   hero.append(controls);
   window.lucide?.createIcons?.();
 }
@@ -785,6 +802,30 @@ function wireJournalItemEditorButtons(handlers) {
   content.addEventListener("click", handleJournalItemEditorEvent, true);
 }
 
+// Refetches whichever tab is active when the app regains focus/visibility —
+// covers switching back from Claude after an MCP edit without waiting for
+// the journal's 60s poll (which itinerary mode doesn't have at all).
+function setupGuideFocusRefresh() {
+  const handleFocus = () => {
+    if (document.visibilityState === "hidden") {
+      return;
+    }
+
+    if (_currentMode === "journal") {
+      void refreshJournalData({ showLoading: false });
+    } else if (_currentMode === "itinerary") {
+      void refreshItineraryData({ showLoading: false });
+    }
+  };
+
+  window.addEventListener("focus", handleFocus);
+  document.addEventListener("visibilitychange", handleFocus);
+  cleanupFns.push(() => {
+    window.removeEventListener("focus", handleFocus);
+    document.removeEventListener("visibilitychange", handleFocus);
+  });
+}
+
 function startJournalAutoRefresh() {
   stopJournalAutoRefresh();
   _journalAutoRefreshTimer = window.setInterval(() => {
@@ -861,6 +902,44 @@ async function refreshJournalData({ showLoading }) {
     _journalState.isManualRefreshing = false;
     if (showLoading && _currentMode === "journal") {
       renderJournalModeContent();
+    }
+  }
+}
+
+async function refreshItineraryData({ showLoading }) {
+  if (!_guideState || _currentMode !== "itinerary" || _itineraryRefreshInFlight) {
+    return;
+  }
+
+  _itineraryRefreshInFlight = true;
+  _isItineraryManualRefreshing = Boolean(showLoading);
+  if (showLoading) {
+    renderGuideHeroControls();
+  }
+
+  try {
+    const bundle = await fetchTripDetailBundle(_guideState.tripId);
+    tripStore.setCurrentTripBundle(bundle);
+    _guideState = {
+      ..._guideState,
+      trip: bundle.trip,
+      bases: bundle.bases,
+      days: bundle.days,
+      items: bundle.items,
+      overviewBlocks: bundle.overviewBlocks || [],
+    };
+    _todayDayNumber = getTodayDayNumber(_guideState.trip);
+    renderItineraryModeContent();
+  } catch (error) {
+    console.error("Failed to refresh itinerary data:", error);
+    if (showLoading) {
+      showToast("Couldn't reload the itinerary. Try again.", "error");
+    }
+  } finally {
+    _itineraryRefreshInFlight = false;
+    _isItineraryManualRefreshing = false;
+    if (showLoading && _currentMode === "itinerary") {
+      renderGuideHeroControls();
     }
   }
 }

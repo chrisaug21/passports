@@ -138,6 +138,9 @@ export function renderTripDetailPageView() {
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
             <div class="trip-header__actions">
+              <button class="trip-header__icon-btn" id="refresh-trip-detail" type="button" title="Refresh" aria-label="Refresh trip data">
+                <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              </button>
               <button class="trip-header__icon-btn" id="toggle-trip-settings" type="button" title="Edit Trip" aria-label="Edit Trip">
                 <i data-lucide="pencil" aria-hidden="true"></i>
               </button>

@@ -633,6 +633,21 @@ export function renderJournalRefreshButton(journalState) {
   `;
 }
 
+export function renderItineraryRefreshButton(isRefreshing) {
+  return `
+    <button
+      class="journal-refresh-button${isRefreshing ? " is-loading" : ""}"
+      data-itinerary-refresh
+      type="button"
+      aria-label="${isRefreshing ? "Reloading itinerary" : "Reload itinerary"}"
+      title="${isRefreshing ? "Reloading itinerary" : "Reload itinerary"}"
+      ${isRefreshing ? "disabled" : ""}
+    >
+      <i data-lucide="refresh-cw" aria-hidden="true"></i>
+    </button>
+  `;
+}
+
 // ---------------------------------------------------------------------------
 // Full Journal Mode content (guide-content area)
 // ---------------------------------------------------------------------------

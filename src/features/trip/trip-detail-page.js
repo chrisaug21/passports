@@ -4,9 +4,14 @@ import {
   rerenderTripDetail,
   setTripDetailRerenderer,
   tripDetailState,
+  isTripDetailUiBusy,
 } from "./detail/trip-detail-state.js";
 import { loadTripDetail as loadTripDetailFromModule } from "./detail/trip-detail-loader.js";
 import { wireTripDetailPageEvents } from "./detail/trip-detail-wire.js";
+import {
+  setupTripDetailFocusRefresh,
+  teardownTripDetailFocusRefresh,
+} from "./detail/trip-detail-focus-refresh.js";
 import {
   createTripSettingsHandlers,
 } from "./detail/trip-settings-controller.js";
@@ -45,25 +50,7 @@ function syncTripDetailModalState(tripDetail) {
     return;
   }
 
-  const hasOpenModal = Boolean(
-    tripDetail.editingItemId ||
-    tripDetail.itemEditorMode === "add" ||
-    tripDetail.isShowingTripSettings ||
-    tripDetail.isShowingAddBaseForm ||
-    tripDetail.editingBaseId ||
-    tripDetail.showDiscardConfirm ||
-    tripDetail.showDeleteItemConfirm ||
-    tripDetail.showMoveItemModal ||
-    tripDetail.isShowingMasterListFilters ||
-    tripDetail.showDeleteBaseConfirm ||
-    tripDetail.showDeleteTripConfirm ||
-    tripDetail.isShowingMembersModal ||
-    tripDetail.overviewEditorMode ||
-    tripDetail.showDeleteOverviewBlockConfirm ||
-    tripDetailState.allocationConfirmState
-  );
-
-  document.body.classList.toggle("modal-open", hasOpenModal);
+  document.body.classList.toggle("modal-open", isTripDetailUiBusy(tripDetail));
 }
 
 function createTripDetailHandlers(tripId) {
@@ -88,6 +75,7 @@ function createTripDetailHandlers(tripId) {
     onBackToDashboard: () => navigate("/app"),
     onOpenGuide: () => navigate(`/app/trip/${tripId}/guide`),
     onRetryTripLoad: () => loadTripDetail(tripId),
+    onRefreshTripDetail: () => loadTripDetail(tripId),
     onViewModeChange: (viewMode) => {
       if (!viewMode) {
         return;
@@ -116,4 +104,7 @@ export function wireTripDetailPage(tripId) {
   wireItemActionsMenus();
   wireTimezonePickers();
   wireTripDetailPageEvents(createTripDetailHandlers(tripId));
+  setupTripDetailFocusRefresh(tripId);
 }
+
+export { teardownTripDetailFocusRefresh };

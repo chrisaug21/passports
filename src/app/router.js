@@ -13,6 +13,7 @@ import {
   renderTripDetailPage,
   setTripDetailRenderer,
   wireTripDetailPage,
+  teardownTripDetailFocusRefresh,
 } from "../features/trip/trip-detail-page.js";
 import { tripStore } from "../state/trip-store.js";
 import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-page.js";
@@ -68,6 +69,10 @@ export function renderRoute(options = {}) {
   const { session } = sessionStore.getState();
   const pathname = normalizePath(window.location.pathname);
   document.body.classList.remove("modal-open");
+  // Always torn down here and re-added inside the trip-detail branch below —
+  // guarantees no stale focus/visibility listener survives a navigation away
+  // from Plan view (to Guide, the dashboard, or another trip).
+  teardownTripDetailFocusRefresh();
 
   // Guide route: public access allowed — handle before session check
   const guideMatch = pathname.match(/^\/app\/trip\/([0-9a-f-]+)\/guide$/i);
