@@ -580,13 +580,13 @@
   border-left-color: var(--color-item-transport);
 }
 
-/* Anchor pin icon */
+/* Anchor pin icon — inline, after the item title */
 .guide-item-card__anchor-icon {
-  position: absolute;
-  top: 0.875rem;
-  right: 0.875rem;
+  display: inline-block;
+  vertical-align: -2px;
   width: 14px;
   height: 14px;
+  margin-left: 0.3rem;
   color: var(--color-structure);
   opacity: 0.65;
 }
@@ -594,6 +594,30 @@
 .guide-item-card__anchor-icon svg {
   width: 14px;
   height: 14px;
+}
+
+/* Map button — upper-right corner of the card */
+.guide-item-card__map-button {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-elevated);
+  color: var(--color-structure);
+}
+
+.guide-item-card__map-button:hover {
+  background: var(--color-surface-strong);
+}
+
+.guide-item-card__map-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Status badge for option/shortlisted */
@@ -654,7 +678,10 @@
   margin: 0;
   flex: 1;
   min-width: 0;
-  padding-right: 1.25rem; /* space for anchor pin */
+}
+
+.guide-item-card__title--with-map {
+  padding-right: 2.75rem; /* space for the map button in the upper-right corner */
 }
 
 /* Card details */
@@ -723,18 +750,6 @@
 .guide-item-card__url svg {
   width: 12px;
   height: 12px;
-  flex-shrink: 0;
-}
-
-.guide-item-card__map-link {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-structure);
-}
-
-.guide-item-card__map-link svg {
-  width: 14px;
-  height: 14px;
   flex-shrink: 0;
 }
 

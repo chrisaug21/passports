@@ -2,7 +2,7 @@ import { getSupabase } from "../lib/supabase.js";
 
 const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, created_at, updated_at";
 const JOURNAL_PHOTO_SELECT = "id, trip_id, user_id, item_id, storage_path, public_url, created_at, updated_at";
-const USER_PROFILE_SELECT = "id, first_name, last_name, updated_at";
+const USER_PROFILE_SELECT = "id, first_name, last_name, preferred_maps_app, updated_at";
 
 export const JOURNAL_PHOTO_BUCKET = "journal-photos";
 export const JOURNAL_PHOTO_MAX_PX = 1200;
@@ -179,6 +179,24 @@ export async function upsertUserProfile({ userId, firstName, lastName }) {
         id: userId,
         first_name: firstName || null,
         last_name: lastName || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    )
+    .select(USER_PROFILE_SELECT)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMapsAppPreference(userId, preferredMapsApp) {
+  const { data, error } = await getSupabase()
+    .from("user_profiles")
+    .upsert(
+      {
+        id: userId,
+        preferred_maps_app: preferredMapsApp,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }

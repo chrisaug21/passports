@@ -253,22 +253,6 @@
   cursor: default;
 }
 
-.day-item__map-link {
-  width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-elevated);
-  color: var(--color-structure);
-}
-
-.day-item__map-link svg {
-  width: 1rem;
-  height: 1rem;
-}
-
 .days-view__pool-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width)));
@@ -311,7 +295,6 @@
 
 @media (min-width: 900px) {
     .day-item__reorder-button,
-    .day-item__map-link,
     .item-actions-menu__trigger {
       width: 32px;
       min-height: 32px;
