@@ -2,6 +2,7 @@ import {
   formatItemTypeLabel,
   formatStatusLabel,
 } from "../../../lib/format.js";
+import { getMapsAppPreference } from "../../../lib/preferences.js";
 import { TRANSPORT_MODES } from "../../../config/constants.js";
 
 export function escapeHtml(value) {
@@ -274,10 +275,13 @@ export function sanitizeCoverUrl(value) {
   }
 }
 
-function buildMapsUrl(address) {
-  const query = encodeURIComponent(address);
-  const isApplePlatform = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
-  return isApplePlatform
+function buildMapsUrl(item, address) {
+  const title = String(item?.title || "").trim();
+  const query = encodeURIComponent(title ? `${title}, ${address}` : address);
+  const preference = getMapsAppPreference();
+  const useAppleMaps = preference === "apple"
+    || (preference !== "google" && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent));
+  return useAppleMaps
     ? `https://maps.apple.com/?q=${query}`
     : `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
@@ -285,7 +289,7 @@ function buildMapsUrl(address) {
 export function renderItemMapLink(item, className) {
   const address = String(item?.address || "").trim();
   if (!address) return "";
-  const url = buildMapsUrl(address);
+  const url = buildMapsUrl(item, address);
   return `
     <a class="${className}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="Open address in maps" title="${escapeHtml(address)}">
       <i data-lucide="map-pin" aria-hidden="true"></i>

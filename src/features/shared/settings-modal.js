@@ -1,6 +1,13 @@
 import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
 import { fetchMcpConnections, revokeMcpConnection } from "../../services/mcp-connections-service.js";
+import { getMapsAppPreference, setMapsAppPreference } from "../../lib/preferences.js";
+
+const MAPS_APP_PREFERENCE_OPTIONS = [
+  { value: "auto", label: "Automatic (Apple Maps on iPhone/iPad/Mac, Google Maps elsewhere)" },
+  { value: "apple", label: "Always Apple Maps" },
+  { value: "google", label: "Always Google Maps" },
+];
 
 export function openSettingsModal() {
   if (document.querySelector("#settings-modal")) return;
@@ -27,6 +34,17 @@ function renderSettingsModalHTML() {
         <button class="icon-button" data-close-settings-modal type="button" aria-label="Close settings">×</button>
       </div>
       <div class="item-editor-form__content">
+        <h4 class="settings-modal__section-title">Maps</h4>
+        <p class="muted settings-modal__section-copy">Which app should open when you tap an address on a trip.</p>
+        <label class="field">
+          <span>Preferred maps app</span>
+          <select id="maps-app-preference-select">
+            ${MAPS_APP_PREFERENCE_OPTIONS.map(
+              (option) => `<option value="${option.value}" ${getMapsAppPreference() === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`
+            ).join("")}
+          </select>
+        </label>
+
         <h4 class="settings-modal__section-title">Connected Apps</h4>
         <p class="muted settings-modal__section-copy">AI assistants you've connected to your Passports account. They can act as you, using your own permissions — revoke anytime.</p>
         <div id="mcp-connections-list" class="mcp-connections-list">
@@ -48,6 +66,10 @@ function wireSettingsModal() {
 
   modal.querySelectorAll("[data-close-settings-modal]").forEach((el) => {
     el.addEventListener("click", close);
+  });
+
+  modal.querySelector("#maps-app-preference-select")?.addEventListener("change", (event) => {
+    setMapsAppPreference(event.target.value);
   });
 }
 
