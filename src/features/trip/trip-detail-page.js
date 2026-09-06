@@ -75,6 +75,12 @@ function createTripDetailHandlers(tripId) {
     onBackToDashboard: () => navigate("/app"),
     onOpenGuide: (event) => {
       event.preventDefault();
+      // The pull-tab sits inside the hero photo container, which is *also* a
+      // fallback click target when there's no photo yet
+      // (data-trip-hero-upload-area) — without stopPropagation, clicking it
+      // would bubble and open the photo upload flow too. Same reasoning as
+      // the camera/replace buttons in the same container.
+      event.stopPropagation();
       navigate(`/app/trip/${tripId}/guide`);
     },
     onOpenNotes: () => navigate(`/app/trip/${tripId}/notes`),

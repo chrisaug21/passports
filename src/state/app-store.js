@@ -66,6 +66,7 @@ function createInitialNotesPage() {
     showDeleteConfirm: false,
     deletingNoteId: null,
     isDeleting: false,
+    expandedNoteIds: [],
   };
 }
 

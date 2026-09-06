@@ -51,7 +51,9 @@
   grid-template-columns: repeat(3, minmax(0, var(--trip-detail-grid-card-width, 1fr)));
   gap: 1rem;
   justify-content: start;
-  align-items: stretch;
+  /* Each card sizes to its own content — a very long note (or one expanded
+     via "Read more") must not stretch its shorter row-mates to match. */
+  align-items: start;
 }
 
 .note-card {
@@ -135,6 +137,21 @@
 .note-card__list {
   margin: 0;
   padding-left: 1.15rem;
+}
+
+.note-card__toggle {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-structure);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-card__toggle:hover {
+  text-decoration: underline;
 }
 
 .note-editor-form {
