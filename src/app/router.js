@@ -17,6 +17,7 @@ import {
 } from "../features/trip/trip-detail-page.js";
 import { tripStore } from "../state/trip-store.js";
 import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-page.js";
+import { renderNotesPage, loadNotesPage } from "../features/trip/notes/notes-page.js";
 import { renderMcpConnectPage, wireMcpConnectPage } from "../features/shared/mcp-connect-page.js";
 
 const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
@@ -27,7 +28,8 @@ function normalizePath(pathname) {
     pathname === "/app" ||
     pathname === "/app/connect" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
-    /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname)
+    /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname) ||
+    /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname)
   ) {
     return pathname;
   }
@@ -159,6 +161,23 @@ export function renderRoute(options = {}) {
       loadDashboard();
     }
 
+    return;
+  }
+
+  const notesMatch = pathname.match(/^\/app\/trip\/([0-9a-f-]+)\/notes$/i);
+  if (notesMatch) {
+    const tripId = notesMatch[1];
+
+    renderAppShell(renderNotesPage(), {
+      showDashboardLink: true,
+      afterRender: () => {
+        document.title = "Passports | Notes & References";
+        loadNotesPage(tripId);
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
     return;
   }
 

@@ -76,7 +76,6 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-view-mode]", "click", (button) => {
     handlers.onViewModeChange?.(button.getAttribute("data-view-mode"));
   });
-  bindClick("#refresh-trip-detail", handlers.onRefreshTripDetail);
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
   // The hero action button sits inside a container that's *also* a fallback
   // click target when there's no photo yet (data-trip-hero-upload-area) —
@@ -261,6 +260,7 @@ export function wireTripDetailPageEvents(handlers) {
     handlers.onConfirmMoveToNextTrip?.(button.getAttribute("data-move-to-next-trip-scope"));
   });
   bindClick("[data-open-guide]", handlers.onOpenGuide);
+  bindClick("[data-open-notes]", handlers.onOpenNotes);
   bindClick("#open-members-modal", handlers.onOpenMembersModal);
   bindClick("#close-members-modal", handlers.onCloseMembersModal);
   bindClick("#close-members-modal-footer", handlers.onCloseMembersModal);
