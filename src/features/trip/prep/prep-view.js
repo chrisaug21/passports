@@ -6,7 +6,11 @@ const TODO_SECTION_MAX_LENGTH = 60;
 // Thought-starters, not defaults — none apply to every trip. A chip is
 // dropped once a todo with a matching title already exists (case-insensitive)
 // so the tray only ever offers things not yet added, and a group disappears
-// once every one of its chips has been used.
+// once every one of its chips has been used. Each group only ever shows its
+// first MAX_VISIBLE_SUGGESTIONS_PER_GROUP unused items (see
+// getRemainingSuggestionGroups) — later items in the array are a reserve
+// pool that surfaces automatically as earlier ones get used, so list order
+// here doubles as priority order within the group.
 const STARTER_SUGGESTIONS = [
   {
     section: "Documents & Money",
@@ -14,22 +18,41 @@ const STARTER_SUGGESTIONS = [
       "Check passport expiration",
       "Check visa requirements",
       "Notify bank/credit cards of travel",
-      "Get local currency or a no-foreign-fee card",
+      "Get local currency cash",
+      "Make copies of passport & ID (photo + physical)",
+      "Check reciprocity or entry permit fees",
+      "Get an International Driving Permit",
+      "Set a travel budget",
+      "Get a no-foreign-fee card",
     ],
   },
   {
     section: "Logistics",
     items: [
       "Book flights",
+      "Book train tickets",
       "Book hotel",
       "Book restaurant reservations",
       "Arrange airport transport",
       "Check baggage allowance",
+      "Reserve a rental car",
+      "Book must-do tours or attractions in advance",
+      "Check transit passes or city cards",
+      "Confirm hotel check-in/check-out times",
     ],
   },
   {
     section: "Health & Comfort",
-    items: ["Pack prescriptions + extra supply", "Get travel insurance"],
+    items: [
+      "Pack prescriptions + extra supply",
+      "Get travel insurance",
+      "Pack sunscreen & weather protection",
+      "Pack flight comfort items (gum, fidget toys, etc.)",
+      "Pack a basic first-aid kit",
+      "Refill prescriptions before departure",
+      "Check insurance coverage for planned activities",
+      "Schedule required vaccinations",
+    ],
   },
   {
     section: "Home & Tech",
@@ -38,9 +61,36 @@ const STARTER_SUGGESTIONS = [
       "Confirm cell/data plan works abroad",
       "Download offline maps or entertainment",
       "Confirm outlet/plug converters needed",
+      "Set a vacation auto-reply for email",
+      "Set up a mail hold",
+      "Back up your phone/photos before departure",
+      "Share your itinerary with someone at home",
+    ],
+  },
+  {
+    section: "Packing",
+    items: [
+      "Pack chargers (phone, laptop, camera)",
+      "Pack comfortable shoes",
+      "Pack pajamas",
+      "Pack socks and underclothes",
+      "Pack headphones",
+      "Pack a change of clothes for your carry-on",
+      "Pack a rain jacket or umbrella",
+      "Pack a swimsuit",
+      "Pack a reusable water bottle",
+      "Pack packing cubes or laundry bags",
+      "Pack a light jacket or sweater for AC/evenings",
+      "Pack a portable battery pack",
+      "Pack toiletries in travel-size containers",
+      "Pack a day bag/daypack",
     ],
   },
 ];
+
+// Each suggestion group only ever shows this many unused chips at once —
+// the rest are a reserve that surfaces as earlier ones get added.
+const MAX_VISIBLE_SUGGESTIONS_PER_GROUP = 4;
 
 // Ungrouped items render first, then named sections in the order their
 // earliest item was added — no separate sections table, so "order" is
@@ -91,7 +141,9 @@ function getRemainingSuggestionGroups(todos) {
 
   return STARTER_SUGGESTIONS.map((group) => ({
     section: group.section,
-    items: group.items.filter((title) => !existingTitles.has(title.toLowerCase())),
+    items: group.items
+      .filter((title) => !existingTitles.has(title.toLowerCase()))
+      .slice(0, MAX_VISIBLE_SUGGESTIONS_PER_GROUP),
   })).filter((group) => group.items.length > 0);
 }
 
