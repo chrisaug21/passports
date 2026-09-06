@@ -148,6 +148,68 @@ export async function getPrimaryPhotoForSlot({ tripId, baseId = null }) {
   return withPublicUrl(data);
 }
 
+// Copies the trip's hero photo and any carried-over base heroes onto a new
+// trip. baseIdMap maps old base_id -> new base_id for bases being carried
+// over; a base's photo is skipped if its base wasn't carried over.
+export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId, ownerId, baseIdMap }) {
+  const supabase = getSupabase();
+
+  const { data: sourcePhotos, error } = await supabase
+    .from("trip_photos")
+    .select("base_id, storage_path, source, unsplash_id, unsplash_url, credit_name, credit_url, sort_order")
+    .eq("trip_id", sourceTripId)
+    .eq("is_primary", true)
+    .is("day_id", null)
+    .is("item_id", null);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const photo of sourcePhotos || []) {
+    const newBaseId = photo.base_id ? baseIdMap.get(photo.base_id) : null;
+
+    if (photo.base_id && !newBaseId) {
+      continue;
+    }
+
+    let newStoragePath = photo.storage_path;
+
+    if (photo.storage_path) {
+      const context = photo.base_id ? PHOTO_CONTEXTS.baseHero : PHOTO_CONTEXTS.tripHero;
+      newStoragePath = `${ownerId}/${newTripId}/${context}/${crypto.randomUUID()}.jpg`;
+
+      const { error: copyError } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .copy(photo.storage_path, newStoragePath);
+
+      if (copyError) {
+        throw copyError;
+      }
+    }
+
+    const { error: insertError } = await supabase.from("trip_photos").insert({
+      id: crypto.randomUUID(),
+      trip_id: newTripId,
+      base_id: newBaseId || null,
+      day_id: null,
+      item_id: null,
+      source: photo.source,
+      storage_path: newStoragePath,
+      unsplash_id: photo.unsplash_id,
+      unsplash_url: photo.unsplash_url,
+      credit_name: photo.credit_name,
+      credit_url: photo.credit_url,
+      is_primary: true,
+      sort_order: photo.sort_order,
+    });
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+}
+
 export function getPhotoPublicUrl(storagePath, cacheKey = "") {
   if (!storagePath) {
     return "";

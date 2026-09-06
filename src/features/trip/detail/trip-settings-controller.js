@@ -594,8 +594,9 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
           <button class="icon-button" id="cancel-move-to-next-trip" type="button" aria-label="Close" ${isMoving ? "disabled" : ""}>×</button>
         </div>
         <p class="muted">
-          Creates a new trip called "Next Trip to ${escapeHtml(trip.title || "Untitled trip")}" with the same length and no dates yet,
-          then moves the items you pick over from this trip (they're removed from here).
+          Creates a new trip called "Next Trip to ${escapeHtml(trip.title || "Untitled trip")}" with the same length, photos,
+          and any bases your items need, but no dates yet. The items you pick move over — reset to idea status with no
+          time or confirmation number — and are removed from here.
         </p>
         <div class="modal-card__actions modal-card__actions--column">
           <button
