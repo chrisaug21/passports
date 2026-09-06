@@ -73,9 +73,12 @@ function createTripDetailHandlers(tripId) {
 
   return {
     onBackToDashboard: () => navigate("/app"),
-    onOpenGuide: () => navigate(`/app/trip/${tripId}/guide`),
+    onOpenGuide: (event) => {
+      event.preventDefault();
+      navigate(`/app/trip/${tripId}/guide`);
+    },
+    onOpenNotes: () => navigate(`/app/trip/${tripId}/notes`),
     onRetryTripLoad: () => loadTripDetail(tripId),
-    onRefreshTripDetail: () => loadTripDetail(tripId),
     onViewModeChange: (viewMode) => {
       if (!viewMode) {
         return;

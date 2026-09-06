@@ -127,6 +127,10 @@ export function renderTripDetailPageView() {
               </button>
             ` : ""}
           </div>
+          <a class="trip-header__guide-tab" data-open-guide href="/app/trip/${escapeHtml(trip.id)}/guide" aria-label="Open Itinerary and Journal">
+            <span>Itinerary &amp; Journal</span>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+          </a>
         </div>
         <div class="trip-header__content">
           <div class="trip-header__top">
@@ -139,17 +143,14 @@ export function renderTripDetailPageView() {
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
             <div class="trip-header__actions">
-              <button class="trip-header__icon-btn" id="refresh-trip-detail" type="button" title="Refresh" aria-label="Refresh trip data">
-                <i data-lucide="refresh-cw" aria-hidden="true"></i>
-              </button>
               <button class="trip-header__icon-btn" id="toggle-trip-settings" type="button" title="Edit Trip" aria-label="Edit Trip">
                 <i data-lucide="pencil" aria-hidden="true"></i>
               </button>
               <button class="trip-header__icon-btn" id="open-members-modal" type="button" title="Members" aria-label="Members">
                 <i data-lucide="users" aria-hidden="true"></i>
               </button>
-              <button class="trip-header__icon-btn" data-open-guide type="button" title="Guide" aria-label="Guide">
-                <i data-lucide="compass" aria-hidden="true"></i>
+              <button class="trip-header__icon-btn" data-open-notes type="button" title="Notes & References" aria-label="Notes & References">
+                <i data-lucide="notebook-pen" aria-hidden="true"></i>
               </button>
               ${deriveTripStatus(trip) === "past" ? `
                 <button class="trip-header__icon-btn" id="open-move-to-next-trip-confirm" type="button" title="Move to Next Trip" aria-label="Move to Next Trip">
