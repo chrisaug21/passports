@@ -44,7 +44,7 @@ Editing a single note, or adding/renaming one prep item, stays a **modal** — s
 
 ## Phase 2 — Notes & References
 
-### Schema
+### Schema (`trip_notes`)
 
 New table, RLS copied directly from `trip_overview_blocks`' pattern (same two roles — planner/member — used everywhere else in this app):
 
@@ -109,7 +109,7 @@ No manual reordering (no up/down arrows, no drag-and-drop, no `sort_order` colum
 
 ## Phase 3 — Prep Checklist
 
-### Schema
+### Schema (`trip_todos` extension)
 
 Extend the existing `trip_todos` table rather than building on `trip_packing_items` (which stays in the database, unused, until/unless a future decision reuses or drops it — out of scope here). `trip_todos` is already the right shape (free-text `title`, optional `item_id` link, `is_complete`, `notes`, soft delete, and correct RLS already in place — members can view/insert/update, planners can delete):
 

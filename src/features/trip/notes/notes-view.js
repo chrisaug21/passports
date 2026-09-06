@@ -100,10 +100,28 @@ function getBodyPreviewText(body, maxLength) {
   return `${clean.trim()}…`;
 }
 
+// Escaping the URL isn't enough on its own — it stops an attribute breakout
+// but not a javascript:/data: scheme, which a browser will still execute on
+// click. Only http/https are allowed through; anything else (including a
+// malformed value) silently falls back to plain, non-linked title text
+// rather than rendering a broken or dangerous href.
+function sanitizeNoteUrl(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(String(value));
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
 function renderNoteCard(note, isExpanded) {
-  const hasUrl = Boolean(note.url);
-  const titleMarkup = hasUrl
-    ? `<a class="note-card__title note-card__title--link" href="${escapeHtml(note.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(note.title)}</a>`
+  const safeUrl = sanitizeNoteUrl(note.url);
+  const titleMarkup = safeUrl
+    ? `<a class="note-card__title note-card__title--link" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(note.title)}</a>`
     : `<span class="note-card__title">${escapeHtml(note.title)}</span>`;
 
   const previewText = getBodyPreviewText(note.body, NOTE_BODY_PREVIEW_LENGTH);
