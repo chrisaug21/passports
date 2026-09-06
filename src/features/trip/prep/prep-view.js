@@ -316,7 +316,10 @@ export function renderPrepView(state) {
           <p class="eyebrow">${escapeHtml(trip.title || "Trip")}</p>
           <h1>Prep Checklist</h1>
         </div>
-        <button class="button" data-add-todo type="button">+ Add Item</button>
+        <button class="button prep-add-item-button" data-add-todo type="button">
+          <span class="prep-add-item-button__full">+ Add Item</span>
+          <span class="prep-add-item-button__short">+ Add</span>
+        </button>
       </div>
 
       ${

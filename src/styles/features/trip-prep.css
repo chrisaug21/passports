@@ -40,6 +40,25 @@
   line-height: 1;
 }
 
+.prep-add-item-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.prep-add-item-button__short {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .prep-add-item-button__full {
+    display: none;
+  }
+
+  .prep-add-item-button__short {
+    display: inline;
+  }
+}
+
 .prep-page__state {
   padding: 1.5rem;
   display: grid;

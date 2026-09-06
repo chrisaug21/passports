@@ -24,17 +24,44 @@ import { getVisibleSuggestionTitles } from "./prep-view.js";
 // three overflow:auto/hidden ancestors (.modal-shell, .modal-card,
 // .todo-editor-form__content) between the field and the dropdown, any one
 // of which clips an absolutely-positioned child that extends past it.
-// Fixed positioning escapes that clipping entirely. Because it no longer
-// tracks the input if the modal scrolls underneath it, it just closes on
-// scroll instead of trying to follow — same as how a native <select>
-// dropdown dismisses rather than repositioning live.
+//
+// position: fixed alone doesn't actually escape that here, though: .panel
+// (combined with .modal-card on the same <section>) sets a backdrop-filter,
+// and backdrop-filter/filter/transform all create a new containing block
+// for fixed-position descendants, same as transform does — so the dropdown
+// was being trapped inside the (still-clipped) modal card instead of
+// escaping to the viewport, positioned using viewport coordinates that no
+// longer meant anything relative to its actual containing block. It's
+// moved to be a direct child of <body> below specifically to get out from
+// under that. Since a full rerender replaces the modal's markup wholesale
+// without touching anything we've manually moved outside of it, the
+// cleanup function below (run at the top of every call, whether or not the
+// modal is even open on that render) removes whatever was portaled out
+// last time before this run does it again — otherwise every render while
+// the modal is open would leave another stale, duplicate-id <ul> behind.
+//
+// On mobile, focusing the field opens the keyboard, and the browser both
+// resizes the visual viewport and (often) auto-scrolls the field into view
+// above it — asynchronously, after the focus handler already ran. An
+// earlier version closed the dropdown on scroll rather than repositioning
+// it, which meant that auto-scroll immediately dismissed the dropdown
+// before it was ever visible on a phone. Repositioning on scroll and on
+// visualViewport resize instead keeps it anchored correctly through all of
+// that, on both mobile and desktop.
+let sectionComboboxCleanup = null;
+
 function wireSectionCombobox() {
+  sectionComboboxCleanup?.();
+  sectionComboboxCleanup = null;
+
   const input = document.querySelector("#todo-section-input");
   const optionsList = document.querySelector("#todo-section-options");
 
   if (!input || !optionsList) {
     return;
   }
+
+  document.body.appendChild(optionsList);
 
   const options = [...optionsList.querySelectorAll("[data-section-option]")];
   const scrollContainer = input.closest(".todo-editor-form__content");
@@ -44,6 +71,12 @@ function wireSectionCombobox() {
     optionsList.style.top = `${rect.bottom + 4}px`;
     optionsList.style.left = `${rect.left}px`;
     optionsList.style.width = `${rect.width}px`;
+  };
+
+  const repositionIfOpen = () => {
+    if (!optionsList.hidden) {
+      positionOptionsList();
+    }
   };
 
   const filterOptions = () => {
@@ -63,22 +96,41 @@ function wireSectionCombobox() {
     optionsList.hidden = !hasVisibleOption;
   };
 
-  input.addEventListener("focus", filterOptions);
+  const handleFocus = () => {
+    filterOptions();
+    // Catches the settled position after the keyboard-open animation and
+    // any resulting scroll-into-view finish, in case they land after the
+    // scroll/resize listeners below have already fired once.
+    window.setTimeout(repositionIfOpen, 300);
+  };
+
+  const handleBlur = () => {
+    optionsList.hidden = true;
+  };
+
+  input.addEventListener("focus", handleFocus);
   input.addEventListener("input", filterOptions);
-  input.addEventListener("blur", () => {
+  input.addEventListener("blur", handleBlur);
+  scrollContainer?.addEventListener("scroll", repositionIfOpen);
+  window.visualViewport?.addEventListener("resize", repositionIfOpen);
+  window.visualViewport?.addEventListener("scroll", repositionIfOpen);
+
+  const handleOptionSelect = (event, option) => {
+    event.preventDefault();
+    input.value = option.getAttribute("data-section-option");
     optionsList.hidden = true;
-  });
-  scrollContainer?.addEventListener("scroll", () => {
-    optionsList.hidden = true;
-  });
+  };
 
   options.forEach((option) => {
-    option.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      input.value = option.getAttribute("data-section-option");
-      optionsList.hidden = true;
-    });
+    option.addEventListener("mousedown", (event) => handleOptionSelect(event, option));
   });
+
+  sectionComboboxCleanup = () => {
+    scrollContainer?.removeEventListener("scroll", repositionIfOpen);
+    window.visualViewport?.removeEventListener("resize", repositionIfOpen);
+    window.visualViewport?.removeEventListener("scroll", repositionIfOpen);
+    optionsList.remove();
+  };
 }
 
 export function wirePrepView({ trip, todos, rerender }) {
