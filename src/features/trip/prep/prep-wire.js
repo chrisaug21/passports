@@ -63,7 +63,11 @@ export function wirePrepView({ trip, todos, rerender }) {
 
         const visibleTitlesAfter = getVisibleSuggestionTitles(tripStore.getCurrentTodos());
         const revealedTitle = [...visibleTitlesAfter].find((title) => !visibleTitlesBefore.has(title)) || null;
-        appStore.updatePrepPage({ justRevealedSuggestionTitle: revealedTitle });
+        // Below the "list is empty" threshold, the tray shows unconditionally
+        // regardless of isShowingSuggestions. Adding the first item crosses
+        // that threshold on this same render, so without forcing the toggle
+        // on here, the tray would vanish the instant it stops being empty.
+        appStore.updatePrepPage({ justRevealedSuggestionTitle: revealedTitle, isShowingSuggestions: true });
 
         rerender();
         appStore.updatePrepPage({ justRevealedSuggestionTitle: null });
@@ -118,6 +122,20 @@ export function wirePrepView({ trip, todos, rerender }) {
   document.querySelector("#close-todo-editor")?.addEventListener("click", closeEditor);
   document.querySelector("[data-close-todo-editor]")?.addEventListener("click", closeEditor);
 
+  const sectionSelect = document.querySelector("#todo-section-select");
+  const newSectionField = document.querySelector("#todo-new-section-field");
+  sectionSelect?.addEventListener("change", () => {
+    if (!newSectionField) {
+      return;
+    }
+
+    newSectionField.hidden = sectionSelect.value !== "__new__";
+
+    if (!newSectionField.hidden) {
+      newSectionField.querySelector("input")?.focus();
+    }
+  });
+
   document.querySelector("#todo-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -125,7 +143,8 @@ export function wirePrepView({ trip, todos, rerender }) {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const title = String(formData.get("title") || "").trim();
-    const section = String(formData.get("section") || "").trim();
+    const sectionValue = String(formData.get("section") || "").trim();
+    const section = sectionValue === "__new__" ? String(formData.get("newSection") || "").trim() : sectionValue;
 
     appStore.updatePrepPage({ isSaving: true, editorError: "" });
     rerender();

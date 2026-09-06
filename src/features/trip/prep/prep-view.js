@@ -61,7 +61,8 @@ const STARTER_SUGGESTIONS = [
       "Confirm cell/data plan works abroad",
       "Share your itinerary with friends via Passports",
       "Set up a mail hold",
-      "Download offline maps or entertainment",
+      "Download entertainment to devices",
+      "Download offline maps to phone",
       "Set a vacation auto-reply for email",
       "Back up your phone/photos before departure",
     ],
@@ -158,6 +159,17 @@ function getExistingSectionNames(todos) {
   );
 
   return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+const SECTION_PRESETS = STARTER_SUGGESTIONS.map((group) => group.section);
+
+// The 5 preset categories always come first (in their fixed order), followed
+// by any other section names already in use on this trip that aren't one of
+// the presets — so a custom section someone typed in stays selectable even
+// though it isn't a preset.
+function getSectionSelectOptions(todos) {
+  const customNames = getExistingSectionNames(todos).filter((name) => !SECTION_PRESETS.includes(name));
+  return [...SECTION_PRESETS, ...customNames];
 }
 
 function renderTodoRow(todo) {
@@ -345,7 +357,8 @@ export function renderTodoEditorModal({ prepPage, todos }) {
   const isAddMode = editorMode === "add";
   const todo = isAddMode ? null : todos.find((entry) => entry.id === editingTodoId);
   const modalTitle = isAddMode ? "Add Item" : "Edit Item";
-  const sectionOptions = getExistingSectionNames(todos);
+  const sectionOptions = getSectionSelectOptions(todos);
+  const currentSection = todo?.section || "";
 
   return `
     <div class="modal-shell" id="todo-editor-modal" aria-hidden="false">
@@ -367,10 +380,18 @@ export function renderTodoEditorModal({ prepPage, todos }) {
 
             <label class="field">
               <span>Section (optional)</span>
-              <input name="section" type="text" maxlength="${TODO_SECTION_MAX_LENGTH}" list="prep-section-options" value="${escapeHtml(todo?.section || "")}" placeholder="e.g. Logistics" />
-              <datalist id="prep-section-options">
-                ${sectionOptions.map((name) => `<option value="${escapeHtml(name)}"></option>`).join("")}
-              </datalist>
+              <select name="section" id="todo-section-select">
+                <option value=""${currentSection ? "" : " selected"}>No section</option>
+                ${sectionOptions
+                  .map((name) => `<option value="${escapeHtml(name)}"${currentSection === name ? " selected" : ""}>${escapeHtml(name)}</option>`)
+                  .join("")}
+                <option value="__new__">+ New section…</option>
+              </select>
+            </label>
+
+            <label class="field" id="todo-new-section-field" hidden>
+              <span>New section name</span>
+              <input name="newSection" type="text" maxlength="${TODO_SECTION_MAX_LENGTH}" placeholder="e.g. Wine Country Prep" />
             </label>
 
             ${editorError ? `<p class="field-hint field-hint--warning">${escapeHtml(editorError)}</p>` : ""}
