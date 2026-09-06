@@ -43,11 +43,17 @@ import { getVisibleSuggestionTitles } from "./prep-view.js";
 // On mobile, focusing the field opens the keyboard, and the browser both
 // resizes the visual viewport and (often) auto-scrolls the field into view
 // above it — asynchronously, after the focus handler already ran. An
-// earlier version closed the dropdown on scroll rather than repositioning
-// it, which meant that auto-scroll immediately dismissed the dropdown
-// before it was ever visible on a phone. Repositioning on scroll and on
-// visualViewport resize instead keeps it anchored correctly through all of
-// that, on both mobile and desktop.
+// earlier version showed and positioned the dropdown immediately on focus,
+// which meant it visibly hopped to a new spot once or twice as the keyboard
+// finished animating in — the "jumpy" feel reported after the previous fix.
+// On touch devices, the dropdown now waits for that settle time before
+// showing at all, so it only ever appears already in its final position.
+// Desktop has no keyboard to wait for, so it still opens instantly there.
+// The scroll/resize listeners still handle genuine later repositioning —
+// e.g. the user scrolling the modal while the dropdown is already open.
+const isTouchPrimaryDevice = Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+const MOBILE_KEYBOARD_SETTLE_MS = 300;
+
 let sectionComboboxCleanup = null;
 
 function wireSectionCombobox() {
@@ -96,15 +102,18 @@ function wireSectionCombobox() {
     optionsList.hidden = !hasVisibleOption;
   };
 
+  let pendingFocusTimeoutId = null;
+
   const handleFocus = () => {
-    filterOptions();
-    // Catches the settled position after the keyboard-open animation and
-    // any resulting scroll-into-view finish, in case they land after the
-    // scroll/resize listeners below have already fired once.
-    window.setTimeout(repositionIfOpen, 300);
+    if (isTouchPrimaryDevice) {
+      pendingFocusTimeoutId = window.setTimeout(filterOptions, MOBILE_KEYBOARD_SETTLE_MS);
+    } else {
+      filterOptions();
+    }
   };
 
   const handleBlur = () => {
+    window.clearTimeout(pendingFocusTimeoutId);
     optionsList.hidden = true;
   };
 
@@ -126,6 +135,7 @@ function wireSectionCombobox() {
   });
 
   sectionComboboxCleanup = () => {
+    window.clearTimeout(pendingFocusTimeoutId);
     scrollContainer?.removeEventListener("scroll", repositionIfOpen);
     window.visualViewport?.removeEventListener("resize", repositionIfOpen);
     window.visualViewport?.removeEventListener("scroll", repositionIfOpen);
