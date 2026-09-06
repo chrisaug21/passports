@@ -577,6 +577,17 @@ export function renderDeleteTripConfirmModal({ trip, isOpen, isDeleting }) {
   `;
 }
 
+function renderMoveToNextTripScopeButton({ scope, label, count, isMoving }) {
+  return `
+    <button
+      class="button button--secondary"
+      data-move-to-next-trip-scope="${scope}"
+      type="button"
+      ${isMoving || count === 0 ? "disabled" : ""}
+    >${isMoving ? "Moving…" : `${label} (${count})`}</button>
+  `;
+}
+
 export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unassignedCount, notDoneCount }) {
   if (!isOpen || !trip) {
     return "";
@@ -599,18 +610,8 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
           over — reset to idea status with no time or confirmation number — and are removed from here.
         </p>
         <div class="modal-card__actions modal-card__actions--column">
-          <button
-            class="button button--secondary"
-            data-move-to-next-trip-scope="unassigned"
-            type="button"
-            ${isMoving || unassignedCount === 0 ? "disabled" : ""}
-          >${isMoving ? "Moving…" : `Just unassigned items (${unassignedCount})`}</button>
-          <button
-            class="button button--secondary"
-            data-move-to-next-trip-scope="not_done"
-            type="button"
-            ${isMoving || notDoneCount === 0 ? "disabled" : ""}
-          >${isMoving ? "Moving…" : `All items not marked done (${notDoneCount})`}</button>
+          ${renderMoveToNextTripScopeButton({ scope: "unassigned", label: "Just unassigned items", count: unassignedCount, isMoving })}
+          ${renderMoveToNextTripScopeButton({ scope: "not_done", label: "All items not marked done", count: notDoneCount, isMoving })}
         </div>
       </section>
     </div>

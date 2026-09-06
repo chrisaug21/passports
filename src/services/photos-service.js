@@ -173,39 +173,46 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
       continue;
     }
 
-    let newStoragePath = photo.storage_path;
+    // Each photo is copied independently, so one failure (e.g. a bad storage
+    // copy) doesn't block the rest — this is already a best-effort step from
+    // the caller's point of view.
+    try {
+      let newStoragePath = photo.storage_path;
 
-    if (photo.storage_path) {
-      const context = photo.base_id ? PHOTO_CONTEXTS.baseHero : PHOTO_CONTEXTS.tripHero;
-      newStoragePath = `${ownerId}/${newTripId}/${context}/${crypto.randomUUID()}.jpg`;
+      if (photo.storage_path) {
+        const context = photo.base_id ? PHOTO_CONTEXTS.baseHero : PHOTO_CONTEXTS.tripHero;
+        newStoragePath = `${ownerId}/${newTripId}/${context}/${crypto.randomUUID()}.jpg`;
 
-      const { error: copyError } = await supabase.storage
-        .from(PHOTO_BUCKET)
-        .copy(photo.storage_path, newStoragePath);
+        const { error: copyError } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .copy(photo.storage_path, newStoragePath);
 
-      if (copyError) {
-        throw copyError;
+        if (copyError) {
+          throw copyError;
+        }
       }
-    }
 
-    const { error: insertError } = await supabase.from("trip_photos").insert({
-      id: crypto.randomUUID(),
-      trip_id: newTripId,
-      base_id: newBaseId || null,
-      day_id: null,
-      item_id: null,
-      source: photo.source,
-      storage_path: newStoragePath,
-      unsplash_id: photo.unsplash_id,
-      unsplash_url: photo.unsplash_url,
-      credit_name: photo.credit_name,
-      credit_url: photo.credit_url,
-      is_primary: true,
-      sort_order: photo.sort_order,
-    });
+      const { error: insertError } = await supabase.from("trip_photos").insert({
+        id: crypto.randomUUID(),
+        trip_id: newTripId,
+        base_id: newBaseId || null,
+        day_id: null,
+        item_id: null,
+        source: photo.source,
+        storage_path: newStoragePath,
+        unsplash_id: photo.unsplash_id,
+        unsplash_url: photo.unsplash_url,
+        credit_name: photo.credit_name,
+        credit_url: photo.credit_url,
+        is_primary: true,
+        sort_order: photo.sort_order,
+      });
 
-    if (insertError) {
-      throw insertError;
+      if (insertError) {
+        throw insertError;
+      }
+    } catch (photoError) {
+      console.error("Failed to copy a trip photo:", photoError);
     }
   }
 }

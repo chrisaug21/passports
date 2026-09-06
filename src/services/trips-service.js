@@ -39,6 +39,21 @@ const TRIP_ITEM_SELECT = `
   updated_at
 `;
 
+const TRIP_ROW_SELECT = `
+  id,
+  owner_id,
+  title,
+  description,
+  trip_length,
+  start_date,
+  status,
+  is_public,
+  cover_photo_url,
+  created_at,
+  updated_at,
+  deleted_at
+`;
+
 function normalizeNullableId(value) {
   const normalizedValue = String(value ?? "").trim();
   return normalizedValue === "" ? null : normalizedValue;
@@ -153,7 +168,7 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
   const now = new Date().toISOString();
 
   const baseRows = baseDefs.map((def, index) => ({
-    id: crypto.randomUUID(),
+    id: def.id || crypto.randomUUID(),
     trip_id: tripId,
     name: def.name,
     location_name: def.locationName || null,
@@ -170,15 +185,13 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
   }
 
   const baseCount = baseRows.length;
-  const baseDayCounts = Array.from({ length: baseCount }, (_value, index) =>
-    Math.floor(tripLength / baseCount) + (index < tripLength % baseCount ? 1 : 0)
-  );
-
   const dayRows = [];
   let dayNumber = 1;
 
   baseRows.forEach((base, index) => {
-    for (let i = 0; i < baseDayCounts[index]; i += 1) {
+    const dayCount = Math.floor(tripLength / baseCount) + (index < tripLength % baseCount ? 1 : 0);
+
+    for (let i = 0; i < dayCount; i += 1) {
       dayRows.push({
         id: crypto.randomUUID(),
         trip_id: tripId,
@@ -199,47 +212,33 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
       throw dayError;
     }
   }
+}
 
-  return baseRows;
+async function insertTripRow(supabase, { ownerId, title, description, tripLength, startDate = null }) {
+  const { data, error } = await supabase
+    .from("trips")
+    .insert({
+      owner_id: ownerId,
+      title,
+      description: description || null,
+      trip_length: tripLength,
+      start_date: startDate || null,
+      status: "planning",
+      is_public: false,
+    })
+    .select(TRIP_ROW_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
 
 export async function createTripWithDefaults({ ownerId, title, description, tripLength, startDate }) {
   const supabase = getSupabase();
-  const tripInsertPayload = {
-    owner_id: ownerId,
-    title,
-    description: description || null,
-    trip_length: tripLength,
-    start_date: startDate || null,
-    status: "planning",
-    is_public: false,
-  };
-
-  const { data: tripData, error: tripError } = await supabase
-    .from("trips")
-    .insert(tripInsertPayload)
-    .select(
-      `
-        id,
-        owner_id,
-        title,
-        description,
-        trip_length,
-        start_date,
-        status,
-        is_public,
-        cover_photo_url,
-        created_at,
-        updated_at,
-        deleted_at
-      `
-    )
-    .single();
-
-  if (tripError) {
-    throw tripError;
-  }
-
+  const tripData = await insertTripRow(supabase, { ownerId, title, description, tripLength, startDate });
   const tripId = tripData.id;
 
   try {
@@ -890,14 +889,11 @@ export async function reallocateDay(tripId, fromBaseId, toBaseId, dayNumber) {
   });
 }
 
-export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
-  const supabase = getSupabase();
-  const newTitle = `Next Trip to ${sourceTrip.title || "Untitled trip"}`;
-
+async function resolveMovableItemsAndBases(supabase, { sourceTripId, scope }) {
   const { data: candidateItems, error: itemsError } = await supabase
     .from("trip_items")
     .select(TRIP_ITEM_SELECT)
-    .eq("trip_id", sourceTrip.id)
+    .eq("trip_id", sourceTripId)
     .is("deleted_at", null);
 
   if (itemsError) {
@@ -909,146 +905,151 @@ export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
   );
 
   const sourceBaseIds = [...new Set(itemsToMove.map((item) => item.base_id).filter(Boolean))];
-  let sourceBases = [];
 
-  if (sourceBaseIds.length > 0) {
-    const { data: baseRows, error: basesError } = await supabase
-      .from("trip_bases")
-      .select("id, name, location_name, local_timezone, sort_order")
-      .in("id", sourceBaseIds)
-      .is("deleted_at", null);
-
-    if (basesError) {
-      throw basesError;
-    }
-
-    sourceBases = (baseRows || []).sort((left, right) => left.sort_order - right.sort_order);
+  if (sourceBaseIds.length === 0) {
+    return { itemsToMove, sourceBases: [] };
   }
 
-  const { data: newTripData, error: tripError } = await supabase
-    .from("trips")
-    .insert({
-      owner_id: ownerId,
-      title: newTitle,
-      description: sourceTrip.description || null,
-      trip_length: sourceTrip.trip_length,
-      start_date: null,
-      status: "planning",
-      is_public: false,
-    })
-    .select(
-      `
-        id,
-        owner_id,
-        title,
-        description,
-        trip_length,
-        start_date,
-        status,
-        is_public,
-        cover_photo_url,
-        created_at,
-        updated_at,
-        deleted_at
-      `
-    )
-    .single();
+  const { data: baseRows, error: basesError } = await supabase
+    .from("trip_bases")
+    .select("id, name, location_name, local_timezone, sort_order")
+    .in("id", sourceBaseIds)
+    .is("deleted_at", null);
 
-  if (tripError) {
-    throw tripError;
+  if (basesError) {
+    throw basesError;
   }
 
+  const sourceBases = (baseRows || []).sort((left, right) => left.sort_order - right.sort_order);
+
+  return { itemsToMove, sourceBases };
+}
+
+async function insertMovedTripItems(supabase, { newTripId, ownerId, itemsToMove, baseIdMap }) {
+  if (itemsToMove.length === 0) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const insertPayload = itemsToMove.map((item, index) => ({
+    id: crypto.randomUUID(),
+    trip_id: newTripId,
+    base_id: baseIdMap.get(item.base_id) || null,
+    day_id: null,
+    created_by: ownerId,
+    title: item.title,
+    item_type: item.item_type,
+    status: "idea",
+    is_anchor: false,
+    is_done: false,
+    done_by: null,
+    done_at: null,
+    meal_slot: item.meal_slot,
+    activity_type: item.activity_type,
+    transport_mode: item.transport_mode,
+    transport_origin: item.transport_origin,
+    transport_destination: item.transport_destination,
+    time_start: null,
+    time_end: null,
+    time_is_estimated: false,
+    cost_low: item.cost_low,
+    cost_high: item.cost_high,
+    confirmation_ref: null,
+    url: item.url,
+    notes: item.notes,
+    address: item.address,
+    sort_order: index,
+    check_out_date: null,
+    created_at: now,
+    updated_at: now,
+  }));
+
+  const { error: insertError } = await supabase.from("trip_items").insert(insertPayload);
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  const { error: deleteError } = await supabase
+    .from("trip_items")
+    .update({ deleted_at: now, updated_at: now })
+    .in(
+      "id",
+      itemsToMove.map((item) => item.id)
+    );
+
+  if (deleteError) {
+    throw deleteError;
+  }
+}
+
+// Recreates the bases referenced by the moved items on the new trip (falling
+// back to one base named after the new trip when none are referenced), and
+// returns a map of old base_id -> new base_id for the carried-over ones.
+async function createBasesForNextTrip(supabase, { newTripId, newTitle, tripLength, sourceBases }) {
+  const baseDefs = sourceBases.length > 0
+    ? sourceBases.map((base) => ({
+        id: crypto.randomUUID(),
+        sourceId: base.id,
+        name: base.name,
+        locationName: base.location_name,
+        localTimezone: base.local_timezone,
+      }))
+    : [{ id: crypto.randomUUID(), sourceId: null, name: newTitle, locationName: newTitle, localTimezone: DEFAULT_BASE_TIMEZONE }];
+
+  await insertTripBasesAndDays(supabase, { tripId: newTripId, tripLength, baseDefs });
+
+  return new Map(baseDefs.filter((def) => def.sourceId).map((def) => [def.sourceId, def.id]));
+}
+
+function logBestEffort(promise, message) {
+  return promise.catch((error) => {
+    console.error(message, error);
+  });
+}
+
+export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
+  const supabase = getSupabase();
+  const newTitle = `Next Trip to ${sourceTrip.title || "Untitled trip"}`;
+
+  const { itemsToMove, sourceBases } = await resolveMovableItemsAndBases(supabase, {
+    sourceTripId: sourceTrip.id,
+    scope,
+  });
+
+  const newTripData = await insertTripRow(supabase, {
+    ownerId,
+    title: newTitle,
+    description: sourceTrip.description,
+    tripLength: sourceTrip.trip_length,
+  });
   const newTripId = newTripData.id;
 
   try {
-    const baseDefs = sourceBases.length > 0
-      ? sourceBases.map((base) => ({
-          name: base.name,
-          locationName: base.location_name,
-          localTimezone: base.local_timezone,
-        }))
-      : [{ name: newTitle, locationName: newTitle, localTimezone: DEFAULT_BASE_TIMEZONE }];
-
-    const newBases = await insertTripBasesAndDays(supabase, {
-      tripId: newTripId,
+    const baseIdMap = await createBasesForNextTrip(supabase, {
+      newTripId,
+      newTitle,
       tripLength: sourceTrip.trip_length,
-      baseDefs,
+      sourceBases,
     });
 
-    const baseIdMap = new Map(sourceBases.map((base, index) => [base.id, newBases[index].id]));
+    await insertMovedTripItems(supabase, { newTripId, ownerId, itemsToMove, baseIdMap });
 
-    if (itemsToMove.length > 0) {
-      const now = new Date().toISOString();
-      const insertPayload = itemsToMove.map((item, index) => ({
-        id: crypto.randomUUID(),
-        trip_id: newTripId,
-        base_id: baseIdMap.get(item.base_id) || null,
-        day_id: null,
-        created_by: ownerId,
-        title: item.title,
-        item_type: item.item_type,
-        status: "idea",
-        is_anchor: false,
-        is_done: false,
-        done_by: null,
-        done_at: null,
-        meal_slot: item.meal_slot,
-        activity_type: item.activity_type,
-        transport_mode: item.transport_mode,
-        transport_origin: item.transport_origin,
-        transport_destination: item.transport_destination,
-        time_start: null,
-        time_end: null,
-        time_is_estimated: false,
-        cost_low: item.cost_low,
-        cost_high: item.cost_high,
-        confirmation_ref: null,
-        url: item.url,
-        notes: item.notes,
-        address: item.address,
-        sort_order: index,
-        check_out_date: null,
-        created_at: now,
-        updated_at: now,
-      }));
+    await logBestEffort(
+      duplicatePrimaryPhotosForNewTrip({ sourceTripId: sourceTrip.id, newTripId, ownerId, baseIdMap }),
+      "Failed to copy trip photos to the new trip:"
+    );
 
-      const { error: insertError } = await supabase.from("trip_items").insert(insertPayload);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      const { error: deleteError } = await supabase
-        .from("trip_items")
-        .update({ deleted_at: now, updated_at: now })
-        .in(
-          "id",
-          itemsToMove.map((item) => item.id)
-        );
-
-      if (deleteError) {
-        throw deleteError;
-      }
-    }
-
-    await duplicatePrimaryPhotosForNewTrip({
-      sourceTripId: sourceTrip.id,
-      newTripId,
-      ownerId,
-      baseIdMap,
-    }).catch((error) => {
-      console.error("Failed to copy trip photos to the new trip:", error);
-    });
-
-    await duplicateOverviewBlocksForNewTrip({
-      sourceTripId: sourceTrip.id,
-      newTripId,
-      ownerId,
-      baseIdMap,
-      excludeCategories: ["summary"],
-    }).catch((error) => {
-      console.error("Failed to copy overview content to the new trip:", error);
-    });
+    await logBestEffort(
+      duplicateOverviewBlocksForNewTrip({
+        sourceTripId: sourceTrip.id,
+        newTripId,
+        ownerId,
+        baseIdMap,
+        excludeCategories: ["summary"],
+      }),
+      "Failed to copy overview content to the new trip:"
+    );
 
     return { trip: newTripData, movedCount: itemsToMove.length };
   } catch (error) {
