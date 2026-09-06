@@ -595,8 +595,8 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
         </div>
         <p class="muted">
           Creates a new trip called "Next Trip to ${escapeHtml(trip.title || "Untitled trip")}" with the same length, photos,
-          and any bases your items need, but no dates yet. The items you pick move over — reset to idea status with no
-          time or confirmation number — and are removed from here.
+          overview content (except the summary), and any bases your items need, but no dates yet. The items you pick move
+          over — reset to idea status with no time or confirmation number — and are removed from here.
         </p>
         <div class="modal-card__actions modal-card__actions--column">
           <button

@@ -4,6 +4,7 @@ import {
 } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 import { duplicatePrimaryPhotosForNewTrip, getPhotoPublicUrl } from "./photos-service.js";
+import { duplicateOverviewBlocksForNewTrip } from "./overview-service.js";
 
 const TRIP_ITEM_SELECT = `
   id,
@@ -1037,6 +1038,16 @@ export async function moveItemsToNextTrip({ sourceTrip, ownerId, scope }) {
       baseIdMap,
     }).catch((error) => {
       console.error("Failed to copy trip photos to the new trip:", error);
+    });
+
+    await duplicateOverviewBlocksForNewTrip({
+      sourceTripId: sourceTrip.id,
+      newTripId,
+      ownerId,
+      baseIdMap,
+      excludeCategories: ["summary"],
+    }).catch((error) => {
+      console.error("Failed to copy overview content to the new trip:", error);
     });
 
     return { trip: newTripData, movedCount: itemsToMove.length };
