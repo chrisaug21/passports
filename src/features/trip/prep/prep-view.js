@@ -69,7 +69,7 @@ const STARTER_SUGGESTIONS = [
   {
     section: "Packing",
     items: [
-      "Pack chargers (phone, laptop, camera)",
+      "Pack chargers (phone, laptop, camera, watch)",
       "Pack toiletries in travel-size containers",
       "Pack pajamas",
       "Pack socks and underclothes",
