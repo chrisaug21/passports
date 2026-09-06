@@ -295,6 +295,57 @@ export function renderPrepErrorView() {
   `;
 }
 
+function renderPrepBackLink(tripId) {
+  return `
+    <div class="prep-page__top">
+      <a class="prep-back-link" href="/app/trip/${escapeHtml(tripId)}" data-prep-back aria-label="Back to planning">
+        <i data-lucide="arrow-left" aria-hidden="true"></i>
+        <span>Back to planning</span>
+      </a>
+    </div>
+  `;
+}
+
+function renderPrepHeader(trip) {
+  return `
+    <div class="prep-page__header">
+      <div>
+        <p class="eyebrow">${escapeHtml(trip.title || "Trip")}</p>
+        <h1>Prep Checklist</h1>
+      </div>
+      <button class="button prep-add-item-button" data-add-todo type="button">
+        <span class="prep-add-item-button__full">+ Add Item</span>
+        <span class="prep-add-item-button__short">+ Add</span>
+      </button>
+    </div>
+  `;
+}
+
+function renderPrepChecklistBody(todos, renderedGroups, isAllHidden) {
+  if (todos.length === 0) {
+    return `
+      <section class="panel prep-page__state">
+        <p class="eyebrow">Nothing Here Yet</p>
+        <h3>Build your trip-readiness checklist.</h3>
+        <p class="muted">Book flights, get local currency, pack for that one nice dinner — add anything you need to sort out before or during the trip.</p>
+        <button class="button" data-add-todo type="button">Add Your First Item</button>
+      </section>
+    `;
+  }
+
+  if (isAllHidden) {
+    return `
+      <section class="panel prep-page__state">
+        <p class="eyebrow">All Done</p>
+        <h3>Everything's checked off.</h3>
+        <p class="muted">Every item on this list is complete. Show them again anytime with the toggle above.</p>
+      </section>
+    `;
+  }
+
+  return `<div class="prep-section-list">${renderedGroups.join("")}</div>`;
+}
+
 export function renderPrepView(state) {
   const { trip, todos, prepPage } = state;
   const groups = groupTodosBySection(todos);
@@ -304,23 +355,8 @@ export function renderPrepView(state) {
 
   return `
     <div class="prep-page">
-      <div class="prep-page__top">
-        <a class="prep-back-link" href="/app/trip/${escapeHtml(trip.id)}" data-prep-back aria-label="Back to planning">
-          <i data-lucide="arrow-left" aria-hidden="true"></i>
-          <span>Back to planning</span>
-        </a>
-      </div>
-
-      <div class="prep-page__header">
-        <div>
-          <p class="eyebrow">${escapeHtml(trip.title || "Trip")}</p>
-          <h1>Prep Checklist</h1>
-        </div>
-        <button class="button prep-add-item-button" data-add-todo type="button">
-          <span class="prep-add-item-button__full">+ Add Item</span>
-          <span class="prep-add-item-button__short">+ Add</span>
-        </button>
-      </div>
+      ${renderPrepBackLink(trip.id)}
+      ${renderPrepHeader(trip)}
 
       ${
         todos.length > 0 && hasCompletedItems
@@ -328,32 +364,34 @@ export function renderPrepView(state) {
           : ""
       }
 
-      ${
-        todos.length === 0
-          ? `
-            <section class="panel prep-page__state">
-              <p class="eyebrow">Nothing Here Yet</p>
-              <h3>Build your trip-readiness checklist.</h3>
-              <p class="muted">Book flights, get local currency, pack for that one nice dinner — add anything you need to sort out before or during the trip.</p>
-              <button class="button" data-add-todo type="button">Add Your First Item</button>
-            </section>
-          `
-          : isAllHidden
-            ? `
-              <section class="panel prep-page__state">
-                <p class="eyebrow">All Done</p>
-                <h3>Everything's checked off.</h3>
-                <p class="muted">Every item on this list is complete. Show them again anytime with the toggle above.</p>
-              </section>
-            `
-            : `<div class="prep-section-list">${renderedGroups.join("")}</div>`
-      }
+      ${renderPrepChecklistBody(todos, renderedGroups, isAllHidden)}
 
       ${renderSuggestions(todos, prepPage)}
 
       ${renderTodoEditorModal({ prepPage, todos })}
       ${renderDeleteTodoConfirmModal({ prepPage, todos })}
     </div>
+  `;
+}
+
+function renderTodoEditorFields({ todo, sectionOptions, currentSection, editorError }) {
+  return `
+    <label class="field">
+      <span>Title</span>
+      <input name="title" type="text" maxlength="${TODO_TITLE_MAX_LENGTH}" required value="${escapeHtml(todo?.title || "")}" placeholder="e.g. Book airport transfer" />
+    </label>
+
+    <label class="field">
+      <span>Section (optional)</span>
+      <div class="prep-combobox">
+        <input name="section" type="text" autocomplete="off" maxlength="${TODO_SECTION_MAX_LENGTH}" id="todo-section-input" value="${escapeHtml(currentSection)}" placeholder="e.g. Logistics" />
+        <ul class="prep-combobox__options" id="todo-section-options" hidden>
+          ${sectionOptions.map((name) => `<li class="prep-combobox__option" data-section-option="${escapeHtml(name)}">${escapeHtml(name)}</li>`).join("")}
+        </ul>
+      </div>
+    </label>
+
+    ${editorError ? `<p class="field-hint field-hint--warning">${escapeHtml(editorError)}</p>` : ""}
   `;
 }
 
@@ -383,22 +421,7 @@ export function renderTodoEditorModal({ prepPage, todos }) {
 
         <form class="todo-editor-form" id="todo-editor-form">
           <div class="todo-editor-form__content">
-            <label class="field">
-              <span>Title</span>
-              <input name="title" type="text" maxlength="${TODO_TITLE_MAX_LENGTH}" required value="${escapeHtml(todo?.title || "")}" placeholder="e.g. Book airport transfer" />
-            </label>
-
-            <label class="field">
-              <span>Section (optional)</span>
-              <div class="prep-combobox">
-                <input name="section" type="text" autocomplete="off" maxlength="${TODO_SECTION_MAX_LENGTH}" id="todo-section-input" value="${escapeHtml(currentSection)}" placeholder="e.g. Logistics" />
-                <ul class="prep-combobox__options" id="todo-section-options" hidden>
-                  ${sectionOptions.map((name) => `<li class="prep-combobox__option" data-section-option="${escapeHtml(name)}">${escapeHtml(name)}</li>`).join("")}
-                </ul>
-              </div>
-            </label>
-
-            ${editorError ? `<p class="field-hint field-hint--warning">${escapeHtml(editorError)}</p>` : ""}
+            ${renderTodoEditorFields({ todo, sectionOptions, currentSection, editorError })}
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
