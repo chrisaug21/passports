@@ -100,8 +100,8 @@
 }
 
 .prep-todo-row.is-complete {
-  opacity: 0.5;
   background: var(--color-surface-muted);
+  border-color: var(--color-border-strong);
 }
 
 .prep-todo-row.is-complete .prep-todo-checkbox {
@@ -119,12 +119,17 @@
 .prep-todo-row.is-complete .prep-todo-title {
   color: var(--color-text-muted);
   text-decoration: line-through;
+  opacity: 0.65;
 }
 
 .prep-todo-actions {
   display: flex;
   gap: 0.3rem;
   flex-shrink: 0;
+}
+
+.prep-todo-row.is-complete .prep-todo-actions {
+  opacity: 0.65;
 }
 
 .prep-todo-icon-button {
@@ -234,6 +239,22 @@
 
 .prep-suggestion-chip:hover {
   background: var(--color-structure-soft);
+}
+
+@keyframes prep-suggestion-chip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.prep-suggestion-chip--enter {
+  animation: prep-suggestion-chip-enter 320ms ease-out;
 }
 
 .todo-editor-form {

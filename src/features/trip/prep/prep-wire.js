@@ -8,6 +8,7 @@ import {
   softDeleteTripTodo,
 } from "../../../services/prep-service.js";
 import { showToast } from "../../shared/toast.js";
+import { getVisibleSuggestionTitles } from "./prep-view.js";
 
 export function wirePrepView({ trip, todos, rerender }) {
   document.querySelector("[data-prep-back]")?.addEventListener("click", (event) => {
@@ -41,6 +42,15 @@ export function wirePrepView({ trip, todos, rerender }) {
 
       button.disabled = true;
 
+      // The tray shrinks by one chip while the checklist above it grows —
+      // net document height can shift either way, and since scrollY stays
+      // numerically fixed across the innerHTML rebuild, that reflow visibly
+      // jumps the page. Anchor on the tray's on-screen position instead and
+      // correct the scroll offset by however much that position moved.
+      const trayBefore = document.querySelector(".prep-suggestion-tray");
+      const trayTopBefore = trayBefore?.getBoundingClientRect().top;
+      const visibleTitlesBefore = getVisibleSuggestionTitles(todos);
+
       try {
         const newTodo = await createTripTodo({
           tripId: trip.id,
@@ -50,7 +60,22 @@ export function wirePrepView({ trip, todos, rerender }) {
 
         tripStore.appendCurrentTodo(newTodo);
         showToast("Added to your checklist.", "success");
+
+        const visibleTitlesAfter = getVisibleSuggestionTitles(tripStore.getCurrentTodos());
+        const revealedTitle = [...visibleTitlesAfter].find((title) => !visibleTitlesBefore.has(title)) || null;
+        appStore.updatePrepPage({ justRevealedSuggestionTitle: revealedTitle });
+
         rerender();
+        appStore.updatePrepPage({ justRevealedSuggestionTitle: null });
+
+        if (typeof trayTopBefore === "number") {
+          const trayAfter = document.querySelector(".prep-suggestion-tray");
+          const trayTopAfter = trayAfter?.getBoundingClientRect().top;
+
+          if (typeof trayTopAfter === "number" && trayTopAfter !== trayTopBefore) {
+            window.scrollBy(0, trayTopAfter - trayTopBefore);
+          }
+        }
       } catch (error) {
         console.error(error);
         button.disabled = false;

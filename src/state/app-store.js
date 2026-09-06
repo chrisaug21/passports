@@ -83,6 +83,7 @@ function createInitialPrepPage() {
     isDeleting: false,
     isShowingSuggestions: false,
     hideCompleted: false,
+    justRevealedSuggestionTitle: null,
   };
 }
 

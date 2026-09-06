@@ -89,7 +89,7 @@ const STARTER_SUGGESTIONS = [
 
 // Each suggestion group only ever shows this many unused chips at once —
 // the rest are a reserve that surfaces as earlier ones get added.
-const MAX_VISIBLE_SUGGESTIONS_PER_GROUP = 4;
+const MAX_VISIBLE_SUGGESTIONS_PER_GROUP = 6;
 
 // Ungrouped items render first, then named sections in the order their
 // earliest item was added — no separate sections table, so "order" is
@@ -146,6 +146,12 @@ function getRemainingSuggestionGroups(todos) {
   })).filter((group) => group.items.length > 0);
 }
 
+// Used by prep-wire.js to diff the visible chip set before/after adding a
+// todo, so it can tell which chip newly surfaced and play its enter animation.
+export function getVisibleSuggestionTitles(todos) {
+  return new Set(getRemainingSuggestionGroups(todos).flatMap((group) => group.items));
+}
+
 function getExistingSectionNames(todos) {
   const names = new Set(
     todos.map((todo) => String(todo.section || "").trim()).filter(Boolean)
@@ -199,7 +205,8 @@ function renderHideCompletedToggle(hideCompleted) {
   `;
 }
 
-function renderSuggestions(todos, isShowingSuggestions) {
+function renderSuggestions(todos, prepPage) {
+  const { isShowingSuggestions, justRevealedSuggestionTitle } = prepPage;
   const remainingGroups = getRemainingSuggestionGroups(todos);
 
   if (remainingGroups.length === 0) {
@@ -217,14 +224,14 @@ function renderSuggestions(todos, isShowingSuggestions) {
           <i data-lucide="${isShowingSuggestions ? "chevron-up" : "chevron-down"}" aria-hidden="true"></i>
         </button>
       </div>
-      ${isShowingSuggestions ? renderSuggestionTray(remainingGroups) : ""}
+      ${isShowingSuggestions ? renderSuggestionTray(remainingGroups, justRevealedSuggestionTitle) : ""}
     `;
   }
 
-  return renderSuggestionTray(remainingGroups);
+  return renderSuggestionTray(remainingGroups, justRevealedSuggestionTitle);
 }
 
-function renderSuggestionTray(groups) {
+function renderSuggestionTray(groups, justRevealedSuggestionTitle) {
   return `
     <div class="prep-suggestion-tray">
       ${groups
@@ -236,7 +243,7 @@ function renderSuggestionTray(groups) {
                 ${group.items
                   .map(
                     (title) => `
-                      <button class="prep-suggestion-chip" type="button" data-add-suggested-todo data-todo-title="${escapeHtml(title)}" data-todo-section="${escapeHtml(group.section)}">
+                      <button class="prep-suggestion-chip${title === justRevealedSuggestionTitle ? " prep-suggestion-chip--enter" : ""}" type="button" data-add-suggested-todo data-todo-title="${escapeHtml(title)}" data-todo-section="${escapeHtml(group.section)}">
                         + ${escapeHtml(title)}
                       </button>
                     `
@@ -320,7 +327,7 @@ export function renderPrepView(state) {
             : `<div class="prep-section-list">${renderedGroups.join("")}</div>`
       }
 
-      ${renderSuggestions(todos, prepPage.isShowingSuggestions)}
+      ${renderSuggestions(todos, prepPage)}
 
       ${renderTodoEditorModal({ prepPage, todos })}
       ${renderDeleteTodoConfirmModal({ prepPage, todos })}
