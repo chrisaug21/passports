@@ -99,6 +99,11 @@
   height: 0.85rem;
 }
 
+.prep-todo-row.is-complete {
+  opacity: 0.5;
+  background: var(--color-surface-muted);
+}
+
 .prep-todo-row.is-complete .prep-todo-checkbox {
   background: var(--color-action);
   border-color: var(--color-action);
@@ -140,6 +145,32 @@
 .prep-todo-icon-button svg {
   width: 0.8rem;
   height: 0.8rem;
+}
+
+.prep-list-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.prep-hide-completed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+
+.prep-hide-completed-toggle:hover {
+  color: var(--color-text);
+}
+
+.prep-hide-completed-toggle svg {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .prep-suggestions-toggle-row {

@@ -122,14 +122,29 @@ function renderTodoRow(todo) {
   `;
 }
 
-function renderSectionGroup(group) {
+function renderSectionGroup(group, hideCompleted) {
+  const visibleItems = hideCompleted ? group.items.filter((todo) => !todo.is_complete) : group.items;
+
+  if (visibleItems.length === 0) {
+    return "";
+  }
+
   return `
     <div class="prep-section">
       ${group.section ? `<h3 class="prep-section__title">${escapeHtml(group.section)}</h3>` : ""}
       <ul class="prep-todo-list">
-        ${sortTodosForDisplay(group.items).map(renderTodoRow).join("")}
+        ${sortTodosForDisplay(visibleItems).map(renderTodoRow).join("")}
       </ul>
     </div>
+  `;
+}
+
+function renderHideCompletedToggle(hideCompleted) {
+  return `
+    <button class="prep-hide-completed-toggle" data-toggle-hide-completed type="button" aria-pressed="${hideCompleted ? "true" : "false"}">
+      <i data-lucide="${hideCompleted ? "eye-off" : "eye"}" aria-hidden="true"></i>
+      <span>${hideCompleted ? "Show Completed" : "Hide Completed"}</span>
+    </button>
   `;
 }
 
@@ -206,6 +221,9 @@ export function renderPrepErrorView() {
 export function renderPrepView(state) {
   const { trip, todos, prepPage } = state;
   const groups = groupTodosBySection(todos);
+  const hasCompletedItems = todos.some((todo) => todo.is_complete);
+  const renderedGroups = groups.map((group) => renderSectionGroup(group, prepPage.hideCompleted)).filter(Boolean);
+  const isAllHidden = todos.length > 0 && renderedGroups.length === 0;
 
   return `
     <div class="prep-page">
@@ -225,6 +243,12 @@ export function renderPrepView(state) {
       </div>
 
       ${
+        todos.length > 0 && hasCompletedItems
+          ? `<div class="prep-list-controls">${renderHideCompletedToggle(prepPage.hideCompleted)}</div>`
+          : ""
+      }
+
+      ${
         todos.length === 0
           ? `
             <section class="panel prep-page__state">
@@ -234,7 +258,15 @@ export function renderPrepView(state) {
               <button class="button" data-add-todo type="button">Add Your First Item</button>
             </section>
           `
-          : `<div class="prep-section-list">${groups.map(renderSectionGroup).join("")}</div>`
+          : isAllHidden
+            ? `
+              <section class="panel prep-page__state">
+                <p class="eyebrow">All Done</p>
+                <h3>Everything's checked off.</h3>
+                <p class="muted">Every item on this list is complete. Show them again anytime with the toggle above.</p>
+              </section>
+            `
+            : `<div class="prep-section-list">${renderedGroups.join("")}</div>`
       }
 
       ${renderSuggestions(todos, prepPage.isShowingSuggestions)}

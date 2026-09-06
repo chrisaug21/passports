@@ -21,6 +21,12 @@ export function wirePrepView({ trip, todos, rerender }) {
     navigate("/app");
   });
 
+  document.querySelector("[data-toggle-hide-completed]")?.addEventListener("click", () => {
+    const { hideCompleted } = appStore.getState().prepPage;
+    appStore.updatePrepPage({ hideCompleted: !hideCompleted });
+    rerender();
+  });
+
   document.querySelector("[data-toggle-suggestions]")?.addEventListener("click", () => {
     const { isShowingSuggestions } = appStore.getState().prepPage;
     appStore.updatePrepPage({ isShowingSuggestions: !isShowingSuggestions });

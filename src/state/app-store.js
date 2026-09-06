@@ -82,6 +82,7 @@ function createInitialPrepPage() {
     deletingTodoId: null,
     isDeleting: false,
     isShowingSuggestions: false,
+    hideCompleted: false,
   };
 }
 
