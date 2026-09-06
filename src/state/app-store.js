@@ -70,6 +70,21 @@ function createInitialNotesPage() {
   };
 }
 
+function createInitialPrepPage() {
+  return {
+    status: "idle",
+    error: "",
+    editorMode: null,
+    editingTodoId: null,
+    isSaving: false,
+    editorError: "",
+    showDeleteConfirm: false,
+    deletingTodoId: null,
+    isDeleting: false,
+    isShowingSuggestions: false,
+  };
+}
+
 function createAppStore() {
   let state = {
     dashboard: {
@@ -80,6 +95,7 @@ function createAppStore() {
     },
     tripDetail: createInitialTripDetail(),
     notesPage: createInitialNotesPage(),
+    prepPage: createInitialPrepPage(),
   };
 
   const listeners = new Set();
@@ -145,6 +161,23 @@ function createAppStore() {
       state = {
         ...state,
         notesPage: createInitialNotesPage(),
+      };
+      emit();
+    },
+    updatePrepPage(patch) {
+      state = {
+        ...state,
+        prepPage: {
+          ...state.prepPage,
+          ...patch,
+        },
+      };
+      emit();
+    },
+    resetPrepPage() {
+      state = {
+        ...state,
+        prepPage: createInitialPrepPage(),
       };
       emit();
     },

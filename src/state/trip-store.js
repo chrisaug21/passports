@@ -8,6 +8,7 @@ function createTripStore() {
   let currentItems = [];
   let currentOverviewBlocks = [];
   let currentNotes = [];
+  let currentTodos = [];
 
   return {
     getTrips() {
@@ -47,6 +48,9 @@ function createTripStore() {
     getCurrentNotes() {
       return currentNotes;
     },
+    getCurrentTodos() {
+      return currentTodos;
+    },
     setCurrentTripBundle(bundle) {
       currentTrip = bundle.trip;
       currentBases = bundle.bases;
@@ -54,6 +58,7 @@ function createTripStore() {
       currentItems = bundle.items;
       currentOverviewBlocks = bundle.overviewBlocks || [];
       currentNotes = bundle.notes || [];
+      currentTodos = bundle.todos || [];
     },
     appendCurrentNote(note) {
       currentNotes = [note, ...currentNotes];
@@ -63,6 +68,15 @@ function createTripStore() {
     },
     removeCurrentNote(noteId) {
       currentNotes = currentNotes.filter((note) => note.id !== noteId);
+    },
+    appendCurrentTodo(todo) {
+      currentTodos = [...currentTodos, todo];
+    },
+    updateCurrentTodo(nextTodo) {
+      currentTodos = currentTodos.map((todo) => (todo.id === nextTodo.id ? nextTodo : todo));
+    },
+    removeCurrentTodo(todoId) {
+      currentTodos = currentTodos.filter((todo) => todo.id !== todoId);
     },
     appendCurrentOverviewBlock(block) {
       currentOverviewBlocks = [...currentOverviewBlocks, block];
@@ -105,6 +119,7 @@ function createTripStore() {
       currentItems = [];
       currentOverviewBlocks = [];
       currentNotes = [];
+      currentTodos = [];
     },
   };
 }

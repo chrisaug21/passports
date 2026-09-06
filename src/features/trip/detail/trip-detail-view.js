@@ -152,6 +152,9 @@ export function renderTripDetailPageView() {
               <button class="trip-header__icon-btn" data-open-notes type="button" title="Notes & References" aria-label="Notes & References">
                 <i data-lucide="notebook-pen" aria-hidden="true"></i>
               </button>
+              <button class="trip-header__icon-btn" data-open-prep type="button" title="Prep Checklist" aria-label="Prep Checklist">
+                <i data-lucide="list-checks" aria-hidden="true"></i>
+              </button>
               ${deriveTripStatus(trip) === "past" ? `
                 <button class="trip-header__icon-btn" id="open-move-to-next-trip-confirm" type="button" title="Move to Next Trip" aria-label="Move to Next Trip">
                   <i data-lucide="move-right" aria-hidden="true"></i>

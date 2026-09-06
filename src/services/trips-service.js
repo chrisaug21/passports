@@ -267,7 +267,7 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 
-  const [tripResult, basesResult, daysResult, itemsResult, photosResult, overviewBlocksResult, notesResult] = await Promise.all([
+  const [tripResult, basesResult, daysResult, itemsResult, photosResult, overviewBlocksResult, notesResult, todosResult] = await Promise.all([
     supabase
       .from("trips")
       .select(
@@ -330,6 +330,12 @@ export async function fetchTripDetailBundle(tripId) {
       .is("deleted_at", null)
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("trip_todos")
+      .select("id, trip_id, item_id, title, section, due_phase, is_complete, notes, created_at, updated_at")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (tripResult.error) {
@@ -358,6 +364,10 @@ export async function fetchTripDetailBundle(tripId) {
 
   if (notesResult.error) {
     throw notesResult.error;
+  }
+
+  if (todosResult.error) {
+    throw todosResult.error;
   }
 
   const photos = photosResult.data || [];
@@ -389,6 +399,7 @@ export async function fetchTripDetailBundle(tripId) {
     items: itemsResult.data || [],
     overviewBlocks: overviewBlocksResult.data || [],
     notes: notesResult.data || [],
+    todos: todosResult.data || [],
   };
 }
 

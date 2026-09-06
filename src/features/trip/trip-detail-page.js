@@ -84,6 +84,7 @@ function createTripDetailHandlers(tripId) {
       navigate(`/app/trip/${tripId}/guide`);
     },
     onOpenNotes: () => navigate(`/app/trip/${tripId}/notes`),
+    onOpenPrep: () => navigate(`/app/trip/${tripId}/prep`),
     onRetryTripLoad: () => loadTripDetail(tripId),
     onViewModeChange: (viewMode) => {
       if (!viewMode) {
