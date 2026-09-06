@@ -327,3 +327,14 @@
   padding: 1rem 1.5rem;
   -webkit-overflow-scrolling: touch;
 }
+
+/* The modal's header (.modal-card--editor .modal-card__header) is sticky —
+   it doesn't scroll with this content. Without scroll-margin-top, focusing
+   a field low enough to need scrolling can leave its top edge scrolled
+   right up underneath that header instead of fully into view, since the
+   browser's native "scroll focused field into view" doesn't know the
+   header is there and covering part of the scroll area. */
+.todo-editor-form__content input,
+.todo-editor-form__content textarea {
+  scroll-margin-top: 80px;
+}
