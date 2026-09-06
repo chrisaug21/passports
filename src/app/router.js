@@ -18,6 +18,7 @@ import {
 import { tripStore } from "../state/trip-store.js";
 import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-page.js";
 import { renderNotesPage, loadNotesPage } from "../features/trip/notes/notes-page.js";
+import { renderPrepPage, loadPrepPage } from "../features/trip/prep/prep-page.js";
 import { renderMcpConnectPage, wireMcpConnectPage } from "../features/shared/mcp-connect-page.js";
 
 const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
@@ -29,7 +30,8 @@ function normalizePath(pathname) {
     pathname === "/app/connect" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname) ||
-    /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname)
+    /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname) ||
+    /^\/app\/trip\/[0-9a-f-]+\/prep$/i.test(pathname)
   ) {
     return pathname;
   }
@@ -173,6 +175,23 @@ export function renderRoute(options = {}) {
       afterRender: () => {
         document.title = "Passports | Notes & References";
         loadNotesPage(tripId);
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
+  const prepMatch = pathname.match(/^\/app\/trip\/([0-9a-f-]+)\/prep$/i);
+  if (prepMatch) {
+    const tripId = prepMatch[1];
+
+    renderAppShell(renderPrepPage(), {
+      showDashboardLink: true,
+      afterRender: () => {
+        document.title = "Passports | Prep Checklist";
+        loadPrepPage(tripId);
         if (preserveScroll) {
           window.scrollTo({ top: previousScrollY });
         }

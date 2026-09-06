@@ -261,6 +261,7 @@ export function wireTripDetailPageEvents(handlers) {
   });
   bindClick("[data-open-guide]", handlers.onOpenGuide);
   bindClick("[data-open-notes]", handlers.onOpenNotes);
+  bindClick("[data-open-prep]", handlers.onOpenPrep);
   bindClick("#open-members-modal", handlers.onOpenMembersModal);
   bindClick("#close-members-modal", handlers.onCloseMembersModal);
   bindClick("#close-members-modal-footer", handlers.onCloseMembersModal);
