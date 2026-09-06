@@ -591,6 +591,7 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
             <p class="eyebrow">Move to Next Trip</p>
             <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
           </div>
+          <button class="icon-button" id="cancel-move-to-next-trip" type="button" aria-label="Close" ${isMoving ? "disabled" : ""}>×</button>
         </div>
         <p class="muted">
           Creates a new trip called "Next Trip to ${escapeHtml(trip.title || "Untitled trip")}" with the same length and no dates yet,
@@ -609,9 +610,6 @@ export function renderMoveToNextTripConfirmModal({ trip, isOpen, isMoving, unass
             type="button"
             ${isMoving || notDoneCount === 0 ? "disabled" : ""}
           >${isMoving ? "Moving…" : `All items not marked done (${notDoneCount})`}</button>
-        </div>
-        <div class="modal-card__actions">
-          <button class="button button--secondary" id="cancel-move-to-next-trip" type="button" ${isMoving ? "disabled" : ""}>Cancel</button>
         </div>
       </section>
     </div>

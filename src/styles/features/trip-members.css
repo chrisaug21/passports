@@ -192,15 +192,6 @@
   flex-shrink: 0;
 }
 
-/* Members button in trip header */
-.trip-header__actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 0 0 auto;
-  align-items: flex-end;
-}
-
 .trip-header__members-btn {
   display: inline-flex;
   align-items: center;
@@ -220,11 +211,6 @@
 }
 
 @media (max-width: 840px) {
-  .trip-header__actions {
-    flex-direction: row;
-    align-items: stretch;
-  }
-
   .trip-header__actions .section-action-button,
   .trip-header__actions .trip-header__members-btn {
     flex: 1;
