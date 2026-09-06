@@ -332,7 +332,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("created_at", { ascending: false }),
     supabase
       .from("trip_todos")
-      .select("id, trip_id, item_id, title, section, due_phase, is_complete, notes, created_at, updated_at")
+      .select("id, trip_id, item_id, title, section, due_phase, is_complete, notes, source_suggestion, created_at, updated_at")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),

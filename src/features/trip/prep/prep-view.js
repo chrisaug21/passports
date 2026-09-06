@@ -137,7 +137,14 @@ function sortTodosForDisplay(items) {
 }
 
 function getRemainingSuggestionGroups(todos) {
-  const existingTitles = new Set(todos.map((todo) => String(todo.title || "").trim().toLowerCase()));
+  // A todo created from a chip is matched by its original suggestion text
+  // (source_suggestion), not its current title — so renaming it doesn't
+  // bring the chip back. A manually-typed todo has no source_suggestion and
+  // still matches on its live title, same as before. Deleting the todo
+  // removes the row entirely, so the chip naturally reappears either way.
+  const existingTitles = new Set(
+    todos.map((todo) => String(todo.source_suggestion || todo.title || "").trim().toLowerCase())
+  );
 
   return STARTER_SUGGESTIONS.map((group) => ({
     section: group.section,
@@ -167,7 +174,7 @@ const SECTION_PRESETS = STARTER_SUGGESTIONS.map((group) => group.section);
 // by any other section names already in use on this trip that aren't one of
 // the presets — so a custom section someone typed in stays selectable even
 // though it isn't a preset.
-function getSectionSelectOptions(todos) {
+function getSectionComboboxOptions(todos) {
   const customNames = getExistingSectionNames(todos).filter((name) => !SECTION_PRESETS.includes(name));
   return [...SECTION_PRESETS, ...customNames];
 }
@@ -357,7 +364,7 @@ export function renderTodoEditorModal({ prepPage, todos }) {
   const isAddMode = editorMode === "add";
   const todo = isAddMode ? null : todos.find((entry) => entry.id === editingTodoId);
   const modalTitle = isAddMode ? "Add Item" : "Edit Item";
-  const sectionOptions = getSectionSelectOptions(todos);
+  const sectionOptions = getSectionComboboxOptions(todos);
   const currentSection = todo?.section || "";
 
   return `
@@ -380,18 +387,12 @@ export function renderTodoEditorModal({ prepPage, todos }) {
 
             <label class="field">
               <span>Section (optional)</span>
-              <select name="section" id="todo-section-select">
-                <option value=""${currentSection ? "" : " selected"}>No section</option>
-                ${sectionOptions
-                  .map((name) => `<option value="${escapeHtml(name)}"${currentSection === name ? " selected" : ""}>${escapeHtml(name)}</option>`)
-                  .join("")}
-                <option value="__new__">+ New section…</option>
-              </select>
-            </label>
-
-            <label class="field" id="todo-new-section-field" hidden>
-              <span>New section name</span>
-              <input name="newSection" type="text" maxlength="${TODO_SECTION_MAX_LENGTH}" placeholder="e.g. Wine Country Prep" />
+              <div class="prep-combobox">
+                <input name="section" type="text" autocomplete="off" maxlength="${TODO_SECTION_MAX_LENGTH}" id="todo-section-input" value="${escapeHtml(currentSection)}" placeholder="e.g. Logistics" />
+                <ul class="prep-combobox__options" id="todo-section-options" hidden>
+                  ${sectionOptions.map((name) => `<li class="prep-combobox__option" data-section-option="${escapeHtml(name)}">${escapeHtml(name)}</li>`).join("")}
+                </ul>
+              </div>
             </label>
 
             ${editorError ? `<p class="field-hint field-hint--warning">${escapeHtml(editorError)}</p>` : ""}

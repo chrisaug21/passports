@@ -9,11 +9,12 @@ const TODO_SELECT = `
   due_phase,
   is_complete,
   notes,
+  source_suggestion,
   created_at,
   updated_at
 `;
 
-export async function createTripTodo({ tripId, title, section }) {
+export async function createTripTodo({ tripId, title, section, sourceSuggestion }) {
   const normalizedTitle = String(title || "").trim();
 
   if (!normalizedTitle) {
@@ -29,6 +30,7 @@ export async function createTripTodo({ tripId, title, section }) {
       trip_id: tripId,
       title: normalizedTitle,
       section: section || null,
+      source_suggestion: sourceSuggestion || null,
       created_at: now,
       updated_at: now,
     })

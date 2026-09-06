@@ -10,6 +10,52 @@ import {
 import { showToast } from "../../shared/toast.js";
 import { getVisibleSuggestionTitles } from "./prep-view.js";
 
+// A plain text input paired with a hand-rolled option list, rather than
+// native <datalist> — datalist's suggestion dropdown is unreliable across
+// browsers (particularly Safari/iOS, which this app can't skip), so it
+// wasn't showing the preset options reliably. Typing still free-types a
+// new section; clicking an option fills it in. mousedown (not click) on an
+// option runs preventDefault so the input never blurs, which is what lets
+// the selection register without needing an outside-click listener to
+// close the dropdown afterward.
+function wireSectionCombobox() {
+  const input = document.querySelector("#todo-section-input");
+  const optionsList = document.querySelector("#todo-section-options");
+
+  if (!input || !optionsList) {
+    return;
+  }
+
+  const options = [...optionsList.querySelectorAll("[data-section-option]")];
+
+  const filterOptions = () => {
+    const query = input.value.trim().toLowerCase();
+    let hasVisibleOption = false;
+
+    options.forEach((option) => {
+      const matches = !query || option.getAttribute("data-section-option").toLowerCase().includes(query);
+      option.hidden = !matches;
+      hasVisibleOption = hasVisibleOption || matches;
+    });
+
+    optionsList.hidden = !hasVisibleOption;
+  };
+
+  input.addEventListener("focus", filterOptions);
+  input.addEventListener("input", filterOptions);
+  input.addEventListener("blur", () => {
+    optionsList.hidden = true;
+  });
+
+  options.forEach((option) => {
+    option.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      input.value = option.getAttribute("data-section-option");
+      optionsList.hidden = true;
+    });
+  });
+}
+
 export function wirePrepView({ trip, todos, rerender }) {
   document.querySelector("[data-prep-back]")?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -52,10 +98,12 @@ export function wirePrepView({ trip, todos, rerender }) {
       const visibleTitlesBefore = getVisibleSuggestionTitles(todos);
 
       try {
+        const suggestedTitle = button.getAttribute("data-todo-title");
         const newTodo = await createTripTodo({
           tripId: trip.id,
-          title: button.getAttribute("data-todo-title"),
+          title: suggestedTitle,
           section: button.getAttribute("data-todo-section"),
+          sourceSuggestion: suggestedTitle,
         });
 
         tripStore.appendCurrentTodo(newTodo);
@@ -122,19 +170,7 @@ export function wirePrepView({ trip, todos, rerender }) {
   document.querySelector("#close-todo-editor")?.addEventListener("click", closeEditor);
   document.querySelector("[data-close-todo-editor]")?.addEventListener("click", closeEditor);
 
-  const sectionSelect = document.querySelector("#todo-section-select");
-  const newSectionField = document.querySelector("#todo-new-section-field");
-  sectionSelect?.addEventListener("change", () => {
-    if (!newSectionField) {
-      return;
-    }
-
-    newSectionField.hidden = sectionSelect.value !== "__new__";
-
-    if (!newSectionField.hidden) {
-      newSectionField.querySelector("input")?.focus();
-    }
-  });
+  wireSectionCombobox();
 
   document.querySelector("#todo-editor-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -143,8 +179,7 @@ export function wirePrepView({ trip, todos, rerender }) {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const title = String(formData.get("title") || "").trim();
-    const sectionValue = String(formData.get("section") || "").trim();
-    const section = sectionValue === "__new__" ? String(formData.get("newSection") || "").trim() : sectionValue;
+    const section = String(formData.get("section") || "").trim();
 
     appStore.updatePrepPage({ isSaving: true, editorError: "" });
     rerender();
