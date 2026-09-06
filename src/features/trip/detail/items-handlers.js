@@ -1,7 +1,7 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { sessionStore } from "../../../state/session-store.js";
-import { createTripItem } from "../../../services/trips-service.js";
+import { createTripItem } from "../../../services/items-service.js";
 import { showToast } from "../../shared/toast.js";
 import { rerenderTripDetail } from "./trip-detail-state.js";
 import { getDisplayTitleForToast } from "./trip-detail-ui.js";

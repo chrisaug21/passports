@@ -17,8 +17,8 @@ import {
 } from "./detail/trip-settings-controller.js";
 import {
   createBaseAllocationHandlers,
-  wireTimezonePickers,
 } from "./detail/base-allocation-controller.js";
+import { wireTimezonePickers } from "./detail/timezone-picker.js";
 import {
   createDaysViewHandlers,
 } from "./detail/days-view-controller.js";
