@@ -261,12 +261,15 @@
   position: relative;
 }
 
+/* position: fixed (not absolute) — top/left/width are set in JS from the
+   input's own bounding rect. This deliberately escapes the modal's nested
+   overflow:auto/hidden ancestors (.modal-shell, .modal-card,
+   .todo-editor-form__content all clip an absolutely-positioned dropdown),
+   since none of those ancestors set a transform/filter/contain that would
+   otherwise trap a fixed-position descendant inside them. */
 .prep-combobox__options {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 5;
+  position: fixed;
+  z-index: 40;
   margin: 0;
   padding: 0.3rem;
   list-style: none;

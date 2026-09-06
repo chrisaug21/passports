@@ -18,6 +18,16 @@ import { getVisibleSuggestionTitles } from "./prep-view.js";
 // option runs preventDefault so the input never blurs, which is what lets
 // the selection register without needing an outside-click listener to
 // close the dropdown afterward.
+//
+// The dropdown is position: fixed, placed via getBoundingClientRect() on
+// the input rather than plain CSS position: absolute — this modal nests
+// three overflow:auto/hidden ancestors (.modal-shell, .modal-card,
+// .todo-editor-form__content) between the field and the dropdown, any one
+// of which clips an absolutely-positioned child that extends past it.
+// Fixed positioning escapes that clipping entirely. Because it no longer
+// tracks the input if the modal scrolls underneath it, it just closes on
+// scroll instead of trying to follow — same as how a native <select>
+// dropdown dismisses rather than repositioning live.
 function wireSectionCombobox() {
   const input = document.querySelector("#todo-section-input");
   const optionsList = document.querySelector("#todo-section-options");
@@ -27,6 +37,14 @@ function wireSectionCombobox() {
   }
 
   const options = [...optionsList.querySelectorAll("[data-section-option]")];
+  const scrollContainer = input.closest(".todo-editor-form__content");
+
+  const positionOptionsList = () => {
+    const rect = input.getBoundingClientRect();
+    optionsList.style.top = `${rect.bottom + 4}px`;
+    optionsList.style.left = `${rect.left}px`;
+    optionsList.style.width = `${rect.width}px`;
+  };
 
   const filterOptions = () => {
     const query = input.value.trim().toLowerCase();
@@ -38,12 +56,19 @@ function wireSectionCombobox() {
       hasVisibleOption = hasVisibleOption || matches;
     });
 
+    if (hasVisibleOption) {
+      positionOptionsList();
+    }
+
     optionsList.hidden = !hasVisibleOption;
   };
 
   input.addEventListener("focus", filterOptions);
   input.addEventListener("input", filterOptions);
   input.addEventListener("blur", () => {
+    optionsList.hidden = true;
+  });
+  scrollContainer?.addEventListener("scroll", () => {
     optionsList.hidden = true;
   });
 
