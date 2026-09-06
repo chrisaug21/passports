@@ -39,6 +39,7 @@ export function isTripDetailUiBusy(tripDetail) {
     tripDetail.isShowingMasterListFilters ||
     tripDetail.showDeleteBaseConfirm ||
     tripDetail.showDeleteTripConfirm ||
+    tripDetail.showMoveToNextTripConfirm ||
     tripDetail.isShowingMembersModal ||
     tripDetail.overviewEditorMode ||
     tripDetail.showDeleteOverviewBlockConfirm ||

@@ -138,6 +138,62 @@ export async function reorderOverviewBlocks(updates) {
   );
 }
 
+// Copies overview blocks onto a new trip, skipping any category in
+// excludeCategories. baseIdMap maps old base_id -> new base_id for bases
+// being carried over; a base-scoped block is skipped if its base wasn't.
+export async function duplicateOverviewBlocksForNewTrip({
+  sourceTripId,
+  newTripId,
+  ownerId,
+  baseIdMap,
+  excludeCategories = [],
+}) {
+  const supabase = getSupabase();
+
+  const { data: sourceBlocks, error } = await supabase
+    .from("trip_overview_blocks")
+    .select(OVERVIEW_BLOCK_SELECT)
+    .eq("trip_id", sourceTripId)
+    .is("deleted_at", null);
+
+  if (error) {
+    throw error;
+  }
+
+  const blocksToCopy = (sourceBlocks || []).filter((block) => {
+    if (excludeCategories.includes(block.category)) {
+      return false;
+    }
+    return !block.base_id || baseIdMap.get(block.base_id);
+  });
+
+  if (blocksToCopy.length === 0) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const insertPayload = blocksToCopy.map((block) => ({
+    id: crypto.randomUUID(),
+    trip_id: newTripId,
+    base_id: block.base_id ? baseIdMap.get(block.base_id) : null,
+    category: block.category,
+    subtitle: block.subtitle,
+    body: block.body,
+    sort_order: block.sort_order,
+    is_published: block.is_published,
+    source: block.source,
+    created_by: ownerId,
+    created_at: now,
+    updated_at: now,
+  }));
+
+  const { error: insertError } = await supabase.from("trip_overview_blocks").insert(insertPayload);
+
+  if (insertError) {
+    throw insertError;
+  }
+}
+
 export async function softDeleteOverviewBlock(blockId) {
   const { error } = await getSupabase()
     .from("trip_overview_blocks")

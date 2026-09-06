@@ -82,7 +82,7 @@ Do not read them for context. Do not modify them.
 | `trips` | `owner_id` FK → auth.users. `status`: planning/upcoming/active/done. `is_public` enables public share link. Soft delete via `deleted_at`. |
 | `trip_bases` | Belongs to trip. `local_timezone` is IANA string (e.g. `Europe/Madrid`). Used to determine "today" when trip is Active. Soft delete via `deleted_at`. |
 | `trip_days` | Belongs to trip AND base. `day_number` is 1-indexed across the entire trip. Real date derived: `start_date + (day_number - 1)`. Never stored. Soft delete via `deleted_at`. |
-| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings — no timezone attached, always assumed to be base's local timezone. Soft delete via `deleted_at`. |
+| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings — no timezone attached, always assumed to be base's local timezone. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
 | `trip_members` | `role`: planner or traveler. Trip creator is auto-added as planner via DB trigger. UNIQUE on `(trip_id, user_id)`. |
 | `trip_todos` | Optional `item_id` links a todo to a specific item. `due_phase`: before_trip/during_trip/after_trip. Soft delete via `deleted_at`. |
 | `trip_packing_items` | `category`: clothing/toiletries/documents/gear/other. Soft delete via `deleted_at`. |
@@ -96,9 +96,10 @@ Do not read them for context. Do not modify them.
 - `lodging` — no extra type fields; check-in/check-out surface from `time_start`/`time_end`
 
 ## Item Statuses
-idea → shortlisted → confirmed → reserved → done
+idea → option → shortlisted → confirmed → reserved — this is the `status` column's full value set (DB CHECK constraint enforces exactly these; matches `ITEM_STATUSES` in `src/config/constants.js`)
 - `confirmed` = we're doing this, no hard reservation
 - `reserved` = booked with a confirmation; obligation exists
+- Completion is tracked separately via the `is_done` boolean on `trip_items` (plus `done_by`/`done_at`), not as a `status` value — there is no `"done"` status
 
 ## Anchor vs Flex
 - `is_anchor = true`: time is fixed; `time_start` is required; everything else plans around it

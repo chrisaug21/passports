@@ -13,6 +13,7 @@ import {
 import { tripDetailState } from "./trip-detail-state.js";
 import {
   renderDeleteTripConfirmModal,
+  renderMoveToNextTripConfirmModal,
   renderTripSettingsForm,
   renderTripSettingsSummary,
 } from "./trip-settings-controller.js";
@@ -150,6 +151,11 @@ export function renderTripDetailPageView() {
               <button class="trip-header__icon-btn" data-open-guide type="button" title="Guide" aria-label="Guide">
                 <i data-lucide="compass" aria-hidden="true"></i>
               </button>
+              ${deriveTripStatus(trip) === "past" ? `
+                <button class="trip-header__icon-btn" id="open-move-to-next-trip-confirm" type="button" title="Move to Next Trip" aria-label="Move to Next Trip">
+                  <i data-lucide="move-right" aria-hidden="true"></i>
+                </button>
+              ` : ""}
             </div>
           </div>
           ${renderTripSettingsSummary(trip)}
@@ -277,6 +283,13 @@ export function renderTripDetailPageView() {
         trip,
         isOpen: tripDetail.showDeleteTripConfirm,
         isDeleting: tripDetail.isDeletingTrip,
+      })}
+      ${renderMoveToNextTripConfirmModal({
+        trip,
+        isOpen: tripDetail.showMoveToNextTripConfirm,
+        isMoving: tripDetail.isMovingToNextTrip,
+        unassignedCount: items.filter((item) => !item.day_id).length,
+        notDoneCount: items.filter((item) => !item.is_done).length,
       })}
       ${renderTimezoneOptionsDatalist()}
       ${renderMembersModal()}
