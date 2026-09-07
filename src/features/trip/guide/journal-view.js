@@ -463,7 +463,7 @@ export function renderJournalDaySection(day, state, journalState) {
   const base = bases.find((b) => b.id === day.base_id) || null;
   const baseName = base?.name || base?.location_name || "";
 
-  const visibleItems = filterItemsForViewer(items, viewerRole);
+  const visibleItems = filterItemsForViewer(items, viewerRole, "journal");
   const dayItems = visibleItems.filter((i) => i.day_id === day.id);
   const sorted = sortGuideItems(dayItems);
 

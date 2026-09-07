@@ -212,16 +212,18 @@ export async function updateMapsAppPreference(userId, preferredMapsApp) {
 // Item completion — mark done
 // ---------------------------------------------------------------------------
 
-export async function updateJournalItemCompletion({ itemId, isDone, doneBy, doneAt }) {
-  const { data, error } = await getSupabase()
-    .from("trip_items")
-    .update({
-      is_done: Boolean(isDone),
-      done_by: isDone ? doneBy || null : null,
-      done_at: isDone ? doneAt || null : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", itemId);
+export async function updateJournalItemCompletion({ itemId, isDone, doneBy, doneAt, status }) {
+  const updates = {
+    is_done: Boolean(isDone),
+    done_by: isDone ? doneBy || null : null,
+    done_at: isDone ? doneAt || null : null,
+    updated_at: new Date().toISOString(),
+  };
+  if (status) {
+    updates.status = status;
+  }
+
+  const { data, error } = await getSupabase().from("trip_items").update(updates).eq("id", itemId);
 
   if (error) throw error;
   return data;

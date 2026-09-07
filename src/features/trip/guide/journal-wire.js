@@ -19,6 +19,9 @@ const AUTOSAVE_DELAY_MS = 500;
 const SAVED_FEEDBACK_MS = 2000;
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
+// Marking an item done confirms it was actually experienced, so its status
+// should reflect that — unless it's already at or past "confirmed".
+const ALREADY_CONFIRMED_STATUSES = new Set(["confirmed", "reserved"]);
 let _journalCleanupFns = [];
 let _saveCounter = 0;
 let _openLightboxPhotoId = "";
@@ -613,13 +616,17 @@ function wireDoneToggles(state, journalState) {
       const previousIsDone = item.is_done === true;
       const previousDoneBy = item.done_by || null;
       const previousDoneAt = item.done_at || null;
+      const previousStatus = item.status;
       const nextIsDone = !previousIsDone;
       const nextDoneAt = nextIsDone ? new Date().toISOString() : null;
       const nextDoneBy = nextIsDone ? sessionUserId || state.userId || null : null;
+      const nextStatus =
+        nextIsDone && !ALREADY_CONFIRMED_STATUSES.has(previousStatus) ? "confirmed" : previousStatus;
 
       item.is_done = nextIsDone;
       item.done_by = nextDoneBy;
       item.done_at = nextDoneAt;
+      item.status = nextStatus;
       card?.classList.toggle("journal-item-card--done", nextIsDone);
       card?.setAttribute("data-is-done", String(nextIsDone));
       button.classList.toggle("is-done", nextIsDone);
@@ -637,12 +644,14 @@ function wireDoneToggles(state, journalState) {
           isDone: nextIsDone,
           doneBy: nextDoneBy,
           doneAt: nextDoneAt,
+          status: nextStatus !== previousStatus ? nextStatus : undefined,
         });
       } catch (error) {
         console.error("Failed to update item completion:", error);
         item.is_done = previousIsDone;
         item.done_by = previousDoneBy;
         item.done_at = previousDoneAt;
+        item.status = previousStatus;
         card?.classList.toggle("journal-item-card--done", previousIsDone);
         card?.setAttribute("data-is-done", String(previousIsDone));
         button.classList.toggle("is-done", previousIsDone);
