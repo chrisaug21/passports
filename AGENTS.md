@@ -5,12 +5,29 @@ Project-specific instructions. Global coding standards and git discipline are in
 ## What This Project Is
 Personal travel planner and diary PWA. Used on phone while traveling, desktop for planning, and tablet for browsing. Multi-user: Planners have full CRUD, Travelers can add items and react. Public share links expose curated read-only trip views with no login required.
 
+## Stack
+- App shell: vanilla HTML/CSS/JS with ES modules, one `index.html` entry point, no build step, and no npm dependencies outside the scoped `mcp-server/` exception
+- Data backend: Supabase project `tqxvtsdghobustiatiqm` (`Passports`), separate from Homeboard/Habits
+- Deployment: Netlify injects environment variables through `netlify.toml`
+- Photo source: Unsplash location images require visible attribution wherever they render
+- Typography: Fraunces for display text and Instrument Sans for body copy
+- Installability: the app ships with a manifest and versioned service worker
+
 ## Views
 - **Plan view** — private; full edit access; idea/shortlisted items visible; trip/base overview content is authored here
 - **Guide view** (`src/features/trip/guide/`) — the itinerary/diary experience, rendered once and filtered by `viewerRole` (owner/member/public) rather than as separate pages. Two tabs, matching the in-app labels:
   - **Itinerary tab** — day-by-day plan; phone-first; on an Active trip shows today's plan based on trip dates
   - **Journal tab** — trip memories; enabled once trip status is Active or done; shown to public viewers only when `trip.is_journal_public`
   - Public read-only access via `/trip/:id` (no login) is Guide view with `viewerRole = "public"` — idea/shortlisted items, costs, reactions, and internal notes are always hidden
+
+## Data Hierarchy
+```text
+Trip
+└── Bases (1–4, ordered)
+      ├── local_timezone (IANA string — determines "today" when Active)
+      └── Days (belong to a base)
+            └── Items (meal / activity / transport / lodging)
+```
 
 ## File Structure
 ```text
@@ -80,14 +97,15 @@ Do not read them for context. Do not modify them.
 | Table | Key notes |
 |---|---|
 | `trips` | `owner_id` FK → auth.users. `status`: destinations/planning/active/done. `target_year`/`target_month` are optional Wishlist timing fields. `sort_order` manually orders undated Wishlist entries. `is_public` enables public share link. Soft delete via `deleted_at`. |
-| `trip_bases` | Belongs to trip. `local_timezone` is IANA string (e.g. `Europe/Madrid`). Used to determine "today" when trip is Active. Soft delete via `deleted_at`. |
+| `trip_bases` | Belongs to trip. `local_timezone` is IANA string (e.g. `Europe/Madrid`). `date_start`/`date_end` are nullable. Used to determine "today" when trip is Active. Soft delete via `deleted_at`. |
 | `trip_days` | Belongs to trip AND base. `day_number` is 1-indexed across the entire trip. Real date derived: `start_date + (day_number - 1)`. Never stored. Soft delete via `deleted_at`. |
-| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings — no timezone attached, always assumed to be base's local timezone. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
+| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings with no timezone attached; treat them as the base's local time unless transition-day context requires simple `sort_order` sequencing. `cost_low`/`cost_high` are USD numeric estimates. `address` is nullable free text and renders as a map-pin link. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
 | `trip_members` | `role`: planner or traveler. Trip creator is auto-added as planner via DB trigger. UNIQUE on `(trip_id, user_id)`. |
 | `trip_todos` | Optional `item_id` links a todo to a specific item. `due_phase`: before_trip/during_trip/after_trip. Soft delete via `deleted_at`. |
 | `trip_packing_items` | `category`: clothing/toiletries/documents/gear/other. Soft delete via `deleted_at`. |
 | `trip_reactions` | One reaction per user per item. UNIQUE on `(item_id, user_id)`. `reaction`: must_do/skip/no_preference. |
 | `trip_photos` | `source`: unsplash or upload. Unsplash requires `credit_name` and `credit_url` for attribution display. |
+| `user_profiles` | Account-level user preferences. `preferred_maps_app` controls whether map links open in Apple Maps or Google Maps; this is synced via Supabase and is not a device/browser-only setting. |
 
 ## Item Types and Fields
 - `meal` — adds `meal_slot` (breakfast/brunch/lunch/dinner)
@@ -113,6 +131,12 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - Never auto-clear `day_id` when `base_id` is set to null
 - It is valid for an item to have `base_id` pointing to one base and `day_id` pointing to a day in a different base (e.g. breakfast in Sonoma on a travel day that ends in San Francisco)
 - If a day is selected and it belongs to a different base than the item's current base, show a non-blocking hint — never auto-update or enforce
+
+## Maps
+- Item `address` is free text and optional.
+- If an item has an address, render a map-pin affordance.
+- Map links should search `"<item title>, <address>"` so they resolve to the actual business listing, not just a bare address pin.
+- Use `user_profiles.preferred_maps_app` to choose Apple Maps vs Google Maps links.
 
 ## Roles and Permissions
 - `planner`: full CRUD on trip, bases, days, items; invite/manage members; toggle is_public; change status
@@ -144,6 +168,9 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - No horizontal scrolling at any viewport width
 - Touch targets minimum 44px height
 - Layer order: tokens.css → base.css → utilities.css → layout.css → components.css → feature CSS
+- Design tokens include a cool off-white background, secondary cool surface, deep navy-charcoal text, green for action/interaction, blue for information/structure, and warm parchment for done/memento states.
+- Green and blue should not be used for the same UI role.
+- Display font is Fraunces; body font is Instrument Sans.
 
 ## Unsplash
 - Auto-pull hero images by `location_name` at trip and base level (Phase 1)
