@@ -5,7 +5,7 @@ import { navigate, renderRoute } from "../../app/router.js";
 import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { showToast } from "../shared/toast.js";
 import { createDestination } from "../../services/trips-service.js";
-import { formatDestinationTargetDate, formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
+import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
 
 const BOARD_COLUMNS = [
@@ -115,13 +115,13 @@ function sortWishlistTrips(trips) {
 }
 
 function getTargetSortValue(trip) {
-  const year = parseStoredInteger(trip.target_year);
+  const year = parseStoredYear(trip.target_year);
 
   if (year == null) {
     return Number.POSITIVE_INFINITY;
   }
 
-  const month = parseStoredInteger(trip.target_month);
+  const month = parseStoredMonth(trip.target_month);
   return year * 100 + (month || 0);
 }
 
@@ -147,10 +147,11 @@ function renderBoardColumn(column, trips) {
 
 function renderDestinationCard(trip) {
   const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_url || trip.cover_photo_url);
-  const statusLabel = trip.status === "destinations"
+  const dateLabel = trip.status === "destinations"
     ? formatDestinationTargetDate(trip)
     : formatTripDateSummary(trip, { includeYear: trip.status === "done" });
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
+  const shouldShowDate = trip.status !== "destinations" || hasDestinationTargetDate(trip);
 
   return `
     <article
@@ -165,15 +166,9 @@ function renderDestinationCard(trip) {
         ${safeCoverUrl ? `<img src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
       </div>
       <div class="destination-card__body">
-        <div>
-          <h3>${tripTitle}</h3>
-          <p>${escapeHtml(trip.description || getFallbackDescription(trip.status))}</p>
-        </div>
+        <h3>${tripTitle}</h3>
         <div class="destination-card__meta">
-          <span class="destination-card__badge destination-card__badge--${escapeHtml(trip.status)}">
-            ${escapeHtml(formatStatusLabel(trip.status))}
-          </span>
-          <span>${escapeHtml(statusLabel)}</span>
+          ${shouldShowDate ? `<span class="destination-card__date">${escapeHtml(dateLabel)}</span>` : ""}
           ${isTripStartingSoon(trip) ? `<span>Starting soon</span>` : ""}
         </div>
       </div>
@@ -312,8 +307,8 @@ function wireCreateDestinationModal() {
     }
 
     const formData = new FormData(form);
-    const targetYear = parseOptionalInteger(formData.get("targetYear"));
-    const targetMonth = targetYear ? parseOptionalInteger(formData.get("targetMonth")) : null;
+    const targetYear = parseOptionalYear(formData.get("targetYear"));
+    const targetMonth = targetYear ? parseOptionalMonth(formData.get("targetMonth")) : null;
 
     appStore.updateDestinationsPage({ isCreatingDestination: true });
 
@@ -341,13 +336,22 @@ function wireCreateDestinationModal() {
   });
 }
 
-function parseOptionalInteger(value) {
+function parseOptionalYear(value) {
   if (String(value || "").trim() === "") {
     return null;
   }
 
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 1000 ? parsed : null;
+}
+
+function parseOptionalMonth(value) {
+  if (String(value || "").trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : null;
 }
 
 function openTrip(tripId) {
@@ -370,21 +374,26 @@ function openTrip(tripId) {
   navigate(`/app/trip/${trip.id}`);
 }
 
-function parseStoredInteger(value) {
+function parseStoredYear(value) {
   if (value == null || String(value).trim() === "") {
     return null;
   }
 
   const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : null;
+  return Number.isInteger(parsed) && parsed >= 1000 ? parsed : null;
 }
 
-function getFallbackDescription(status) {
-  if (status === "destinations") {
-    return "A place to think about for a future trip.";
+function parseStoredMonth(value) {
+  if (value == null || String(value).trim() === "") {
+    return null;
   }
 
-  return "Trip details coming next.";
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : null;
+}
+
+function hasDestinationTargetDate(trip) {
+  return parseStoredYear(trip.target_year) != null;
 }
 
 function sanitizeCoverUrl(value) {
