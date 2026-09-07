@@ -161,12 +161,12 @@
 }
 
 .destination-card__date {
+  flex-basis: 100%;
   color: var(--color-text-subtle);
 }
 
 .destination-card__soon {
-  flex-basis: 100%;
-  width: fit-content;
+  flex: 0 0 auto;
   border-radius: var(--radius-pill);
   padding: 0.18rem 0.45rem;
   background: var(--color-structure-soft);
