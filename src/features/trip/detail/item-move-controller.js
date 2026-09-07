@@ -7,7 +7,6 @@ import { getDisplayTitleForToast } from "./trip-detail-ui.js";
 import {
   buildUpdatedItem,
   dedupeItemsById,
-  getAnchorDestinationSortOrder,
   getFlexItemsForDay,
   getInterleavedDayItems,
   normalizeFlexItems,
@@ -88,16 +87,23 @@ export async function moveItemToDestination(itemId, destinationDayId) {
     if (movedItem.time_start) {
       updates.push(movedItem);
     } else {
+      // Only untimed siblings need renumbering -- timed items in the
+      // destination day already have a correct trigger-computed sort_order
+      // and must not be swept into this local renumber (see the matching
+      // comment in item-ordering.js's buildItemSaveBatch).
       updates.push(...normalizeFlexItems([
-        ...getFlexItemsForDay(items, destinationDayId, item.id),
+        ...getFlexItemsForDay(items, destinationDayId, item.id).filter((sibling) => !sibling.time_start),
         movedItem,
       ]));
     }
   } else {
+    // An anchor's sort_order is trigger-owned: moving it to a new day always
+    // changes day_id, so the DB trigger recomputes its chronological position
+    // server-side regardless of what's sent here -- no client-side guess
+    // needed (see the matching comment in item-ordering.js's buildItemSaveBatch).
     updates.push(buildUpdatedItem(item, {
       day_id: destinationDayId,
       base_id: item.base_id,
-      sort_order: getAnchorDestinationSortOrder(items, destinationDayId, item.id),
     }));
   }
 
