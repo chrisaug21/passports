@@ -90,6 +90,12 @@ function createInitialPrepPage() {
 function createInitialDestinationsPage() {
   return {
     isCreatingDestination: false,
+    selectedDestinationId: null,
+    destinationDetailStatus: "idle",
+    destinationDetailError: "",
+    selectedDestinationNotes: [],
+    isSavingDestination: false,
+    isPromotingDestination: false,
   };
 }
 

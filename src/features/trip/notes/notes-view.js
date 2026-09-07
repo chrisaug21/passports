@@ -181,13 +181,15 @@ export function renderNotesErrorView() {
 export function renderNotesView(state) {
   const { trip, notes, notesPage } = state;
   const expandedNoteIds = notesPage.expandedNoteIds || [];
+  const backHref = trip.status === "destinations" ? "/app/destinations" : `/app/trip/${escapeHtml(trip.id)}`;
+  const backLabel = trip.status === "destinations" ? "Back to destinations" : "Back to planning";
 
   return `
     <div class="notes-page">
       <div class="notes-page__top">
-        <a class="notes-back-link" href="/app/trip/${escapeHtml(trip.id)}" data-notes-back aria-label="Back to planning">
+        <a class="notes-back-link" href="${backHref}" data-notes-back aria-label="${backLabel}">
           <i data-lucide="arrow-left" aria-hidden="true"></i>
-          <span>Back to planning</span>
+          <span>${backLabel}</span>
         </a>
       </div>
 

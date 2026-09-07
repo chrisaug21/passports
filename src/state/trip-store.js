@@ -20,6 +20,12 @@ function createTripStore() {
     prependTrip(trip) {
       trips = [trip, ...trips];
     },
+    updateTrip(nextTrip) {
+      trips = trips.map((trip) => (trip.id === nextTrip.id ? { ...trip, ...nextTrip } : trip));
+      if (currentTrip?.id === nextTrip.id) {
+        currentTrip = { ...currentTrip, ...nextTrip };
+      }
+    },
     getCurrentTrip() {
       return currentTrip;
     },
