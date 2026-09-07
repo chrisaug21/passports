@@ -92,6 +92,40 @@
   box-shadow: var(--shadow-soft);
 }
 
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
+  width: fit-content;
+}
+
+.app-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.app-nav__item svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-nav__item--active {
+  color: var(--color-structure);
+  background: var(--color-structure-tint);
+}
+
 .topbar__left {
   display: flex;
   align-items: center;
@@ -117,27 +151,6 @@
   width: auto;
   height: 28px;
   max-width: min(160px, 42vw);
-}
-
-.topbar__dashboard-link {
-  min-height: 44px;
-  border: 0;
-  border-left: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.4rem;
-  padding: 0 0 0 0.9rem;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.topbar__dashboard-link svg {
-  width: 16px;
-  height: 16px;
 }
 
 .topbar__version {
@@ -264,26 +277,38 @@
     gap: 0.65rem;
   }
 
-  .topbar__dashboard-link {
-    gap: 0;
-    padding-left: 0.65rem;
-    width: auto;
-  }
-
-  .topbar__dashboard-link span {
-    display: none;
-  }
-
   .auth-layout {
     grid-template-columns: 1fr;
+  }
+
+  .app-shell {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+
+  .app-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+    border-radius: 0;
+    border-width: 1px 0 0;
+    justify-content: space-around;
+  }
+
+  .app-nav__item {
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.72rem;
   }
 }
 
 @media (pointer: fine) {
-  .topbar__dashboard-link {
-    min-height: 36px;
-  }
-
   .topbar__new-trip {
     min-height: 40px;
   }

@@ -110,7 +110,6 @@ export function wireGuideView(state) {
   _currentMode = getStoredActiveMode();
 
   wireBackLink(state.tripId);
-  wireDashboardLink();
   wireTabSwitching();
   wireNavClicks();
   wireOverviewAccordions();
@@ -176,12 +175,6 @@ function wireBackLink(tripId) {
   document.querySelector("[data-guide-back]")?.addEventListener("click", (event) => {
     event.preventDefault();
     navigate(`/app/trip/${tripId}`);
-  });
-}
-
-function wireDashboardLink() {
-  document.querySelector("#trip-back-to-dashboard")?.addEventListener("click", () => {
-    navigate("/app");
   });
 }
 

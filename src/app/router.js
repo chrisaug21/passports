@@ -20,6 +20,8 @@ import { renderGuidePage, loadGuidePage } from "../features/trip/guide/guide-pag
 import { renderNotesPage, loadNotesPage } from "../features/trip/notes/notes-page.js";
 import { renderPrepPage, loadPrepPage } from "../features/trip/prep/prep-page.js";
 import { renderMcpConnectPage, wireMcpConnectPage } from "../features/shared/mcp-connect-page.js";
+import { renderArchivePage, wireArchivePage, loadArchivePage } from "../features/archive/archive-page.js";
+import { renderDestinationsPage } from "../features/destinations/destinations-page.js";
 
 const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
 
@@ -28,6 +30,8 @@ function normalizePath(pathname) {
     pathname === "/login" ||
     pathname === "/app" ||
     pathname === "/app/connect" ||
+    pathname === "/app/archive" ||
+    pathname === "/app/destinations" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname) ||
@@ -84,7 +88,6 @@ export function renderRoute(options = {}) {
     const tripId = guideMatch[1];
 
     renderAppShell(renderGuidePage(), {
-      showDashboardLink: Boolean(session),
       afterRender: () => {
         document.title = "Passports | Guide";
         loadGuidePage(tripId);
@@ -127,7 +130,6 @@ export function renderRoute(options = {}) {
 
   if (pathname === "/app/connect") {
     renderAppShell(renderMcpConnectPage(), {
-      showDashboardLink: true,
       afterRender: () => {
         document.title = "Passports | Connect AI Assistant";
         wireMcpConnectPage();
@@ -146,6 +148,7 @@ export function renderRoute(options = {}) {
   if (pathname === "/app") {
     renderAppShell(renderDashboardPage(), {
       showNewTripButton: true,
+      activeNav: "trips",
       afterRender: () => {
         document.title = "Passports";
         wireDashboardPage();
@@ -166,12 +169,39 @@ export function renderRoute(options = {}) {
     return;
   }
 
+  if (pathname === "/app/archive") {
+    renderAppShell(renderArchivePage(), {
+      activeNav: "archive",
+      afterRender: () => {
+        document.title = "Passports | Archive";
+        wireArchivePage();
+        loadArchivePage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
+  if (pathname === "/app/destinations") {
+    renderAppShell(renderDestinationsPage(), {
+      activeNav: "destinations",
+      afterRender: () => {
+        document.title = "Passports | Destinations";
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
   const notesMatch = pathname.match(/^\/app\/trip\/([0-9a-f-]+)\/notes$/i);
   if (notesMatch) {
     const tripId = notesMatch[1];
 
     renderAppShell(renderNotesPage(), {
-      showDashboardLink: true,
       afterRender: () => {
         document.title = "Passports | Notes & References";
         loadNotesPage(tripId);
@@ -188,7 +218,6 @@ export function renderRoute(options = {}) {
     const tripId = prepMatch[1];
 
     renderAppShell(renderPrepPage(), {
-      showDashboardLink: true,
       afterRender: () => {
         document.title = "Passports | Prep Checklist";
         loadPrepPage(tripId);
@@ -204,7 +233,6 @@ export function renderRoute(options = {}) {
     const tripId = pathname.split("/").pop();
 
     renderAppShell(renderTripDetailPage(), {
-      showDashboardLink: true,
       afterRender: () => {
         document.title = "Passports | Trip";
         wireTripDetailPage(tripId);

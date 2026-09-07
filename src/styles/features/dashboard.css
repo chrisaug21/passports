@@ -19,38 +19,6 @@
   align-items: stretch;
 }
 
-.dashboard-past-trips {
-  padding: 0.9rem 1rem 1rem;
-}
-
-.dashboard-past-trips__summary {
-  list-style: none;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-  cursor: pointer;
-}
-
-.dashboard-past-trips__summary::-webkit-details-marker {
-  display: none;
-}
-
-.dashboard-past-trips__summary::after {
-  content: "+";
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--color-structure);
-}
-
-.dashboard-past-trips[open] .dashboard-past-trips__summary::after {
-  content: "−";
-}
-
-.dashboard-past-trips__content {
-  margin-top: 1rem;
-}
-
 .trip-card {
   width: 100%;
   min-height: 360px;
@@ -196,10 +164,6 @@
 }
 
 @media (max-width: 840px) {
-  .dashboard-past-trips__summary {
-    flex-direction: column;
-  }
-
   .modal-card__actions {
     flex-direction: column-reverse;
     align-items: stretch;

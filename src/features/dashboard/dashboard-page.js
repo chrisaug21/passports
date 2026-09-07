@@ -16,8 +16,10 @@ export function setDashboardRenderer(renderer) {
 export function renderDashboardPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
-  const activeTrips = sortTripsByStartDate(trips.filter((trip) => trip.status !== "done"), "asc");
-  const pastTrips = sortTripsByStartDate(trips.filter((trip) => trip.status === "done"), "desc");
+  const activeTrips = sortTripsByStartDate(
+    trips.filter((trip) => trip.status === "planning" || trip.status === "active"),
+    "asc",
+  );
 
   return `
     <section class="dashboard">
@@ -69,29 +71,10 @@ export function renderDashboardPage() {
                 `
                 : `
                   <section class="panel dashboard-state">
-                    <h3>No active trips right now</h3>
-                    <p class="muted">Past trips are waiting below.</p>
+                    <h3>No trips in progress</h3>
+                    <p class="muted">Start a new trip, or check Archive for past ones.</p>
                   </section>
                 `
-            }
-
-            ${
-              pastTrips.length > 0
-                ? `
-                  <details class="panel dashboard-past-trips">
-                    <summary class="dashboard-past-trips__summary">
-                      <div>
-                        <p class="eyebrow">Past Trips</p>
-                      </div>
-                    </summary>
-                    <div class="dashboard-past-trips__content">
-                      <section class="dashboard-grid">
-                        ${pastTrips.map((trip) => renderTripCard(trip, { includeYear: true })).join("")}
-                      </section>
-                    </div>
-                  </details>
-                `
-                : ""
             }
           `
           : ""
@@ -209,7 +192,7 @@ function openCreateTripModal() {
   document.querySelector("#create-trip-modal")?.classList.remove("is-hidden");
 }
 
-function sortTripsByStartDate(trips, direction) {
+export function sortTripsByStartDate(trips, direction) {
   const directionMultiplier = direction === "desc" ? -1 : 1;
 
   return [...trips].sort((a, b) => {

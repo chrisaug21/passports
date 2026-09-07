@@ -12,6 +12,7 @@ import { tripStore } from "../state/trip-store.js";
 import { APP_VERSION } from "../config/constants.js";
 import { fetchUserProfile } from "../services/journal-service.js";
 import { getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../lib/preferences.js";
+import { renderAppNav, wireAppNav } from "../features/shared/app-nav.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
@@ -98,7 +99,7 @@ function renderBootstrapLoadingScreen() {
 }
 
 export function renderAppShell(content, options = {}) {
-  const { showDashboardLink = false, showNewTripButton = false } = options;
+  const { showNewTripButton = false, activeNav = "" } = options;
   const { session } = sessionStore.getState();
   const userId = session?.user?.id || "";
   const email = session?.user?.email || "";
@@ -114,16 +115,6 @@ export function renderAppShell(content, options = {}) {
               <span class="topbar__version">${APP_VERSION}</span>
             </span>
           </button>
-          ${
-            showDashboardLink
-              ? `
-                <button class="topbar__dashboard-link" id="trip-back-to-dashboard" type="button">
-                  <i data-lucide="home" aria-hidden="true"></i>
-                  <span>Dashboard</span>
-                </button>
-              `
-              : ""
-          }
         </div>
         <div class="topbar__actions">
           ${showNewTripButton && session ? `<button class="button topbar__new-trip" id="open-create-trip-modal" type="button">New Trip</button>` : ""}
@@ -146,6 +137,7 @@ export function renderAppShell(content, options = {}) {
           }
         </div>
       </header>
+      ${session ? renderAppNav(activeNav) : ""}
       ${content}
     </main>
   `;
@@ -156,6 +148,7 @@ export function renderAppShell(content, options = {}) {
   });
 
   if (session) {
+    wireAppNav();
     bindAccountMenuListeners();
     void hydrateAccountMenuProfile({ userId, email });
 

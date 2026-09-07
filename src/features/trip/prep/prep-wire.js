@@ -149,12 +149,6 @@ export function wirePrepView({ trip, todos, rerender }) {
     navigate(`/app/trip/${trip.id}`);
   });
 
-  // Rendered by the shared app shell (renderAppShell), not this page's own
-  // markup — every page that shows it is responsible for wiring its click.
-  document.querySelector("#trip-back-to-dashboard")?.addEventListener("click", () => {
-    navigate("/app");
-  });
-
   document.querySelector("[data-toggle-hide-completed]")?.addEventListener("click", () => {
     const { hideCompleted } = appStore.getState().prepPage;
     appStore.updatePrepPage({ hideCompleted: !hideCompleted });
