@@ -5,14 +5,11 @@ import { showToast } from "../../shared/toast.js";
 import { tripDetailState, rerenderTripDetail } from "./trip-detail-state.js";
 import { getDisplayTitleForToast } from "./trip-detail-ui.js";
 import {
-  assignDaySortOrdersFromCombinedItems,
   buildUpdatedItem,
   dedupeItemsById,
   getAnchorDestinationSortOrder,
   getFlexItemsForDay,
   getInterleavedDayItems,
-  insertFlexItemByTime,
-  moveCombinedItemByStep,
   normalizeFlexItems,
 } from "./item-ordering.js";
 
@@ -32,19 +29,19 @@ export async function reorderFlexItemsWithinDay(dayId, movedItemId, direction) {
     return;
   }
 
-  const reorderedCombinedItems = moveCombinedItemByStep(combinedItems, movedItemId, direction);
-  const assignedDayItems = assignDaySortOrdersFromCombinedItems(reorderedCombinedItems);
-  const reorderedItems = assignedDayItems
-    .filter((item) => {
-      const currentItem = items.find((entry) => entry.id === item.id);
-      return currentItem && Number(currentItem.sort_order) !== Number(item.sort_order);
-    });
+  // Swap only the sort_order of the two items changing places. Reassigning
+  // sort_order across the whole day (as this used to do) meant every other
+  // item in the day -- most of them untouched and possibly missing from this
+  // browser's in-memory `items` snapshot -- got silently rewritten too,
+  // which is how a single arrow click could scramble a day's chronological
+  // order behind a stale-looking local list.
+  const movedItem = combinedItems[currentIndex];
+  const targetItem = combinedItems[targetIndex];
 
-  if (reorderedItems.length === 0) {
-    return;
-  }
-
-  await persistItemBatchUpdates(reorderedItems);
+  await persistItemBatchUpdates([
+    buildUpdatedItem(movedItem, { sort_order: targetItem.sort_order }),
+    buildUpdatedItem(targetItem, { sort_order: movedItem.sort_order }),
+  ]);
 }
 
 export function getMoveDestinationLabel(destinationDayId, days) {
@@ -73,8 +70,14 @@ export async function moveItemToDestination(itemId, destinationDayId) {
   const updates = [];
 
   if (!item.is_anchor) {
+    // Only untimed siblings need renumbering to stay sequential -- timed
+    // items self-correct via the DB's auto-sort trigger the moment their own
+    // day/time changes, and touching them here (from this browser's possibly
+    // stale `items` snapshot) risks overwriting their correct positions.
     if (sourceDayId !== destinationDayId) {
-      updates.push(...normalizeFlexItems(getFlexItemsForDay(items, sourceDayId, item.id)));
+      updates.push(...normalizeFlexItems(
+        getFlexItemsForDay(items, sourceDayId, item.id).filter((sibling) => !sibling.time_start)
+      ));
     }
 
     const movedItem = buildUpdatedItem(item, {
@@ -83,7 +86,7 @@ export async function moveItemToDestination(itemId, destinationDayId) {
     });
 
     if (movedItem.time_start) {
-      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, destinationDayId, item.id), movedItem));
+      updates.push(movedItem);
     } else {
       updates.push(...normalizeFlexItems([
         ...getFlexItemsForDay(items, destinationDayId, item.id),
