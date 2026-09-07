@@ -2,7 +2,7 @@
 
 **Status:** Design settled — see "Decisions" below for what's locked in. Plan is five PRs: **Phase 0** (make `trips.status` authoritative — a prerequisite, not really a "Destinations" feature) → **Navigation reshuffle** → **Board core** → **Wishlist entry depth** → **Map** (an immediate follow-up once the board ships, not deferred indefinitely). "Default co-traveler" and the public account-level board/map are noted as later, separate ideas — see the bottom of this doc.
 
-**Progress:** Phase 0 is shipped and merged (`chrisaug21/passports` PR #61) — `trips.status` is now authoritative, the database's CHECK constraint has been narrowed to drop the dead `upcoming` value, and the "Starting soon" badge is live. **Navigation reshuffle is next up**, not yet started.
+**Progress:** Phase 0 is shipped and merged (`chrisaug21/passports` PR #61) — `trips.status` is now authoritative, the database's CHECK constraint has been narrowed to drop the dead `upcoming` value, and the "Starting soon" badge is live. Navigation reshuffle is implemented and in `chrisaug21/passports` PR #62 (open, passed review, ready to merge) — see "Navigation" below for what actually shipped and what a fresh session needs to know before starting **Board core**, which is next up and not yet started.
 
 **Audience:** A fresh Claude Code session with no memory of the design conversation. Read this whole document before writing any code.
 
@@ -114,21 +114,24 @@ The guiding line: **Wishlist is about deciding and dreaming; Planning is about e
 - **MCP tools** (`list_trips`/`get_trip`) — should these surface destinations at all, or filter them out by default? An AI agent proposing itinerary items against a dateless wishlist entry doesn't make much sense yet.
 - **Unsplash hero photo auto-pull** is presumably keyed off a base's `location_name` today; a destination with no base yet would need to key off `trip.title` instead.
 
-## Navigation
+## Navigation — shipped (PR #62)
 
-No persistent multi-item nav exists in this app today — the topbar ([bootstrap.js](src/app/bootstrap.js)) is just brand/home, a contextual "Dashboard" link (shown only inside a trip), a New Trip button, and the account menu. This is new IA territory, not an extension of an existing pattern.
+A full, persistent nav now exists with three items, replacing the old topbar (which was just brand/home, a contextual "Dashboard" link shown only inside a trip, a New Trip button, and the account menu):
 
-**Decided:** a full, persistent top nav with three items:
+- **Trips** — the renamed Dashboard: trips with status `planning`/`active` only (`dashboard-page.js`; the old collapsible "Past Trips" section is gone). Clicking a trip goes to that trip's Plan view — except an Active/traveling trip, which defaults straight into Guide/Itinerary view instead.
+- **Destinations** — currently a "coming soon" placeholder page (`src/features/destinations/destinations-page.js`). The route (`/app/destinations`) and nav entry are already wired in `router.js`; **Board core just needs to replace what that page renders — no new routing/nav work required.**
+- **Archive** — a dedicated page for past/done trips (`src/features/archive/archive-page.js`, route `/app/archive`), same photo-card treatment the old Dashboard grid used, promoted to its own full page instead of a collapsible section.
 
-- **Trips** — today's Dashboard: trips with status `planning`/`active` (Wishlist and Archive trips excluded). Clicking a trip goes to that trip's Plan view — except an Active/traveling trip, which defaults straight into Guide/Itinerary view instead, since that's what actually matters once a trip is underway.
-- **Destinations** — this feature (the Wishlist → Planning → Upcoming → Active → Archive board).
-- **Archive** — a dedicated home for past/done trips, moved off the Dashboard. This isn't scope creep: `CLAUDE.md`'s "Planned Future Work" already lists **"Memento/diary mode: beautiful archive view for past trips; designed share experience"** as an independent, already-intended feature. Archive is that feature's natural home in the nav, not a new concept invented for this doc.
+**Why "Trips," not "Planning":** this app already uses "Plan view" as the established term for a single trip's detail/editing screen (see `CLAUDE.md`'s "Views" section). "Trips" avoids colliding with that and is grammatically parallel to "Destinations"/"Archive."
 
-**Why "Trips," not "Planning":** this app already uses "Plan view" as the established term for a single trip's detail/editing screen (see `CLAUDE.md`'s "Views" section). Calling the nav item "Planning" would create two different screens both conceptually called "planning" — the nav item (a list of many trips) and "Plan view" (one specific trip's screen). "Trips" avoids that collision entirely and is grammatically parallel to "Destinations"/"Archive" (three content-nouns, not a mix).
+**Archive (nav) and the board's future Done column will coexist, at different depths:** once Board core ships, its last column should be **Archive** (not "Done," for label consistency with the nav item) — a compact kanban card per done trip. The **Archive nav item** stays the deeper, dedicated browsing page. Same underlying `status = 'done'` trips, two views at different depths.
 
-**Decided — Archive and the board's Done column coexist, at different depths:** the board's last column is renamed **Archive** (from "Done," for label consistency with the nav item) — a compact kanban card per done trip, clickable straight into that trip's Plan view, same as any other board card. Separately, the **Archive nav item** leads to its own dedicated page: a more focused, visual gallery of past trips — same photo-card treatment as today's Dashboard trip grid, just promoted to its own full page instead of a section beneath the active trips. Same underlying `status = 'done'` trips, two views at different depths (a lightweight column vs. a proper browsing page).
-
-**Decided — mobile nav:** try the bottom tab bar as designed. Flagged concern going in: this app already has a lot of on-screen controls, and top-level nav isn't something used minute-to-minute during active planning/travel, so a bottom bar could feel like clutter for low-frequency navigation. Worth trying as specified; a side nav (slide-in drawer) is the documented fallback if the bottom bar feels like too much once it's actually in front of a phone.
+**Visual treatment, as shipped:**
+- **Desktop:** the nav sits inline inside the topbar itself (not a separate bar/row) — in `topbar__left`, right after the brand logo, separated by a vertical divider. Items are **plain text links**: no border, no background, no icons, and deliberately **no active/current-page indicator** (with only three flat, self-evident sections, the nav's job is just letting people move between them, not showing "you are here"). Hover only changes the text color to the app's structural blue (`--color-structure`) — the same blue used for stat-tile numbers on the trip detail page.
+- **Mobile (<840px):** the same nav markup detaches into a fixed bottom tab bar (icon over label per item) via CSS alone — no separate mobile component. Icons only render here; they're hidden on desktop.
+- Component lives in `src/features/shared/app-nav.js` (markup + click wiring), rendered inside `renderAppShell` in `bootstrap.js`.
+- The old contextual "Dashboard" breadcrumb link (previously shown only inside a trip) was removed entirely — the persistent nav covers that job everywhere a session exists now.
+- Trips and Archive each got a page header using the same display-font style Notes/Prep pages already use (`.dashboard-header h1` in `dashboard.css`): Trips reads "Upcoming Trips," Archive reads "Archive of Past Trips."
 
 ## Map view (Phase B — immediate follow-up PR once the board ships)
 
