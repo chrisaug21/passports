@@ -44,7 +44,8 @@ export function renderDestinationsPage() {
         </div>
         <button class="button" id="open-create-destination-modal" type="button">
           <i data-lucide="plus" aria-hidden="true"></i>
-          <span>New Destination</span>
+          <span class="destinations-header__button-label">New Destination</span>
+          <span class="destinations-header__button-label-mobile">New</span>
         </button>
       </div>
 
