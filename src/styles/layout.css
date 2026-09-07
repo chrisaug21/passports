@@ -115,7 +115,7 @@
 }
 
 .app-nav__item:hover {
-  color: var(--color-text);
+  color: var(--color-structure);
 }
 
 .app-nav__item svg {

@@ -13,6 +13,10 @@ export function renderArchivePage() {
 
   return `
     <section class="dashboard">
+      <div class="dashboard-header">
+        <h1>Archive of Past Trips</h1>
+      </div>
+
       ${
         dashboard.status === "loading"
           ? `

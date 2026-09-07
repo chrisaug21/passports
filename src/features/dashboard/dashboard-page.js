@@ -23,6 +23,10 @@ export function renderDashboardPage() {
 
   return `
     <section class="dashboard">
+      <div class="dashboard-header">
+        <h1>Upcoming Trips</h1>
+      </div>
+
       ${
         dashboard.status === "loading"
           ? `

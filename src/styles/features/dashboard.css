@@ -5,6 +5,12 @@
   gap: 1.25rem;
 }
 
+.dashboard-header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1;
+}
+
 .dashboard-state {
   padding: 1.5rem;
   display: grid;
