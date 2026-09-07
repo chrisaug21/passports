@@ -4,12 +4,7 @@ import { sessionStore } from "../../state/session-store.js";
 import { navigate, renderRoute } from "../../app/router.js";
 import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { showToast } from "../shared/toast.js";
-import {
-  createDestination,
-  moveTripToWishlist,
-  promoteDestinationToTrip,
-  updateDestinationSortOrders,
-} from "../../services/trips-service.js";
+import { createDestination } from "../../services/trips-service.js";
 import { formatDestinationTargetDate, formatStatusLabel, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
 
@@ -21,10 +16,6 @@ const BOARD_COLUMNS = [
   {
     id: "planning",
     title: "Planning",
-  },
-  {
-    id: "active",
-    title: "Active",
   },
   {
     id: "archive",
@@ -57,7 +48,6 @@ export function renderDestinationsPage() {
 
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
-      ${renderPromoteDestinationModal(destinationsPage)}
     </section>
   `;
 }
@@ -98,8 +88,7 @@ function buildBoardColumns(trips) {
 
   return {
     wishlist,
-    planning: sortTripsByStartDate(trips.filter((trip) => trip.status === "planning"), "asc"),
-    active: sortTripsByStartDate(trips.filter((trip) => trip.status === "active"), "asc"),
+    planning: sortTripsByStartDate(trips.filter((trip) => trip.status === "planning" || trip.status === "active"), "asc"),
     archive: sortTripsByStartDate(trips.filter((trip) => trip.status === "done"), "desc"),
   };
 }
@@ -126,21 +115,17 @@ function sortWishlistTrips(trips) {
 }
 
 function getTargetSortValue(trip) {
-  const year = Number(trip.target_year);
+  const year = parseStoredInteger(trip.target_year);
 
-  if (!Number.isInteger(year)) {
+  if (year == null) {
     return Number.POSITIVE_INFINITY;
   }
 
-  const month = Number(trip.target_month);
-  return year * 100 + (Number.isInteger(month) ? month : 0);
+  const month = parseStoredInteger(trip.target_month);
+  return year * 100 + (month || 0);
 }
 
 function renderBoardColumn(column, trips) {
-  const undatedWishlistIds = column.id === "wishlist"
-    ? trips.filter((trip) => !trip.target_year).map((trip) => trip.id)
-    : [];
-
   return `
     <section class="destinations-column" data-destination-column="${column.id}">
       <div class="destinations-column__header">
@@ -152,16 +137,7 @@ function renderBoardColumn(column, trips) {
       <div class="destinations-column__cards">
         ${
           trips.length > 0
-            ? trips.map((trip, index) => {
-                const undatedIndex = undatedWishlistIds.indexOf(trip.id);
-                return renderDestinationCard(trip, {
-                  columnId: column.id,
-                  index,
-                  totalCount: trips.length,
-                  undatedIndex,
-                  undatedCount: undatedWishlistIds.length,
-                });
-              }).join("")
+            ? trips.map((trip) => renderDestinationCard(trip)).join("")
             : renderEmptyColumn(column.id)
         }
       </div>
@@ -169,69 +145,39 @@ function renderBoardColumn(column, trips) {
   `;
 }
 
-function renderDestinationCard(trip, options) {
+function renderDestinationCard(trip) {
   const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_url || trip.cover_photo_url);
   const statusLabel = trip.status === "destinations"
     ? formatDestinationTargetDate(trip)
     : formatTripDateSummary(trip, { includeYear: trip.status === "done" });
-  const canReorder = options.columnId === "wishlist" && !trip.target_year;
+  const tripTitle = escapeHtml(trip.title || "Untitled trip");
 
   return `
-    <article class="destination-card" data-destination-card data-trip-id="${escapeHtml(String(trip.id))}">
+    <article
+      class="destination-card"
+      data-destination-card
+      data-trip-id="${escapeHtml(String(trip.id))}"
+      role="button"
+      tabindex="0"
+      aria-label="Open ${tripTitle}"
+    >
       <div class="destination-card__media">
         ${safeCoverUrl ? `<img src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
-        <span class="destination-card__badge destination-card__badge--${escapeHtml(trip.status)}">
-          ${escapeHtml(formatStatusLabel(trip.status))}
-        </span>
       </div>
       <div class="destination-card__body">
         <div>
-          <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
+          <h3>${tripTitle}</h3>
           <p>${escapeHtml(trip.description || getFallbackDescription(trip.status))}</p>
         </div>
         <div class="destination-card__meta">
+          <span class="destination-card__badge destination-card__badge--${escapeHtml(trip.status)}">
+            ${escapeHtml(formatStatusLabel(trip.status))}
+          </span>
           <span>${escapeHtml(statusLabel)}</span>
           ${isTripStartingSoon(trip) ? `<span>Starting soon</span>` : ""}
         </div>
-        ${renderCardActions(trip, { ...options, canReorder })}
       </div>
     </article>
-  `;
-}
-
-function renderCardActions(trip, options) {
-  if (trip.status === "destinations") {
-    return `
-      <div class="destination-card__actions">
-        <button class="button button--secondary" type="button" data-open-trip="${escapeHtml(String(trip.id))}">Open</button>
-        <button class="button" type="button" data-promote-destination="${escapeHtml(String(trip.id))}">Promote</button>
-        ${
-          options.canReorder
-            ? `
-              <div class="destination-card__order" aria-label="Reorder ${escapeHtml(trip.title || "destination")}">
-                <button class="icon-button" type="button" data-reorder-wishlist="${escapeHtml(String(trip.id))}" data-direction="up" ${options.undatedIndex === 0 ? "disabled" : ""} aria-label="Move up">
-                  <i data-lucide="arrow-up" aria-hidden="true"></i>
-                </button>
-                <button class="icon-button" type="button" data-reorder-wishlist="${escapeHtml(String(trip.id))}" data-direction="down" ${options.undatedIndex === options.undatedCount - 1 ? "disabled" : ""} aria-label="Move down">
-                  <i data-lucide="arrow-down" aria-hidden="true"></i>
-                </button>
-              </div>
-            `
-            : ""
-        }
-      </div>
-    `;
-  }
-
-  return `
-    <div class="destination-card__actions">
-      <button class="button button--secondary" type="button" data-open-trip="${escapeHtml(String(trip.id))}">Open</button>
-      ${
-        trip.status === "planning"
-          ? `<button class="button-link" type="button" data-move-to-wishlist="${escapeHtml(String(trip.id))}">Move to Wishlist</button>`
-          : ""
-      }
-    </div>
   `;
 }
 
@@ -239,7 +185,6 @@ function renderEmptyColumn(columnId) {
   const messages = {
     wishlist: "No Wishlist places yet.",
     planning: "No trips being planned.",
-    active: "No active trips right now.",
     archive: "Past trips will show up here.",
   };
 
@@ -301,45 +246,6 @@ function renderCreateDestinationModal(destinationsPage) {
   `;
 }
 
-function renderPromoteDestinationModal(destinationsPage) {
-  const trip = tripStore.getTrips().find((entry) => entry.id === destinationsPage.promotingTripId) || null;
-  const isHidden = trip ? "" : " is-hidden";
-
-  return `
-    <div class="modal-shell${isHidden}" id="promote-destination-modal" aria-hidden="${trip ? "false" : "true"}">
-      <div class="modal-backdrop" data-close-promote-destination></div>
-      <section class="panel modal-card">
-        <div class="modal-card__header">
-          <div>
-            <p class="eyebrow">Promote to Planning</p>
-            <h3>${escapeHtml(trip?.title || "Plan this trip")}</h3>
-          </div>
-          <button class="icon-button" id="close-promote-destination-modal" type="button" aria-label="Close promotion form">x</button>
-        </div>
-
-        <form class="create-trip-form" id="promote-destination-form">
-          <label class="field">
-            <span>Trip Length</span>
-            <input name="tripLength" type="number" min="1" max="60" value="${escapeHtml(String(trip?.trip_length || 7))}" required />
-          </label>
-
-          <label class="field">
-            <span>Start Date</span>
-            <input name="startDate" type="date" required />
-          </label>
-
-          <div class="modal-card__actions">
-            <button class="button button--secondary" id="cancel-promote-destination" type="button">Cancel</button>
-            <button class="button" type="submit" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
-              ${destinationsPage.isPromotingDestination ? "Promoting..." : "Promote to Planning"}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  `;
-}
-
 function renderMonthOption(month) {
   const label = new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(2026, month - 1, 1));
   return `<option value="${month}">${escapeHtml(label)}</option>`;
@@ -351,33 +257,21 @@ export function wireDestinationsPage() {
     loadDashboard();
   });
 
-  document.querySelectorAll("[data-open-trip]").forEach((button) => {
-    button.addEventListener("click", () => {
-      navigate(`/app/trip/${button.getAttribute("data-open-trip")}`);
-    });
-  });
+  document.querySelectorAll("[data-destination-card]").forEach((card) => {
+    const openCard = () => {
+      openTrip(card.getAttribute("data-trip-id"));
+    };
 
-  document.querySelectorAll("[data-promote-destination]").forEach((button) => {
-    button.addEventListener("click", () => {
-      appStore.updateDestinationsPage({ promotingTripId: button.getAttribute("data-promote-destination") });
-      rerenderDestinations();
-    });
-  });
-
-  document.querySelectorAll("[data-move-to-wishlist]").forEach((button) => {
-    button.addEventListener("click", () => {
-      moveToWishlist(button.getAttribute("data-move-to-wishlist"));
-    });
-  });
-
-  document.querySelectorAll("[data-reorder-wishlist]").forEach((button) => {
-    button.addEventListener("click", () => {
-      reorderWishlist(button.getAttribute("data-reorder-wishlist"), button.getAttribute("data-direction"));
+    card.addEventListener("click", openCard);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openCard();
+      }
     });
   });
 
   wireCreateDestinationModal();
-  wirePromoteDestinationModal();
 }
 
 export function loadDestinationsPage() {
@@ -447,110 +341,37 @@ function wireCreateDestinationModal() {
   });
 }
 
-function wirePromoteDestinationModal() {
-  const modal = document.querySelector("#promote-destination-modal");
-  const form = document.querySelector("#promote-destination-form");
-  const closeModal = () => {
-    appStore.updateDestinationsPage({ promotingTripId: null });
-    rerenderDestinations();
-  };
-
-  document.querySelector("#close-promote-destination-modal")?.addEventListener("click", closeModal);
-  document.querySelector("#cancel-promote-destination")?.addEventListener("click", closeModal);
-  document.querySelector("[data-close-promote-destination]")?.addEventListener("click", closeModal);
-
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const { destinationsPage } = appStore.getState();
-    const trip = tripStore.getTrips().find((entry) => entry.id === destinationsPage.promotingTripId) || null;
-
-    if (!trip) {
-      showToast("That destination is no longer available.", "error");
-      closeModal();
-      return;
-    }
-
-    const formData = new FormData(form);
-    appStore.updateDestinationsPage({ isPromotingDestination: true });
-
-    try {
-      const updatedTrip = await promoteDestinationToTrip({
-        tripId: trip.id,
-        title: trip.title,
-        description: trip.description,
-        tripLength: Number(formData.get("tripLength")) || 1,
-        startDate: String(formData.get("startDate") || "").trim(),
-      });
-
-      tripStore.updateTrip(updatedTrip);
-      appStore.updateDestinationsPage({ isPromotingDestination: false, promotingTripId: null });
-      showToast("Destination moved to Planning.", "success");
-      rerenderDestinations();
-    } catch (error) {
-      console.error(error);
-      appStore.updateDestinationsPage({ isPromotingDestination: false });
-      showToast("Could not promote that destination right now.", "error");
-      rerenderDestinations();
-    }
-  });
-}
-
-async function moveToWishlist(tripId) {
-  if (!tripId) {
-    return;
-  }
-
-  appStore.updateDestinationsPage({ isMovingToWishlist: true, movingTripId: tripId });
-
-  try {
-    const updatedTrip = await moveTripToWishlist({ tripId });
-    tripStore.updateTrip(updatedTrip);
-    appStore.updateDestinationsPage({ isMovingToWishlist: false, movingTripId: null });
-    showToast("Trip moved to Wishlist.", "success");
-    rerenderDestinations();
-  } catch (error) {
-    console.error(error);
-    appStore.updateDestinationsPage({ isMovingToWishlist: false, movingTripId: null });
-    showToast("Could not move that trip right now.", "error");
-    rerenderDestinations();
-  }
-}
-
-async function reorderWishlist(tripId, direction) {
-  const wishlistTrips = sortWishlistTrips(tripStore.getTrips().filter((trip) => trip.status === "destinations" && !trip.target_year));
-  const currentIndex = wishlistTrips.findIndex((trip) => trip.id === tripId);
-  const offset = direction === "up" ? -1 : 1;
-  const nextIndex = currentIndex + offset;
-
-  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= wishlistTrips.length) {
-    return;
-  }
-
-  const reorderedTrips = [...wishlistTrips];
-  const [movedTrip] = reorderedTrips.splice(currentIndex, 1);
-  reorderedTrips.splice(nextIndex, 0, movedTrip);
-  const tripsWithSortOrder = reorderedTrips.map((trip, index) => ({ ...trip, sort_order: index }));
-
-  tripStore.mergeTrips(tripsWithSortOrder);
-  appStore.updateDestinationsPage({ isReorderingWishlist: true });
-  rerenderDestinations();
-
-  try {
-    const savedTrips = await updateDestinationSortOrders(tripsWithSortOrder);
-    tripStore.mergeTrips(savedTrips);
-    appStore.updateDestinationsPage({ isReorderingWishlist: false });
-    rerenderDestinations();
-  } catch (error) {
-    console.error(error);
-    appStore.updateDestinationsPage({ isReorderingWishlist: false });
-    showToast("Could not reorder Wishlist right now.", "error");
-    loadDashboard();
-  }
-}
-
 function parseOptionalInteger(value) {
   if (String(value || "").trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1000 ? parsed : null;
+}
+
+function openTrip(tripId) {
+  const trip = tripStore.getTrips().find((entry) => String(entry.id) === String(tripId));
+
+  if (!trip) {
+    return;
+  }
+
+  if (trip.status === "active") {
+    navigate(`/app/trip/${trip.id}/guide`);
+    return;
+  }
+
+  if (trip.status === "done") {
+    navigate(`/app/trip/${trip.id}/guide#journal`);
+    return;
+  }
+
+  navigate(`/app/trip/${trip.id}`);
+}
+
+function parseStoredInteger(value) {
+  if (value == null || String(value).trim() === "") {
     return null;
   }
 

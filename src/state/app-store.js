@@ -90,11 +90,6 @@ function createInitialPrepPage() {
 function createInitialDestinationsPage() {
   return {
     isCreatingDestination: false,
-    isPromotingDestination: false,
-    promotingTripId: null,
-    isMovingToWishlist: false,
-    movingTripId: null,
-    isReorderingWishlist: false,
   };
 }
 

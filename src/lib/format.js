@@ -79,14 +79,14 @@ export function formatStatusLabel(value) {
 }
 
 export function formatDestinationTargetDate(trip) {
-  const year = Number(trip?.target_year);
-  const month = Number(trip?.target_month);
+  const year = parseOptionalStoredInteger(trip?.target_year);
+  const month = parseOptionalStoredInteger(trip?.target_month);
 
-  if (!Number.isInteger(year)) {
+  if (year == null) {
     return "Someday";
   }
 
-  if (!Number.isInteger(month)) {
+  if (month == null) {
     return String(year);
   }
 
@@ -100,6 +100,15 @@ export function formatDestinationTargetDate(trip) {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function parseOptionalStoredInteger(value) {
+  if (value == null || String(value).trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1000 ? parsed : null;
 }
 
 export function formatItemTypeLabel(value) {
