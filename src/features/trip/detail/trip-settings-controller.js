@@ -371,6 +371,7 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
       isSavingTrip: false,
       isShowingTripSettings: false,
     });
+    rerenderTripDetail();
     await loadTripDetail(settings.tripId);
     showToast("Trip updated.", "success");
   } catch (error) {

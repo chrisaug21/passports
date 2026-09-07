@@ -5,7 +5,6 @@ import {
   formatTimeLabel,
   getTripDateByDayNumber,
 } from "../../../lib/format.js";
-import { deriveTripStatus } from "../../../lib/derive.js";
 import {
   OVERVIEW_CATEGORIES,
   OVERVIEW_CATEGORY_ICONS,
@@ -104,9 +103,7 @@ function getCostSymbol(low, high) {
 // ---------------------------------------------------------------------------
 
 export function getTodayDayNumber(trip) {
-  const derivedStatus = deriveTripStatus(trip);
-
-  if (!trip.start_date || (trip.status !== "active" && derivedStatus !== "traveling")) {
+  if (!trip.start_date || trip.status !== "active") {
     return null;
   }
 
@@ -529,8 +526,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries
 // ---------------------------------------------------------------------------
 
 function renderJournalTabButton(trip, viewerRole) {
-  const derivedStatus = deriveTripStatus(trip);
-  const isJournalEnabled = derivedStatus === "traveling" || derivedStatus === "past";
+  const isJournalEnabled = trip.status === "active" || trip.status === "done";
   const disabledJournalTab = `<button class="guide-hero__tab" role="tab" aria-selected="false" disabled title="Available when your trip is Active or complete" type="button">Journal</button>`;
 
   if (viewerRole === "public") {
@@ -547,7 +543,7 @@ function renderJournalTabButton(trip, viewerRole) {
   return disabledJournalTab;
 }
 
-function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole) {
+function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, viewerRole) {
   const baseNames = bases.length > 1
     ? bases.map((b) => b.name || b.location_name || "").filter(Boolean).join(" → ")
     : "";
@@ -575,7 +571,7 @@ function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedSt
         <h1 class="guide-hero__title">${escapeHtml(trip.title || "Untitled Trip")}</h1>
         <div class="guide-hero__meta">
           <span class="guide-hero__dates">${escapeHtml(formatTripDateSummary(trip))}</span>
-          <span class="guide-hero__status-pill" data-derived-status="${escapeHtml(derivedStatus)}">${escapeHtml(formatStatusLabel(derivedStatus))}</span>
+          <span class="guide-hero__status-pill" data-status="${escapeHtml(trip.status)}">${escapeHtml(formatStatusLabel(trip.status))}</span>
         </div>
         ${isMember ? renderMemberAvatars(members) : ""}
         <div class="guide-hero__tabs" role="tablist" aria-label="View mode">
@@ -627,7 +623,6 @@ export function renderGuideErrorView() {
 
 export function renderGuideView(state) {
   const { trip, bases, days, items, overviewBlocks = [], members, viewerRole } = state;
-  const derivedStatus = deriveTripStatus(trip);
   const isMember = viewerRole !== "public";
   const heroPhotoUrl = getTripHeroPhotoUrl(trip);
   const todayDayNumber = getTodayDayNumber(trip);
@@ -663,7 +658,7 @@ export function renderGuideView(state) {
     .join("");
 
   return `
-    ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, derivedStatus, viewerRole)}
+    ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, viewerRole)}
     <div class="guide-body">
       <div class="guide-day-nav-shell">
         ${renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries)}

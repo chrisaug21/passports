@@ -71,14 +71,6 @@ export function formatTripDateSummary(trip, options = {}) {
 }
 
 export function formatStatusLabel(value) {
-  if (value === "traveling") {
-    return "Traveling";
-  }
-
-  if (value === "past") {
-    return "Past";
-  }
-
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

@@ -1,6 +1,6 @@
 # Destinations — Spec (Board + Map)
 
-**Status:** Design settled — see "Decisions" below for what's locked in. Plan is three phases, each its own PR: **Phase 0** (make `trips.status` authoritative — a prerequisite, not really a "Destinations" feature) → **Phase A** (the board + nav reshuffle + Wishlist entry scope) → **Phase B** (the map, built as an immediate follow-up PR once Phase A ships, not deferred indefinitely). "Default co-traveler" and the public account-level board/map are noted as later, separate ideas — see the bottom of this doc.
+**Status:** Design settled — see "Decisions" below for what's locked in. Plan is five PRs: **Phase 0** (make `trips.status` authoritative — a prerequisite, not really a "Destinations" feature) → **Navigation reshuffle** → **Board core** → **Wishlist entry depth** → **Map** (an immediate follow-up once the board ships, not deferred indefinitely). "Default co-traveler" and the public account-level board/map are noted as later, separate ideas — see the bottom of this doc.
 
 **Audience:** A fresh Claude Code session with no memory of the design conversation. Read this whole document before writing any code.
 
@@ -13,23 +13,26 @@ A planning/dreaming layer that sits above individual trips: a kanban-style board
 Settled in discussion, not open for re-litigation unless something below changes the calculus:
 
 - **Naming:** the pre-planning column/status is labeled **"Wishlist"** in the UI. The internal `status` column value stays `destinations` regardless.
-- **Navigation:** a full, persistent top nav on desktop, a bottom tab bar on mobile (try it first; side nav is the documented fallback) — new IA territory for this app (today there's no persistent multi-item nav, just a topbar with brand/account-menu). Three items: **Trips** (today's Dashboard — planning/upcoming/active trips; see "Navigation" below on the label), **Destinations** (this feature), and **Archive** (past/done trips, promoted off the Dashboard into its own page).
+- **Navigation:** a full, persistent top nav on desktop, a bottom tab bar on mobile (try it first; side nav is the documented fallback) — new IA territory for this app (today there's no persistent multi-item nav, just a topbar with brand/account-menu). Three items: **Trips** (today's Dashboard — planning/active trips; see "Navigation" below on the label), **Destinations** (this feature), and **Archive** (past/done trips, promoted off the Dashboard into its own page).
 - **Map timing:** not "someday" — an immediate follow-up PR once the board (Phase A) ships, not bundled into the same PR. Significant enough scope on its own to warrant its own PR, but close enough behind that it should be designed now, not revisited cold later.
 - **Status authority:** yes, fix now. The stored `trips.status` column becomes the single source of truth for trip lifecycle state, auto-advanced by date, replacing the Dashboard's separate `deriveTripStatus`-only logic. This is real, board-agnostic prerequisite work (Phase 0) — the board can't have meaningful Upcoming/Active/Done columns without it, and today's mismatch (stored status vs. displayed status can already disagree) needs fixing regardless of Destinations.
 - **Map pin coordinates:** a geocoding-backed typeahead (type a place, pick the disambiguated match, get lat/lng for free) — not manual pin-dragging, not blind auto-geocoding of free text. Provider: **Nominatim** (OpenStreetMap's free geocoding service) — no API key, no new env var, debounced so it stays well within its light rate limit. See "Map view" below.
 - **Map pins are per-base, not per-trip:** coordinates live on `trip_bases`, not `trips`. A multi-base trip shows one pin per base.
 - **Collaborators:** no new permissions model needed. A destination is a trip row, so sharing one already works exactly like sharing any trip today (add them as a `trip_member`). "The board" is just "trips I'm a member of," so two people who are members of the same trips already see the same board for free. A **default co-traveler** convenience (auto-add a chosen person as a `trip_member` on every new trip/destination) removes the remaining friction — see "Later, smaller features" below. A fully public, account-level board/map ("show off your travels to friends") is a different, bigger idea — see "Noted for a future pass," not this spec.
 - **Nav label:** "Trips" (not "Planning" or "Home") for the renamed Dashboard — final.
+- **Status model has 4 values, not 5:** `destinations` (Wishlist, manual) → `planning` → `active` → `done`. There is no stored `upcoming` status — nothing in the app ever read or wrote it, it only ever existed as an unused entry in `TRIP_STATUSES`. "Starting soon" is a computed badge (start date within 14 days) shown on a `planning` card, not a status or a board column. The board is **4 columns**: Wishlist → Planning → Active → Archive.
 
 ## Key existing-schema finding
 
-The live `trips.status` column already has this check constraint:
+The live `trips.status` column has this check constraint (confirmed directly against the database):
 
 ```sql
 CHECK (status = ANY (ARRAY['destinations', 'planning', 'upcoming', 'active', 'done']))
 ```
 
-`'destinations'` is a valid value today, confirmed directly against the database — but nothing in `src/` reads, writes, or displays it, and the main `CLAUDE.md` docs don't mention it in their documented enum (`planning/upcoming/active/done`). The schema was set up ahead of the app for exactly this feature, then the docs went stale.
+`'destinations'` is a valid value today, but nothing in `src/` reads, writes, or displays it, and the main `CLAUDE.md` docs don't mention it in their documented enum. The schema was set up ahead of the app for exactly this feature, then the docs went stale.
+
+`'upcoming'` is also in the constraint but is dead: nothing in `src/` ever reads or writes it either — it appears in exactly one place in code, an unused entry in `TRIP_STATUSES`. Phase 0 narrows the constraint to drop it (see below) rather than building it out as a real status.
 
 **This drives the core architectural decision below:** a "destination" and a "trip" should be the same database row, not a separate table. `status = 'destinations'` is the pre-planning/wishlist stage; promoting a destination into real planning is just flipping its `status` (and running the same base/day setup a normal new trip gets today) — not copying data between two systems.
 
@@ -44,22 +47,28 @@ On `trip_bases` (Phase B): **`lat`**/**`lng`** (numeric, nullable) — one pin p
 
 ## Kanban board
 
-Columns, left to right: **Wishlist** (`status = 'destinations'`) → **Planning** → **Upcoming** → **Active** → **Archive** (`status = 'done'`).
+Columns, left to right: **Wishlist** (`status = 'destinations'`) → **Planning** → **Active** → **Archive** (`status = 'done'`).
 
 **Only Wishlist → Planning is a manual drag.** That's the moment of commitment — dragging a card out of Wishlist should trigger the same "new trip" prompt (trip length, start date) that trip creation uses today, run the same base/day auto-scaffolding, and flip `status` to `planning`.
 
-**Planning → Upcoming → Active → Archive are not manually draggable.** These reflect real date-based progress, not a manual toggle a user could contradict — enforced by Phase 0 (below), not by the board's own UI.
+**Planning → Active → Archive are not manually draggable.** These reflect real date-based progress, not a manual toggle a user could contradict — enforced by Phase 0 (below), not by the board's own UI.
+
+**"Starting soon" badge:** a Planning card whose `start_date` is within 14 days shows a small badge. This is computed at render time from the date, not a stored status and not a separate column — it's purely a visual reminder within the Planning column.
 
 ### Phase 0 — make `trips.status` authoritative (prerequisite)
 
-[derive.js](src/lib/derive.js)'s `deriveTripStatus()` — what the Dashboard actually uses today — only computes three states (`planning`/`traveling`/`past`) from dates, and never reads the stored `status` column at all. The stored column and the derived display value can already disagree with each other today; the board makes that mismatch impossible to ignore, since it needs to read real `status` to place a card in a column.
+[derive.js](src/lib/derive.js)'s `deriveTripStatus()` — what the Dashboard and several trip screens actually use today — only computes three states (`planning`/`traveling`/`past`) from dates, and never reads the stored `status` column at all. The stored column and the derived display value can already disagree with each other today; the board makes that mismatch impossible to ignore, since it needs to read real `status` to place a card in a column.
 
-Recommended approach: no new infrastructure (no Postgres cron job) — this is a personal-scale app, not a high-frequency service, so a lazy client-side correction is enough. On any trip load (trip detail, Dashboard, the board), compute what `status` *should* be from `start_date`/`trip_length`/today's date, and if it differs from the stored value **and the current stored status is `planning`, `upcoming`, or `active`** (never touch `destinations` or `done` — those are manual/terminal states, not date-derived), write the corrected value back before rendering. The Dashboard then reads the stored `status` column directly instead of recomputing its own three-value approximation.
+Call sites of the old derive-from-dates logic today: [dashboard-page.js](src/features/dashboard/dashboard-page.js), [trip-card.js](src/features/dashboard/trip-card.js), [journal-view.js](src/features/trip/guide/journal-view.js), [guide-view.js](src/features/trip/guide/guide-view.js), [trip-detail-view.js](src/features/trip/detail/trip-detail-view.js) — Phase 0 moves all of them onto the stored `status`.
+
+Recommended approach: no new infrastructure (no Postgres cron job) — this is a personal-scale app, not a high-frequency service, so a lazy client-side correction is enough. On any trip load (trip detail, Dashboard, the board), compute what `status` *should* be from `start_date`/`trip_length`/today's date (`planning` → `active` → `done`, matching the old `planning`/`traveling`/`past` derivation one-for-one, just renamed), and if it differs from the stored value **and the current stored status isn't `destinations`**, write the corrected value back before rendering. `destinations` is the one genuinely manual, dateless state — nothing else is protected: `done` is *not* a manual/terminal state today (nothing in the app sets it except this same date-derived correction), so editing a done trip's dates back into the future must bring it back out of `done` too, not leave it stuck. Screens then read the stored `status` column directly instead of recomputing their own approximation.
+
+**Schema change:** the live CHECK constraint on `trips.status` still allows `'upcoming'`, a dead value nothing ever writes (see "Key existing-schema finding" above). Phase 0 narrows it to `ARRAY['destinations', 'planning', 'active', 'done']` — after confirming no live row actually has `status = 'upcoming'` first, since narrowing a constraint under an existing row with that value would break.
 
 **Ordering — persisted, not per-session, and different per column (not one global toggle):**
 
 - **Wishlist:** items *with* a target date (`target_year`/`target_month`) sort chronologically among themselves, earliest first. Items *without* one sit below all dated items and are manually ordered via drag (`sort_order`) — there's no principled way to interleave a firm date with "sometime, no idea when," so undated items form their own manually-prioritized group beneath the dated ones.
-- **Planning / Upcoming / Active:** chronological by `start_date`, ascending — this is already the Dashboard's existing sort for active trips today (`sortTripsByStartDate(activeTrips, "asc")`), not new logic.
+- **Planning / Active:** chronological by `start_date`, ascending — this is already the Dashboard's existing sort for active trips today (`sortTripsByStartDate(activeTrips, "asc")`), not new logic.
 - **Archive:** chronological by `start_date`, descending (most recent first) — also already the Dashboard's existing sort for past trips today, not new logic.
 
 **Past/done trips stay visible on the board** (confirmed in earlier discussion) — this isn't just a wishlist-and-active-trips tool, it's meant to double as a travel history view too.
@@ -109,7 +118,7 @@ No persistent multi-item nav exists in this app today — the topbar ([bootstrap
 
 **Decided:** a full, persistent top nav with three items:
 
-- **Trips** — today's Dashboard: trips with status `planning`/`upcoming`/`active` (Wishlist and Archive trips excluded). Clicking a trip goes to that trip's Plan view — except an Active/traveling trip, which defaults straight into Guide/Itinerary view instead, since that's what actually matters once a trip is underway.
+- **Trips** — today's Dashboard: trips with status `planning`/`active` (Wishlist and Archive trips excluded). Clicking a trip goes to that trip's Plan view — except an Active/traveling trip, which defaults straight into Guide/Itinerary view instead, since that's what actually matters once a trip is underway.
 - **Destinations** — this feature (the Wishlist → Planning → Upcoming → Active → Archive board).
 - **Archive** — a dedicated home for past/done trips, moved off the Dashboard. This isn't scope creep: `CLAUDE.md`'s "Planned Future Work" already lists **"Memento/diary mode: beautiful archive view for past trips; designed share experience"** as an independent, already-intended feature. Archive is that feature's natural home in the nav, not a new concept invented for this doc.
 

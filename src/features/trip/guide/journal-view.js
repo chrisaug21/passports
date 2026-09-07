@@ -3,7 +3,6 @@ import {
   formatItemTypeLabel,
   getTripDateByDayNumber,
 } from "../../../lib/format.js";
-import { deriveTripStatus } from "../../../lib/derive.js";
 import {
   escapeHtml,
   getCountLabel,
@@ -18,11 +17,8 @@ import { filterItemsForViewer, renderOverviewNavItem, sortGuideItems } from "./g
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
 function getJournalTripMode(trip) {
-  const derivedStatus = deriveTripStatus(trip);
-  const isCompleted = derivedStatus === "past";
-
   return {
-    isEnabled: derivedStatus === "traveling" || isCompleted,
+    isEnabled: trip.status === "active" || trip.status === "done",
     isReadOnly: false,
   };
 }

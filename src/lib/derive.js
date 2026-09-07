@@ -1,3 +1,9 @@
+import { STARTING_SOON_WINDOW_DAYS } from "../config/constants.js";
+
+// What trips.status *should* be, based purely on dates -- used to correct
+// the stored value (see reconcileTripStatuses in trips-service.js), not read
+// directly by screens. Only ever returns the three date-derived states;
+// "destinations" is a manual, pre-planning state with no dates to derive from.
 export function deriveTripStatus(trip, today = new Date()) {
   if (!trip?.start_date) {
     return "planning";
@@ -19,10 +25,31 @@ export function deriveTripStatus(trip, today = new Date()) {
   }
 
   if (todayDate <= endDate) {
-    return "traveling";
+    return "active";
   }
 
-  return "past";
+  return "done";
+}
+
+// A planning-status trip whose start date is close enough to warrant a
+// "Starting soon" badge on its dashboard card. Reads the already-reconciled
+// trip.status rather than re-deriving it, so it stays consistent with
+// whatever the rest of the UI is showing for this trip.
+export function isTripStartingSoon(trip, today = new Date()) {
+  if (trip?.status !== "planning" || !trip?.start_date) {
+    return false;
+  }
+
+  const startDate = parseLocalDate(trip.start_date);
+
+  if (!startDate) {
+    return false;
+  }
+
+  const todayDate = parseLocalDate(formatDateInputValue(today));
+  const diffDays = Math.round((startDate - todayDate) / (1000 * 60 * 60 * 24));
+
+  return diffDays >= 0 && diffDays <= STARTING_SOON_WINDOW_DAYS;
 }
 
 export function getTripEndDate(trip) {

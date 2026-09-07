@@ -78,10 +78,16 @@
   background-size: cover;
 }
 
-.trip-card__status {
+.trip-card__status-row {
   position: relative;
   z-index: 1;
   margin-right: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.trip-card__status {
   border-radius: 999px;
   padding: 0.3rem 0.55rem;
   background: rgba(255, 255, 255, 0.84);
@@ -90,9 +96,13 @@
 }
 
 .trip-card__status--planning,
-.trip-card__status--traveling,
-.trip-card__status--past {
+.trip-card__status--active,
+.trip-card__status--done {
   color: var(--color-text);
+}
+
+.trip-card__status--starting-soon {
+  color: var(--color-structure);
 }
 
 .trip-card__body {
