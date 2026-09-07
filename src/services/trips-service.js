@@ -22,9 +22,12 @@ const TRIP_ROW_SELECT = `
 
 // Corrects trips.status against what the trip's dates say it should be,
 // writing any corrections back to the database. Never touches "destinations"
-// or "done" -- those are manual/terminal states, not date-derived (see
-// passports-destinations-spec.md, "Phase 0"). Returns the trips with
-// corrected status values applied, without waiting for the writes to land.
+// -- the one genuinely manual, dateless state (see passports-destinations-spec.md,
+// "Phase 0"). "done" is NOT protected: nothing in the app sets it manually
+// today, it's just as date-derived as planning/active, so editing a done
+// trip's dates back into the future should bring it back out of done too.
+// Returns the trips with corrected status values applied, without waiting
+// for the writes to land.
 async function reconcileTripStatuses(trips, today = new Date()) {
   if (!Array.isArray(trips) || trips.length === 0) {
     return trips;
@@ -34,7 +37,7 @@ async function reconcileTripStatuses(trips, today = new Date()) {
   const corrections = [];
 
   const reconciled = trips.map((trip) => {
-    if (trip.status !== "planning" && trip.status !== "active") {
+    if (trip.status === "destinations") {
       return trip;
     }
 
