@@ -16,12 +16,6 @@ export function wireNotesView({ trip, notes, rerender }) {
     navigate(`/app/trip/${trip.id}`);
   });
 
-  // Rendered by the shared app shell (renderAppShell), not this page's own
-  // markup — every page that shows it is responsible for wiring its click.
-  document.querySelector("#trip-back-to-dashboard")?.addEventListener("click", () => {
-    navigate("/app");
-  });
-
   document.querySelectorAll("[data-toggle-note-body]").forEach((button) => {
     button.addEventListener("click", () => {
       const noteId = button.getAttribute("data-toggle-note-body");
