@@ -1,5 +1,6 @@
 import { DEFAULT_BASE_TIMEZONE } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
+import { deriveTripStatus } from "../lib/derive.js";
 import { duplicatePrimaryPhotosForNewTrip, getPhotoPublicUrl } from "./photos-service.js";
 import { duplicateOverviewBlocksForNewTrip } from "./overview-service.js";
 import { TRIP_ITEM_SELECT } from "./items-service.js";
@@ -18,6 +19,54 @@ const TRIP_ROW_SELECT = `
   updated_at,
   deleted_at
 `;
+
+// Corrects trips.status against what the trip's dates say it should be,
+// writing any corrections back to the database. Never touches "destinations"
+// or "done" -- those are manual/terminal states, not date-derived (see
+// passports-destinations-spec.md, "Phase 0"). Returns the trips with
+// corrected status values applied, without waiting for the writes to land.
+async function reconcileTripStatuses(trips, today = new Date()) {
+  if (!Array.isArray(trips) || trips.length === 0) {
+    return trips;
+  }
+
+  const supabase = getSupabase();
+  const corrections = [];
+
+  const reconciled = trips.map((trip) => {
+    if (trip.status !== "planning" && trip.status !== "active") {
+      return trip;
+    }
+
+    const expectedStatus = deriveTripStatus(trip, today);
+
+    if (expectedStatus === trip.status) {
+      return trip;
+    }
+
+    corrections.push({ id: trip.id, status: expectedStatus });
+    return { ...trip, status: expectedStatus };
+  });
+
+  if (corrections.length > 0) {
+    const now = new Date().toISOString();
+
+    await Promise.all(
+      corrections.map(async ({ id, status }) => {
+        const { error } = await supabase
+          .from("trips")
+          .update({ status, updated_at: now })
+          .eq("id", id);
+
+        if (error) {
+          console.error("Failed to correct trip status:", error);
+        }
+      })
+    );
+  }
+
+  return reconciled;
+}
 
 async function attachPrimaryTripHeroPhotos(trips) {
   if (!Array.isArray(trips) || trips.length === 0) {
@@ -96,7 +145,9 @@ export async function listTripsForCurrentUser(userId) {
       membership_role: row.role,
     }));
 
-  return attachPrimaryTripHeroPhotos(trips);
+  const reconciledTrips = await reconcileTripStatuses(trips);
+
+  return attachPrimaryTripHeroPhotos(reconciledTrips);
 }
 
 // Splits tripLength days as evenly as possible across baseDefs (in order),
@@ -315,10 +366,11 @@ export async function fetchTripDetailBundle(tripId) {
       .map((photo) => [photo.base_id, photo])
   );
   const tripHeroPublicUrl = tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "";
+  const [reconciledTrip] = await reconcileTripStatuses([tripResult.data]);
 
   return {
     trip: {
-      ...tripResult.data,
+      ...reconciledTrip,
       hero_photo_url: tripHeroPublicUrl,
       hero_photo: tripHeroPhoto ? { ...tripHeroPhoto, public_url: tripHeroPublicUrl } : null,
     },

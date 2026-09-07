@@ -6,7 +6,6 @@ import { renderTripCard } from "./trip-card.js";
 import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.js";
 import { showToast } from "../shared/toast.js";
 import { navigate } from "../../app/router.js";
-import { deriveTripStatus } from "../../lib/derive.js";
 
 let rerenderDashboard = () => {};
 
@@ -17,8 +16,8 @@ export function setDashboardRenderer(renderer) {
 export function renderDashboardPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
-  const activeTrips = sortTripsByStartDate(trips.filter((trip) => deriveTripStatus(trip) !== "past"), "asc");
-  const pastTrips = sortTripsByStartDate(trips.filter((trip) => deriveTripStatus(trip) === "past"), "desc");
+  const activeTrips = sortTripsByStartDate(trips.filter((trip) => trip.status !== "done"), "asc");
+  const pastTrips = sortTripsByStartDate(trips.filter((trip) => trip.status === "done"), "desc");
 
   return `
     <section class="dashboard">
@@ -120,14 +119,12 @@ export function wireDashboardPage() {
         return;
       }
 
-      const derivedStatus = deriveTripStatus(trip);
-
-      if (derivedStatus === "traveling") {
+      if (trip.status === "active") {
         navigate(`/app/trip/${tripId}/guide`);
         return;
       }
 
-      if (derivedStatus === "past") {
+      if (trip.status === "done") {
         navigate(`/app/trip/${tripId}/guide#journal`);
         return;
       }

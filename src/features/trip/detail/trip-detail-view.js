@@ -49,7 +49,6 @@ import {
   renderItemEditorModal,
   renderMoveItemModal,
 } from "./item-editor-controller.js";
-import { deriveTripStatus } from "../../../lib/derive.js";
 
 export function renderTripDetailPageView() {
   const { tripDetail } = appStore.getState();
@@ -138,7 +137,7 @@ export function renderTripDetailPageView() {
               <h2 class="trip-header__title">${escapeHtml(trip.title || "Untitled trip")}</h2>
               <div class="trip-header__summary-line">
                 <p class="trip-header__dates">${formatTripDateSummary(trip)}</p>
-                <span class="trip-pill">${formatStatusLabel(deriveTripStatus(trip))}</span>
+                <span class="trip-pill">${formatStatusLabel(trip.status)}</span>
               </div>
               ${trip.description ? `<p class="muted">${escapeHtml(trip.description)}</p>` : ""}
             </div>
@@ -155,7 +154,7 @@ export function renderTripDetailPageView() {
               <button class="trip-header__icon-btn" data-open-prep type="button" title="Prep Checklist" aria-label="Prep Checklist">
                 <i data-lucide="list-checks" aria-hidden="true"></i>
               </button>
-              ${deriveTripStatus(trip) === "past" ? `
+              ${trip.status === "done" ? `
                 <button class="trip-header__icon-btn" id="open-move-to-next-trip-confirm" type="button" title="Move to Next Trip" aria-label="Move to Next Trip">
                   <i data-lucide="move-right" aria-hidden="true"></i>
                 </button>

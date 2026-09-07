@@ -114,19 +114,19 @@
   text-transform: uppercase;
 }
 
-.guide-hero__status-pill[data-derived-status="planning"] {
+.guide-hero__status-pill[data-status="planning"] {
   background: rgba(43, 91, 224, 0.35);
   color: #c0d4ff;
   border: 1px solid rgba(43, 91, 224, 0.45);
 }
 
-.guide-hero__status-pill[data-derived-status="traveling"] {
+.guide-hero__status-pill[data-status="active"] {
   background: rgba(14, 168, 122, 0.35);
   color: #a0f5d8;
   border: 1px solid rgba(14, 168, 122, 0.45);
 }
 
-.guide-hero__status-pill[data-derived-status="past"] {
+.guide-hero__status-pill[data-status="done"] {
   background: rgba(196, 168, 130, 0.3);
   color: #f0dfc0;
   border: 1px solid rgba(196, 168, 130, 0.4);
