@@ -87,6 +87,12 @@ function createInitialPrepPage() {
   };
 }
 
+function createInitialDestinationsPage() {
+  return {
+    isCreatingDestination: false,
+  };
+}
+
 function createAppStore() {
   let state = {
     dashboard: {
@@ -98,6 +104,7 @@ function createAppStore() {
     tripDetail: createInitialTripDetail(),
     notesPage: createInitialNotesPage(),
     prepPage: createInitialPrepPage(),
+    destinationsPage: createInitialDestinationsPage(),
   };
 
   const listeners = new Set();
@@ -129,6 +136,23 @@ function createAppStore() {
           error: "",
           isCreatingTrip: false,
         },
+      };
+      emit();
+    },
+    updateDestinationsPage(patch) {
+      state = {
+        ...state,
+        destinationsPage: {
+          ...state.destinationsPage,
+          ...patch,
+        },
+      };
+      emit();
+    },
+    resetDestinationsPage() {
+      state = {
+        ...state,
+        destinationsPage: createInitialDestinationsPage(),
       };
       emit();
     },

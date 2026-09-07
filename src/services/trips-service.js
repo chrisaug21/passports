@@ -12,6 +12,9 @@ const TRIP_ROW_SELECT = `
   description,
   trip_length,
   start_date,
+  target_year,
+  target_month,
+  sort_order,
   status,
   is_public,
   cover_photo_url,
@@ -123,6 +126,9 @@ export async function listTripsForCurrentUser(userId) {
           description,
           trip_length,
           start_date,
+          target_year,
+          target_month,
+          sort_order,
           status,
           is_public,
           cover_photo_url,
@@ -205,7 +211,19 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
   }
 }
 
-async function insertTripRow(supabase, { ownerId, title, description, tripLength, startDate = null }) {
+async function insertTripRow(supabase, tripInput) {
+  const {
+    ownerId,
+    title,
+    description,
+    tripLength,
+    startDate = null,
+    status = "planning",
+    targetYear = null,
+    targetMonth = null,
+    sortOrder = 0,
+  } = tripInput;
+
   const { data, error } = await supabase
     .from("trips")
     .insert({
@@ -214,7 +232,10 @@ async function insertTripRow(supabase, { ownerId, title, description, tripLength
       description: description || null,
       trip_length: tripLength,
       start_date: startDate || null,
-      status: "planning",
+      target_year: targetYear || null,
+      target_month: targetMonth || null,
+      sort_order: sortOrder,
+      status,
       is_public: false,
     })
     .select(TRIP_ROW_SELECT)
@@ -255,6 +276,27 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
   }
 }
 
+export async function createDestination({ ownerId, title, description, targetYear = null, targetMonth = null }) {
+  const trips = await listTripsForCurrentUser(ownerId);
+  const wishlistTrips = trips.filter((trip) => trip.status === "destinations" && !trip.target_year);
+  const nextSortOrder = wishlistTrips.reduce((max, trip) => Math.max(max, Number(trip.sort_order) || 0), -1) + 1;
+  const tripData = await insertTripRow(getSupabase(), {
+    ownerId,
+    title,
+    description,
+    tripLength: 1,
+    status: "destinations",
+    targetYear,
+    targetMonth,
+    sortOrder: nextSortOrder,
+  });
+
+  return {
+    ...tripData,
+    membership_role: "planner",
+  };
+}
+
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 
@@ -269,6 +311,9 @@ export async function fetchTripDetailBundle(tripId) {
           description,
           trip_length,
           start_date,
+          target_year,
+          target_month,
+          sort_order,
           status,
           is_public,
           is_journal_public,
@@ -485,6 +530,9 @@ export async function updateTripSettings({
         description,
         trip_length,
         start_date,
+        target_year,
+        target_month,
+        sort_order,
         status,
         is_public,
         is_journal_public,
