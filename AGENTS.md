@@ -6,12 +6,12 @@ Project-specific instructions. Global coding standards and git discipline are in
 Personal travel planner and diary PWA. Used on phone while traveling, desktop for planning, and tablet for browsing. Multi-user: Planners have full CRUD, Travelers can add items and react. Public share links expose curated read-only trip views with no login required.
 
 ## Stack
-- Vanilla HTML/CSS/JS — modular ES modules, single `index.html` entry point, no build step, no npm dependencies outside the scoped `mcp-server/` exception
-- Supabase project ref: `tqxvtsdghobustiatiqm` (`Passports`) — separate from Homeboard/Habits
-- Netlify — env vars injected via `netlify.toml`
-- Unsplash API — auto-pull hero images by location name; attribution required
-- Fraunces + Instrument Sans (Google Fonts) — display + body type pairing
-- PWA shell — manifest + versioned service worker for installability
+- App shell: vanilla HTML/CSS/JS with ES modules, one `index.html` entry point, no build step, and no npm dependencies outside the scoped `mcp-server/` exception
+- Data backend: Supabase project `tqxvtsdghobustiatiqm` (`Passports`), separate from Homeboard/Habits
+- Deployment: Netlify injects environment variables through `netlify.toml`
+- Photo source: Unsplash location images require visible attribution wherever they render
+- Typography: Fraunces for display text and Instrument Sans for body copy
+- Installability: the app ships with a manifest and versioned service worker
 
 ## Views
 - **Plan view** — private; full edit access; idea/shortlisted items visible; trip/base overview content is authored here
@@ -96,10 +96,10 @@ Do not read them for context. Do not modify them.
 ## Supabase Tables
 | Table | Key notes |
 |---|---|
-| `trips` | `owner_id` FK → auth.users. `status`: planning/upcoming/active/done. `is_public` enables public share link. Soft delete via `deleted_at`. |
+| `trips` | `owner_id` FK → auth.users. `status`: destinations/planning/active/done. `target_year`/`target_month` are optional Wishlist timing fields. `sort_order` manually orders undated Wishlist entries. `is_public` enables public share link. Soft delete via `deleted_at`. |
 | `trip_bases` | Belongs to trip. `local_timezone` is IANA string (e.g. `Europe/Madrid`). `date_start`/`date_end` are nullable. Used to determine "today" when trip is Active. Soft delete via `deleted_at`. |
 | `trip_days` | Belongs to trip AND base. `day_number` is 1-indexed across the entire trip. Real date derived: `start_date + (day_number - 1)`. Never stored. Soft delete via `deleted_at`. |
-| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings — no timezone attached, always assumed to be base's local timezone. `cost_low`/`cost_high` are USD numeric estimates. `address` is nullable free text and renders as a map-pin link. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
+| `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings with no timezone attached; treat them as the base's local time unless transition-day context requires simple `sort_order` sequencing. `cost_low`/`cost_high` are USD numeric estimates. `address` is nullable free text and renders as a map-pin link. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
 | `trip_members` | `role`: planner or traveler. Trip creator is auto-added as planner via DB trigger. UNIQUE on `(trip_id, user_id)`. |
 | `trip_todos` | Optional `item_id` links a todo to a specific item. `due_phase`: before_trip/during_trip/after_trip. Soft delete via `deleted_at`. |
 | `trip_packing_items` | `category`: clothing/toiletries/documents/gear/other. Soft delete via `deleted_at`. |
@@ -142,6 +142,7 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - `planner`: full CRUD on trip, bases, days, items; invite/manage members; toggle is_public; change status
 - `traveler`: add items; react to items; view all trip content including idea/shortlisted items
 - Public viewer (no login): read-only via is_public link; sees confirmed/reserved/done items only — idea/shortlisted always hidden
+- Wishlist destination (`trips.status = "destinations"`): lightweight pre-planning trip row; no dates or day scaffolding required until promoted to Planning
 
 ## Public Share Rules
 - `is_public = true` enables read-only URL at `/trip/:id` — no login required
