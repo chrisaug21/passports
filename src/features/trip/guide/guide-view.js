@@ -33,13 +33,15 @@ export function sortGuideItems(items) {
 // Visibility filtering (spec §6 visibility table)
 // ---------------------------------------------------------------------------
 
-export function filterItemsForViewer(items, viewerRole) {
+export function filterItemsForViewer(items, viewerRole, view = "itinerary") {
   if (viewerRole !== "public") {
     const MEMBER_SHOWN = new Set(["option", "shortlisted", "confirmed", "reserved"]);
     return items.filter((i) => MEMBER_SHOWN.has(i.status));
   }
-  // public: DB already enforces confirmed/reserved visibility; filter defensively
-  const PUBLIC_SHOWN = new Set(["confirmed", "reserved"]);
+  // public: DB enforces this same set per view; filter defensively.
+  // Itinerary also surfaces "option" items to public viewers; Journal stays confirmed/reserved only.
+  const PUBLIC_SHOWN =
+    view === "itinerary" ? new Set(["option", "confirmed", "reserved"]) : new Set(["confirmed", "reserved"]);
   return items.filter((i) => PUBLIC_SHOWN.has(i.status));
 }
 
@@ -630,7 +632,7 @@ export function renderGuideView(state) {
   const heroPhotoUrl = getTripHeroPhotoUrl(trip);
   const todayDayNumber = getTodayDayNumber(trip);
 
-  const visibleItems = filterItemsForViewer(items, viewerRole);
+  const visibleItems = filterItemsForViewer(items, viewerRole, "itinerary");
   const statItems = isMember ? items : visibleItems;
   const statTiles = getTripStatTiles(trip, bases, statItems);
   const lodgingBands = getLodgingBands(visibleItems, bases, days, trip.start_date);

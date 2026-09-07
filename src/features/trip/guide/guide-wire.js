@@ -328,7 +328,7 @@ function setupLazyDays(state) {
         const section = placeholder.closest(".guide-day-section");
         if (!section) return;
 
-        const allVisible = filterItemsForViewer(state.items, state.viewerRole);
+        const allVisible = filterItemsForViewer(state.items, state.viewerRole, "itinerary");
         const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
         const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
 
@@ -542,7 +542,7 @@ function renderItineraryModeContent() {
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
   nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
 
-  const visibleItems = filterItemsForViewer(items, viewerRole);
+  const visibleItems = filterItemsForViewer(items, viewerRole, "itinerary");
   const isMember = viewerRole !== "public";
   const statItems = isMember ? items : visibleItems;
   const statTiles = getTripStatTiles(trip, bases, statItems);
