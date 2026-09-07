@@ -115,6 +115,7 @@ export function renderAppShell(content, options = {}) {
               <span class="topbar__version">${APP_VERSION}</span>
             </span>
           </button>
+          ${session ? renderAppNav(activeNav) : ""}
         </div>
         <div class="topbar__actions">
           ${showNewTripButton && session ? `<button class="button topbar__new-trip" id="open-create-trip-modal" type="button">New Trip</button>` : ""}
@@ -137,7 +138,6 @@ export function renderAppShell(content, options = {}) {
           }
         </div>
       </header>
-      ${session ? renderAppNav(activeNav) : ""}
       ${content}
     </main>
   `;
