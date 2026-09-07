@@ -20,6 +20,13 @@ function createTripStore() {
     prependTrip(trip) {
       trips = [trip, ...trips];
     },
+    updateTrip(nextTrip) {
+      trips = trips.map((trip) => (trip.id === nextTrip.id ? { ...trip, ...nextTrip } : trip));
+    },
+    mergeTrips(nextTrips) {
+      const nextTripsById = new Map(nextTrips.map((trip) => [trip.id, trip]));
+      trips = trips.map((trip) => nextTripsById.get(trip.id) ? { ...trip, ...nextTripsById.get(trip.id) } : trip);
+    },
     getCurrentTrip() {
       return currentTrip;
     },

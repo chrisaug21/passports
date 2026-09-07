@@ -79,7 +79,7 @@ Do not read them for context. Do not modify them.
 ## Supabase Tables
 | Table | Key notes |
 |---|---|
-| `trips` | `owner_id` FK → auth.users. `status`: planning/upcoming/active/done. `is_public` enables public share link. Soft delete via `deleted_at`. |
+| `trips` | `owner_id` FK → auth.users. `status`: destinations/planning/active/done. `target_year`/`target_month` are optional Wishlist timing fields. `sort_order` manually orders undated Wishlist entries. `is_public` enables public share link. Soft delete via `deleted_at`. |
 | `trip_bases` | Belongs to trip. `local_timezone` is IANA string (e.g. `Europe/Madrid`). Used to determine "today" when trip is Active. Soft delete via `deleted_at`. |
 | `trip_days` | Belongs to trip AND base. `day_number` is 1-indexed across the entire trip. Real date derived: `start_date + (day_number - 1)`. Never stored. Soft delete via `deleted_at`. |
 | `trip_items` | Core object. `base_id` and `day_id` are independently nullable — an item with `base_id = null` is trip-level (not assigned to any base). `is_anchor` boolean: anchor items require `time_start`. `time_start`/`time_end` are local time strings — no timezone attached, always assumed to be base's local timezone. `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`. Soft delete via `deleted_at`. |
@@ -118,6 +118,7 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - `planner`: full CRUD on trip, bases, days, items; invite/manage members; toggle is_public; change status
 - `traveler`: add items; react to items; view all trip content including idea/shortlisted items
 - Public viewer (no login): read-only via is_public link; sees confirmed/reserved/done items only — idea/shortlisted always hidden
+- Wishlist destination (`trips.status = "destinations"`): lightweight pre-planning trip row; no dates or day scaffolding required until promoted to Planning
 
 ## Public Share Rules
 - `is_public = true` enables read-only URL at `/trip/:id` — no login required

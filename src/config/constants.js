@@ -1,7 +1,7 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.1.67";
+export const APP_VERSION = "1.1.68";
 
-export const TRIP_STATUSES = ["planning", "active", "done"];
+export const TRIP_STATUSES = ["destinations", "planning", "active", "done"];
 
 // Days before a planning-status trip's start date at which its dashboard
 // card shows a "Starting soon" badge (see isTripStartingSoon in derive.js).

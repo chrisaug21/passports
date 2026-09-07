@@ -1,6 +1,9 @@
 # Local Netlify folder
 .netlify
 
+# Supabase CLI metadata
+supabase/.temp/
+
 # macOS
 .DS_Store
 

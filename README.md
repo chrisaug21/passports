@@ -5,6 +5,7 @@ Passports is a personal trip planning and travel diary web app for `passports.ch
 The current foundation includes:
 - Supabase auth
 - dashboard and trip creation
+- destinations board for Wishlist, Planning, Active, and Archive trips
 - trip detail pages
 - master list quick add and editing
 - base management
@@ -70,12 +71,14 @@ src/
   - base soft delete
   - trip delete
   - days view
+- Destinations: create lightweight Wishlist entries and promote them into planned trips
 
 ## Key Data Rules
 
 - Soft delete only. Main records are archived with `deleted_at`; they are never hard deleted.
 - `base_id` and `day_id` on `trip_items` are independent.
 - Trip-level items can still be pinned to a day.
+- A Wishlist destination is a normal `trips` row with `status = 'destinations'`.
 - Public sharing, todos, packing, members, and richer diary features are planned next phases.
 
 ## Planning Docs

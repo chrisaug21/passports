@@ -21,7 +21,11 @@ import { renderNotesPage, loadNotesPage } from "../features/trip/notes/notes-pag
 import { renderPrepPage, loadPrepPage } from "../features/trip/prep/prep-page.js";
 import { renderMcpConnectPage, wireMcpConnectPage } from "../features/shared/mcp-connect-page.js";
 import { renderArchivePage, wireArchivePage, loadArchivePage } from "../features/archive/archive-page.js";
-import { renderDestinationsPage } from "../features/destinations/destinations-page.js";
+import {
+  loadDestinationsPage,
+  renderDestinationsPage,
+  wireDestinationsPage,
+} from "../features/destinations/destinations-page.js";
 
 const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
 
@@ -189,6 +193,8 @@ export function renderRoute(options = {}) {
       activeNav: "destinations",
       afterRender: () => {
         document.title = "Passports | Destinations";
+        wireDestinationsPage();
+        loadDestinationsPage();
         if (preserveScroll) {
           window.scrollTo({ top: previousScrollY });
         }

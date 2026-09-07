@@ -71,7 +71,35 @@ export function formatTripDateSummary(trip, options = {}) {
 }
 
 export function formatStatusLabel(value) {
+  if (value === "destinations") {
+    return "Wishlist";
+  }
+
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function formatDestinationTargetDate(trip) {
+  const year = Number(trip?.target_year);
+  const month = Number(trip?.target_month);
+
+  if (!Number.isInteger(year)) {
+    return "Someday";
+  }
+
+  if (!Number.isInteger(month)) {
+    return String(year);
+  }
+
+  const date = new Date(year, month - 1, 1);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(year);
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
 export function formatItemTypeLabel(value) {
