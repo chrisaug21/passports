@@ -4,11 +4,16 @@ import { sessionStore } from "../../state/session-store.js";
 import { navigate, renderRoute } from "../../app/router.js";
 import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { showToast } from "../shared/toast.js";
-import { createDestination } from "../../services/trips-service.js";
+import {
+  createDestination,
+  promoteDestinationToTrip,
+  updateDestination,
+} from "../../services/trips-service.js";
+import { fetchTripNotes } from "../../services/notes-service.js";
 import { DEFAULT_PHOTO_ASPECT_RATIO, openPhotoCropModal } from "../../lib/photo-upload.js";
 import { PHOTO_CONTEXTS, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
-import { isTripStartingSoon } from "../../lib/derive.js";
+import { isTripStartingSoon, isValidDateInput } from "../../lib/derive.js";
 
 const BOARD_COLUMNS = [
   {
@@ -51,6 +56,7 @@ export function renderDestinationsPage() {
 
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
+      ${renderDestinationDetailModal(destinationsPage)}
     </section>
   `;
 }
@@ -259,9 +265,182 @@ function renderCreateDestinationModal(destinationsPage) {
   `;
 }
 
-function renderMonthOption(month) {
+function renderDestinationDetailModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+
+  if (!destinationsPage.selectedDestinationId) {
+    return "";
+  }
+
+  if (destinationsPage.destinationDetailStatus === "loading" && !destination) {
+    return renderDestinationDetailShell(`
+      <section class="destinations-detail-state">
+        <h3>Loading destination...</h3>
+        <p class="muted">Pulling the latest details now.</p>
+      </section>
+    `);
+  }
+
+  if (destinationsPage.destinationDetailStatus === "error" && !destination) {
+    return renderDestinationDetailShell(`
+      <section class="destinations-detail-state">
+        <h3>Could not load destination</h3>
+        <p class="muted">${escapeHtml(destinationsPage.destinationDetailError || "Try opening it again.")}</p>
+      </section>
+    `);
+  }
+
+  if (!destination) {
+    return "";
+  }
+
+  return renderDestinationDetailShell(`
+    <form class="destination-detail-form" id="destination-detail-form">
+      <div class="destination-detail-form__content">
+        ${renderDestinationPhotoField(destination)}
+
+        <label class="field">
+          <span>Destination Title</span>
+          <input name="title" type="text" maxlength="120" value="${escapeHtml(destination.title || "")}" required />
+        </label>
+
+        <label class="field">
+          <span>Description</span>
+          <input name="description" type="text" maxlength="160" value="${escapeHtml(destination.description || "")}" placeholder="Optional short note" />
+        </label>
+
+        <label class="field">
+          <span>Photo</span>
+          <input name="photo" type="file" accept="image/*" />
+        </label>
+
+        <div class="destinations-form-grid">
+          <label class="field">
+            <span>Target Year</span>
+            <input name="targetYear" type="number" min="2026" max="2100" value="${escapeHtml(destination.target_year || "")}" placeholder="2028" />
+          </label>
+
+          <label class="field">
+            <span>Target Month</span>
+            <select name="targetMonth">
+              <option value="">Any month</option>
+              ${Array.from({ length: 12 }, (_value, index) => renderMonthOption(index + 1, destination.target_month)).join("")}
+            </select>
+          </label>
+        </div>
+
+        ${renderDestinationNotesPreview(destination, destinationsPage)}
+
+        <section class="destination-promote-panel">
+          <div>
+            <p class="eyebrow">Promote</p>
+            <h3>Turn this into a planned trip</h3>
+            <p class="muted">Add real dates and Passports will create the starter base and days.</p>
+          </div>
+          <div class="destinations-form-grid">
+            <label class="field">
+              <span>Trip Length</span>
+              <input name="promoteTripLength" type="number" min="1" max="60" value="7" />
+            </label>
+            <label class="field">
+              <span>Start Date</span>
+              <input name="promoteStartDate" type="date" />
+            </label>
+          </div>
+          <button class="button button--secondary" id="promote-destination" type="button" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
+            ${destinationsPage.isPromotingDestination ? "Promoting..." : "Promote to Planning"}
+          </button>
+        </section>
+      </div>
+
+      <div class="modal-card__actions modal-card__actions--sticky">
+        <button class="button button--secondary" id="close-destination-detail-footer" type="button">Close</button>
+        <button class="button" type="submit" ${destinationsPage.isSavingDestination ? "disabled" : ""}>
+          ${destinationsPage.isSavingDestination ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </form>
+  `, destination);
+}
+
+function renderDestinationDetailShell(content, destination = null) {
+  return `
+    <div class="modal-shell" id="destination-detail-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-destination-detail></div>
+      <section class="panel modal-card modal-card--editor destination-detail-modal">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Wishlist</p>
+            <h3>${escapeHtml(destination?.title || "Destination")}</h3>
+          </div>
+          <button class="icon-button" id="close-destination-detail-modal" type="button" aria-label="Close destination details">x</button>
+        </div>
+        ${content}
+      </section>
+    </div>
+  `;
+}
+
+function renderDestinationPhotoField(destination) {
+  const safeCoverUrl = sanitizeCoverUrl(destination.hero_photo_url || destination.cover_photo_url);
+
+  return `
+    <div class="destination-detail-photo photo-hero">
+      ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : `<span class="photo-hero__empty-label">Add photo</span>`}
+    </div>
+  `;
+}
+
+function renderDestinationNotesPreview(destination, destinationsPage) {
+  const notes = destinationsPage.selectedDestinationNotes || [];
+  const notesContent = renderDestinationNotesContent(destinationsPage.destinationDetailStatus, notes);
+
+  return `
+    <section class="destination-notes-panel">
+      <div class="destination-notes-panel__header">
+        <div>
+          <p class="eyebrow">Notes</p>
+          <h3>Planning research</h3>
+        </div>
+        <button class="button button--secondary" data-open-destination-notes="${escapeHtml(destination.id)}" type="button">Open Notes</button>
+      </div>
+      ${notesContent}
+    </section>
+  `;
+}
+
+function renderDestinationNotesContent(status, notes) {
+  if (status === "loading") {
+    return `<p class="muted">Loading notes...</p>`;
+  }
+
+  if (status === "error") {
+    return `<p class="muted">Could not load notes.</p>`;
+  }
+
+  if (notes.length === 0) {
+    return `<p class="muted">No notes yet.</p>`;
+  }
+
+  return `<div class="destination-notes-list">${notes.slice(0, 3).map(renderDestinationNotePreview).join("")}</div>`;
+}
+
+function renderDestinationNotePreview(note) {
+  const body = String(note.body || "").replace(/\s+/g, " ").trim();
+  const preview = body.length > 120 ? `${body.slice(0, 117).trim()}...` : body;
+
+  return `
+    <article class="destination-note-preview">
+      <h4>${escapeHtml(note.title || "Untitled note")}</h4>
+      ${preview ? `<p>${escapeHtml(preview)}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderMonthOption(month, selectedMonth = null) {
   const label = new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(2026, month - 1, 1));
-  return `<option value="${month}">${escapeHtml(label)}</option>`;
+  const isSelected = Number(selectedMonth) === month;
+  return `<option value="${month}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
 export function wireDestinationsPage() {
@@ -272,7 +451,7 @@ export function wireDestinationsPage() {
 
   document.querySelectorAll("[data-destination-card]").forEach((card) => {
     const openCard = () => {
-      openTrip(card.getAttribute("data-trip-id"));
+      openDestinationCard(card.getAttribute("data-trip-id"));
     };
 
     card.addEventListener("click", openCard);
@@ -285,6 +464,7 @@ export function wireDestinationsPage() {
   });
 
   wireCreateDestinationModal();
+  wireDestinationDetailModal();
 }
 
 export function loadDestinationsPage() {
@@ -303,6 +483,49 @@ export function loadDestinationsPage() {
 
 function openCreateDestinationModal() {
   document.querySelector("#create-destination-modal")?.classList.remove("is-hidden");
+}
+
+async function openDestinationDetail(destinationId) {
+  if (!destinationId) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({
+    selectedDestinationId: destinationId,
+    destinationDetailStatus: "loading",
+    destinationDetailError: "",
+    selectedDestinationNotes: [],
+  });
+  rerenderDestinations();
+
+  try {
+    const notes = await fetchTripNotes(destinationId);
+    appStore.updateDestinationsPage({
+      destinationDetailStatus: "ready",
+      destinationDetailError: "",
+      selectedDestinationNotes: notes,
+    });
+    rerenderDestinations();
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({
+      destinationDetailStatus: "error",
+      destinationDetailError: "We could not load that destination.",
+    });
+    rerenderDestinations();
+  }
+}
+
+function closeDestinationDetail() {
+  appStore.updateDestinationsPage({
+    selectedDestinationId: null,
+    destinationDetailStatus: "idle",
+    destinationDetailError: "",
+    selectedDestinationNotes: [],
+    isSavingDestination: false,
+    isPromotingDestination: false,
+  });
+  rerenderDestinations();
 }
 
 function wireCreateDestinationModal() {
@@ -364,6 +587,150 @@ function wireCreateDestinationModal() {
   });
 }
 
+function wireDestinationDetailModal() {
+  const form = document.querySelector("#destination-detail-form");
+
+  document.querySelector("#close-destination-detail-modal")?.addEventListener("click", closeDestinationDetail);
+  document.querySelector("#close-destination-detail-footer")?.addEventListener("click", closeDestinationDetail);
+  document.querySelector("[data-close-destination-detail]")?.addEventListener("click", closeDestinationDetail);
+  document.querySelector("[data-open-destination-notes]")?.addEventListener("click", (event) => {
+    const destinationId = event.currentTarget.getAttribute("data-open-destination-notes");
+
+    if (destinationId) {
+      appStore.updateDestinationsPage({
+        selectedDestinationId: null,
+        destinationDetailStatus: "idle",
+        selectedDestinationNotes: [],
+      });
+      navigate(`/app/trip/${destinationId}/notes`);
+    }
+  });
+  document.querySelector("#promote-destination")?.addEventListener("click", () => {
+    handlePromoteDestination(form);
+  });
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handleSaveDestination(form);
+  });
+}
+
+async function handleSaveDestination(form) {
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+  const { session } = sessionStore.getState();
+
+  if (!form || !destination?.id || !session?.user?.id) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const values = getDestinationFormValues(formData);
+
+  if (!values.title) {
+    showToast("Add a destination title before saving.", "error");
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isSavingDestination: true });
+  rerenderDestinations();
+
+  try {
+    let didPhotoFail = false;
+    const updatedDestination = await updateDestination({
+      tripId: destination.id,
+      title: values.title,
+      description: values.description,
+      targetYear: values.targetYear,
+      targetMonth: values.targetMonth,
+    });
+    const destinationWithPhoto = await uploadDestinationPhotoSafely({
+      destination: updatedDestination,
+      file: getSelectedPhotoFile(formData),
+      userId: session.user.id,
+      onPhotoFailure: () => {
+        didPhotoFail = true;
+      },
+    });
+
+    tripStore.updateTrip(destinationWithPhoto);
+    appStore.updateDestinationsPage({ isSavingDestination: false });
+    showToast(didPhotoFail ? "Destination saved, but the photo did not save." : "Destination saved.", didPhotoFail ? "error" : "success");
+    rerenderDestinations();
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isSavingDestination: false });
+    showToast("Could not save that destination right now.", "error");
+    rerenderDestinations();
+  }
+}
+
+async function handlePromoteDestination(form) {
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+  const { session } = sessionStore.getState();
+
+  if (!form || !destination?.id || !session?.user?.id) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const values = getDestinationFormValues(formData);
+  const tripLength = Number(formData.get("promoteTripLength"));
+  const startDate = String(formData.get("promoteStartDate") || "").trim();
+
+  if (!values.title || !Number.isInteger(tripLength) || tripLength < 1 || !isValidDateInput(startDate)) {
+    showToast("Add a title, trip length, and valid start date before promoting.", "error");
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isPromotingDestination: true });
+  rerenderDestinations();
+
+  try {
+    let didPhotoFail = false;
+    const promotedTrip = await promoteDestinationToTrip({
+      tripId: destination.id,
+      title: values.title,
+      description: values.description,
+      tripLength,
+      startDate,
+    });
+    const promotedTripWithPhoto = await uploadDestinationPhotoSafely({
+      destination: promotedTrip,
+      file: getSelectedPhotoFile(formData),
+      userId: session.user.id,
+      onPhotoFailure: () => {
+        didPhotoFail = true;
+      },
+    });
+
+    tripStore.updateTrip(promotedTripWithPhoto);
+    appStore.updateDestinationsPage({
+      selectedDestinationId: null,
+      destinationDetailStatus: "idle",
+      selectedDestinationNotes: [],
+      isPromotingDestination: false,
+    });
+    navigate(`/app/trip/${promotedTrip.id}`);
+    showToast(didPhotoFail ? "Trip promoted, but the photo did not save." : "Destination promoted to Planning.", didPhotoFail ? "error" : "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isPromotingDestination: false });
+    showToast("Could not promote that destination right now.", "error");
+    rerenderDestinations();
+  }
+}
+
+function getDestinationFormValues(formData) {
+  const targetYear = parseOptionalYear(formData.get("targetYear"));
+
+  return {
+    title: String(formData.get("title") || "").trim(),
+    description: String(formData.get("description") || "").trim(),
+    targetYear,
+    targetMonth: targetYear ? parseOptionalMonth(formData.get("targetMonth")) : null,
+  };
+}
+
 function getSelectedPhotoFile(formData) {
   const photo = formData.get("photo");
   return photo instanceof File && photo.size > 0 ? photo : null;
@@ -422,10 +789,15 @@ function parseOptionalMonth(value) {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : null;
 }
 
-function openTrip(tripId) {
+function openDestinationCard(tripId) {
   const trip = tripStore.getTrips().find((entry) => String(entry.id) === String(tripId));
 
   if (!trip) {
+    return;
+  }
+
+  if (trip.status === "destinations") {
+    openDestinationDetail(trip.id);
     return;
   }
 
@@ -440,6 +812,14 @@ function openTrip(tripId) {
   }
 
   navigate(`/app/trip/${trip.id}`);
+}
+
+function getSelectedDestination(destinationId) {
+  if (!destinationId) {
+    return null;
+  }
+
+  return tripStore.getTrips().find((entry) => String(entry.id) === String(destinationId)) || null;
 }
 
 function parseStoredYear(value) {

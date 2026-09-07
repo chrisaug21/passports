@@ -297,6 +297,87 @@ export async function createDestination({ ownerId, title, description, targetYea
   };
 }
 
+export async function updateDestination({ tripId, title, description, targetYear = null, targetMonth = null }) {
+  const { data, error } = await getSupabase()
+    .from("trips")
+    .update({
+      title,
+      description: description || null,
+      target_year: targetYear || null,
+      target_month: targetMonth || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId)
+    .eq("status", "destinations")
+    .is("deleted_at", null)
+    .select(TRIP_ROW_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function promoteDestinationToTrip({ tripId, title, description, tripLength, startDate }) {
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+  const [basesResult, daysResult] = await Promise.all([
+    supabase
+      .from("trip_bases")
+      .select("id")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .limit(1),
+    supabase
+      .from("trip_days")
+      .select("id")
+      .eq("trip_id", tripId)
+      .is("deleted_at", null)
+      .limit(1),
+  ]);
+
+  if (basesResult.error) {
+    throw basesResult.error;
+  }
+
+  if (daysResult.error) {
+    throw daysResult.error;
+  }
+
+  if ((basesResult.data || []).length === 0 && (daysResult.data || []).length === 0) {
+    await insertTripBasesAndDays(supabase, {
+      tripId,
+      tripLength,
+      baseDefs: [{ name: title, locationName: title, localTimezone: DEFAULT_BASE_TIMEZONE }],
+    });
+  }
+
+  const { data, error } = await supabase
+    .from("trips")
+    .update({
+      title,
+      description: description || null,
+      trip_length: tripLength,
+      start_date: startDate,
+      status: "planning",
+      updated_at: now,
+    })
+    .eq("id", tripId)
+    .eq("status", "destinations")
+    .is("deleted_at", null)
+    .select(TRIP_ROW_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const [reconciledTrip] = await reconcileTripStatuses([data]);
+  return reconciledTrip;
+}
+
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 

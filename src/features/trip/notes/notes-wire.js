@@ -13,7 +13,7 @@ import { showToast } from "../../shared/toast.js";
 export function wireNotesView({ trip, notes, rerender }) {
   document.querySelector("[data-notes-back]")?.addEventListener("click", (event) => {
     event.preventDefault();
-    navigate(`/app/trip/${trip.id}`);
+    navigate(trip.status === "destinations" ? "/app/destinations" : `/app/trip/${trip.id}`);
   });
 
   document.querySelectorAll("[data-toggle-note-body]").forEach((button) => {

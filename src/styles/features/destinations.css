@@ -210,6 +210,78 @@
   padding: 0.65rem;
 }
 
+.destination-detail-modal {
+  max-width: min(760px, calc(100vw - 2rem));
+}
+
+.destination-detail-form {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.destination-detail-form__content {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.destination-detail-photo {
+  min-height: 180px;
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.destination-notes-panel,
+.destination-promote-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  padding: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.destination-notes-panel__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.destination-notes-panel__header .button {
+  flex: 0 0 auto;
+}
+
+.destination-notes-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.destination-note-preview {
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.destination-note-preview h4 {
+  font-size: 0.95rem;
+}
+
+.destination-note-preview p {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.destination-promote-panel h3 {
+  font-size: 1rem;
+}
+
 @media (max-width: 900px) {
   .destinations-board {
     grid-template-columns: repeat(3, minmax(280px, 82vw));
@@ -243,5 +315,10 @@
 
   .destinations-form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .destination-notes-panel__header {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
