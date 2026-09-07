@@ -646,13 +646,13 @@ async function ensureDestinationTripDays(supabase, { tripId, title, tripLength }
     if ((existingBases || []).length > 0) {
       await insertDaysForExistingBases(supabase, {
         tripId,
-        tripLength: normalizedTripLength,
+        tripLength,
         bases: existingBases,
       });
     } else {
       await insertTripBasesAndDays(supabase, {
         tripId,
-        tripLength: normalizedTripLength,
+        tripLength,
         baseDefs: [{ name: title, locationName: title, localTimezone: DEFAULT_BASE_TIMEZONE }],
       });
     }
