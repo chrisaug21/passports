@@ -10,14 +10,13 @@ export function renderAppNav(activeItem = "") {
   return `
     <nav class="app-nav" aria-label="Primary">
       ${NAV_ITEMS.map((item) => {
-        const isActive = item.id === activeItem;
         return `
           <button
-            class="app-nav__item${isActive ? " app-nav__item--active" : ""}"
+            class="app-nav__item"
             type="button"
             data-app-nav-item="${item.id}"
             data-app-nav-path="${item.path}"
-            aria-current="${isActive ? "page" : "false"}"
+            aria-current="${item.id === activeItem ? "page" : "false"}"
           >
             <i data-lucide="${item.icon}" aria-hidden="true"></i>
             <span>${item.label}</span>
