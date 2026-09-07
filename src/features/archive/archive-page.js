@@ -17,52 +17,50 @@ export function renderArchivePage() {
         <h1>Archive of Past Trips</h1>
       </div>
 
-      ${
-        dashboard.status === "loading"
-          ? `
-            <section class="panel dashboard-state">
-              <h3>Loading trips…</h3>
-              <p class="muted">Pulling your trip list now.</p>
-            </section>
-          `
-          : ""
-      }
-
-      ${
-        dashboard.status === "error"
-          ? `
-            <section class="panel dashboard-state">
-              <h3>Could not load trips</h3>
-              <p class="muted">${dashboard.error || "Try refreshing the page."}</p>
-              <button class="button button--secondary" id="retry-archive-load" type="button">Try Again</button>
-            </section>
-          `
-          : ""
-      }
-
-      ${
-        dashboard.status === "ready" && doneTrips.length === 0
-          ? `
-            <section class="panel dashboard-state">
-              <p class="eyebrow">Archive</p>
-              <h3>No past trips yet.</h3>
-              <p class="muted">Trips land here once they're done.</p>
-            </section>
-          `
-          : ""
-      }
-
-      ${
-        dashboard.status === "ready" && doneTrips.length > 0
-          ? `
-            <section class="dashboard-grid">
-              ${doneTrips.map((trip) => renderTripCard(trip, { includeYear: true })).join("")}
-            </section>
-          `
-          : ""
-      }
+      ${renderArchiveContent(dashboard, doneTrips)}
     </section>
   `;
+}
+
+function renderArchiveContent(dashboard, doneTrips) {
+  if (dashboard.status === "loading") {
+    return `
+      <section class="panel dashboard-state">
+        <h3>Loading trips…</h3>
+        <p class="muted">Pulling your trip list now.</p>
+      </section>
+    `;
+  }
+
+  if (dashboard.status === "error") {
+    return `
+      <section class="panel dashboard-state">
+        <h3>Could not load trips</h3>
+        <p class="muted">${dashboard.error || "Try refreshing the page."}</p>
+        <button class="button button--secondary" id="retry-archive-load" type="button">Try Again</button>
+      </section>
+    `;
+  }
+
+  if (dashboard.status === "ready" && doneTrips.length === 0) {
+    return `
+      <section class="panel dashboard-state">
+        <p class="eyebrow">Archive</p>
+        <h3>No past trips yet.</h3>
+        <p class="muted">Trips land here once they're done.</p>
+      </section>
+    `;
+  }
+
+  if (dashboard.status === "ready" && doneTrips.length > 0) {
+    return `
+      <section class="dashboard-grid">
+        ${doneTrips.map((trip) => renderTripCard(trip, { includeYear: true })).join("")}
+      </section>
+    `;
+  }
+
+  return "";
 }
 
 export function wireArchivePage() {
