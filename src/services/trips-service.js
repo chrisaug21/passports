@@ -211,10 +211,19 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
   }
 }
 
-async function insertTripRow(
-  supabase,
-  { ownerId, title, description, tripLength, startDate = null, status = "planning", targetYear = null, targetMonth = null, sortOrder = 0 }
-) {
+async function insertTripRow(supabase, tripInput) {
+  const {
+    ownerId,
+    title,
+    description,
+    tripLength,
+    startDate = null,
+    status = "planning",
+    targetYear = null,
+    targetMonth = null,
+    sortOrder = 0,
+  } = tripInput;
+
   const { data, error } = await supabase
     .from("trips")
     .insert({
@@ -582,9 +591,35 @@ async function insertDaysForExistingBases(supabase, { tripId, tripLength, bases 
 
 export async function promoteDestinationToTrip({ tripId, title, description, tripLength, startDate }) {
   const supabase = getSupabase();
-  const now = new Date().toISOString();
   const normalizedTripLength = Math.max(Number(tripLength) || 1, 1);
+  await ensureDestinationTripDays(supabase, {
+    tripId,
+    title,
+    tripLength: normalizedTripLength,
+  });
 
+  const { data, error } = await supabase
+    .from("trips")
+    .update({
+      title,
+      description: description || null,
+      start_date: startDate || null,
+      trip_length: normalizedTripLength,
+      status: "planning",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId)
+    .select(TRIP_ROW_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function ensureDestinationTripDays(supabase, { tripId, title, tripLength }) {
   const { data: existingBases, error: basesError } = await supabase
     .from("trip_bases")
     .select("id, name, location_name, local_timezone, sort_order")
@@ -622,26 +657,6 @@ export async function promoteDestinationToTrip({ tripId, title, description, tri
       });
     }
   }
-
-  const { data, error } = await supabase
-    .from("trips")
-    .update({
-      title,
-      description: description || null,
-      start_date: startDate || null,
-      trip_length: normalizedTripLength,
-      status: "planning",
-      updated_at: now,
-    })
-    .eq("id", tripId)
-    .select(TRIP_ROW_SELECT)
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
 }
 
 export async function moveTripToWishlist({ tripId }) {

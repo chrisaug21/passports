@@ -25,7 +25,7 @@ const BOARD_COLUMNS = [
   },
 ];
 
-let rerenderDestinations = () => {};
+let rerenderDestinations = noop;
 
 export function setDestinationsRenderer(renderer) {
   rerenderDestinations = renderer;
@@ -180,17 +180,27 @@ function renderDestinationCard(trip) {
 }
 
 function renderEmptyColumn(columnId) {
-  const messages = {
-    wishlist: "No Wishlist places yet.",
-    planning: "No trips being planned.",
-    archive: "Past trips will show up here.",
-  };
-
   return `
     <div class="destinations-empty">
-      <p>${escapeHtml(messages[columnId] || "Nothing here yet.")}</p>
+      <p>${escapeHtml(getEmptyColumnMessage(columnId))}</p>
     </div>
   `;
+}
+
+function getEmptyColumnMessage(columnId) {
+  if (columnId === "wishlist") {
+    return "No Wishlist places yet.";
+  }
+
+  if (columnId === "planning") {
+    return "No trips being planned.";
+  }
+
+  if (columnId === "archive") {
+    return "Past trips will show up here.";
+  }
+
+  return "Nothing here yet.";
 }
 
 function renderCreateDestinationModal(destinationsPage) {
@@ -477,4 +487,8 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function noop() {
+  return null;
 }
