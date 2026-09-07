@@ -2,6 +2,8 @@
 
 **Status:** Design settled — see "Decisions" below for what's locked in. Plan is five PRs: **Phase 0** (make `trips.status` authoritative — a prerequisite, not really a "Destinations" feature) → **Navigation reshuffle** → **Board core** → **Wishlist entry depth** → **Map** (an immediate follow-up once the board ships, not deferred indefinitely). "Default co-traveler" and the public account-level board/map are noted as later, separate ideas — see the bottom of this doc.
 
+**Progress:** Phase 0 is shipped and merged (`chrisaug21/passports` PR #61) — `trips.status` is now authoritative, the database's CHECK constraint has been narrowed to drop the dead `upcoming` value, and the "Starting soon" badge is live. **Navigation reshuffle is next up**, not yet started.
+
 **Audience:** A fresh Claude Code session with no memory of the design conversation. Read this whole document before writing any code.
 
 ## Why this exists
