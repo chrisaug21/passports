@@ -16,13 +16,18 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
   const nextDayId = nextItem.day_id ?? null;
   const changedDay = previousDayId !== nextDayId;
   const changedAnchorState = Boolean(currentItem.is_anchor) !== Boolean(nextItem.is_anchor);
-  const previousTimeStart = String(currentItem.time_start || "");
-  const nextTimeStart = String(nextItem.time_start || "");
-  const changedTimeStart = previousTimeStart !== nextTimeStart;
   const shouldRemoveFromSourceFlex = !currentItem.is_anchor && (changedDay || nextItem.is_anchor);
 
+  // Timed siblings' sort_order is owned by the DB's auto-sort trigger
+  // (sql/trip_items_time_based_sort_order.sql) and self-corrects the moment
+  // any of them is next written with a time/day change -- so only untimed
+  // items need renumbering here. Including timed items in this local
+  // recompute is what let a stale in-memory `items` snapshot overwrite the
+  // trigger's correct values for items this save never meant to touch.
   if (shouldRemoveFromSourceFlex) {
-    updates.push(...normalizeFlexItems(getFlexItemsForDay(items, previousDayId, currentItem.id)));
+    updates.push(...normalizeFlexItems(
+      getFlexItemsForDay(items, previousDayId, currentItem.id).filter((item) => !item.time_start)
+    ));
   }
 
   if (nextItem.is_anchor) {
@@ -36,36 +41,19 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
     return dedupeItemsById(updates);
   }
 
-  if (changedDay) {
-    if (nextItem.time_start) {
-      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
-      return dedupeItemsById(updates);
-    }
-
-    const destinationItems = normalizeFlexItems([
-      ...getFlexItemsForDay(items, nextDayId, currentItem.id),
-      nextItem,
-    ]);
-
-    updates.push(...destinationItems);
+  // A timed flex item's own sort_order is fully recomputed server-side by
+  // the trigger whenever time_start/day_id changes, so there's nothing to
+  // compute client-side -- just send the item.
+  if (nextItem.time_start) {
+    updates.push(nextItem);
     return dedupeItemsById(updates);
   }
 
-  if (changedAnchorState) {
-    if (nextItem.time_start) {
-      updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
-      return dedupeItemsById(updates);
-    }
-
+  if (changedDay || changedAnchorState) {
     updates.push(...normalizeFlexItems([
       ...getFlexItemsForDay(items, nextDayId, currentItem.id),
       nextItem,
     ]));
-    return dedupeItemsById(updates);
-  }
-
-  if (changedTimeStart && nextItem.time_start) {
-    updates.push(...insertFlexItemByTime(getFlexItemsForDay(items, nextDayId, currentItem.id), nextItem));
     return dedupeItemsById(updates);
   }
 
@@ -165,34 +153,6 @@ export function normalizeFlexItems(items) {
     ...item,
     sort_order: index,
   }));
-}
-
-export function insertFlexItemByTime(items, itemToInsert) {
-  const orderedItems = [...items].sort(compareFlexItems);
-  const timedItems = orderedItems
-    .filter((item) => item.time_start)
-    .sort((left, right) => String(left.time_start).localeCompare(String(right.time_start)) || compareFlexItems(left, right));
-
-  if (!itemToInsert.time_start || timedItems.length === 0) {
-    return normalizeFlexItems([...orderedItems, itemToInsert]);
-  }
-
-  const previousTimedItem = [...timedItems]
-    .reverse()
-    .find((item) => String(item.time_start).localeCompare(String(itemToInsert.time_start)) <= 0);
-  const nextTimedItem = timedItems.find((item) => String(item.time_start).localeCompare(String(itemToInsert.time_start)) > 0);
-
-  let insertIndex = orderedItems.length;
-
-  if (previousTimedItem) {
-    insertIndex = orderedItems.findIndex((item) => item.id === previousTimedItem.id) + 1;
-  } else if (nextTimedItem) {
-    insertIndex = orderedItems.findIndex((item) => item.id === nextTimedItem.id);
-  }
-
-  const nextItems = [...orderedItems];
-  nextItems.splice(insertIndex, 0, itemToInsert);
-  return normalizeFlexItems(nextItems);
 }
 
 export function buildUpdatedItem(currentItem, overrides) {
