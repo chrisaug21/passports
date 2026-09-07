@@ -74,15 +74,15 @@
 
 .destinations-column__cards {
   min-height: 180px;
-  padding: 0.65rem;
+  padding: 0.55rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
   align-content: start;
 }
 
 .destination-card {
   min-width: 0;
-  min-height: 78px;
+  min-height: 68px;
   border: 1px solid var(--color-border-card);
   border-radius: var(--radius-control);
   background: var(--color-surface-strong);
@@ -90,7 +90,14 @@
   overflow: hidden;
   cursor: pointer;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 60px minmax(0, 1fr);
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.destination-card:hover {
+  border-color: color-mix(in srgb, var(--color-structure) 28%, var(--color-border-card));
+  box-shadow: var(--shadow-panel);
+  transform: translateY(-1px);
 }
 
 .destination-card:focus-visible {
@@ -100,7 +107,7 @@
 
 .destination-card__media {
   position: relative;
-  min-height: 78px;
+  min-height: 68px;
   background: var(--trip-header-media-gradient);
 }
 
@@ -108,7 +115,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(26, 35, 50, 0.16);
+  background: rgba(26, 35, 50, 0.2);
 }
 
 .destination-card__media img {
@@ -121,15 +128,15 @@
 
 .destination-card__body {
   min-width: 0;
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.65rem;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
   align-content: center;
 }
 
 .destination-card__body h3 {
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: 1rem;
   line-height: 1.12;
   overflow-wrap: anywhere;
 }
@@ -144,12 +151,19 @@
 .destination-card__meta span {
   max-width: 100%;
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .destination-card__date {
+  color: var(--color-text-subtle);
+}
+
+.destination-card__soon {
+  border-radius: var(--radius-pill);
+  padding: 0.18rem 0.45rem;
+  background: var(--color-structure-soft);
   color: var(--color-structure);
 }
 
@@ -179,6 +193,15 @@
 .destinations-form-grid select {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+#create-destination-form input[type="file"] {
+  width: 100%;
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-control);
+  padding: 0.65rem;
 }
 
 @media (max-width: 900px) {

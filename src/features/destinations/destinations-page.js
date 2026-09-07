@@ -5,6 +5,8 @@ import { navigate, renderRoute } from "../../app/router.js";
 import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { showToast } from "../shared/toast.js";
 import { createDestination } from "../../services/trips-service.js";
+import { DEFAULT_PHOTO_ASPECT_RATIO, openPhotoCropModal } from "../../lib/photo-upload.js";
+import { PHOTO_CONTEXTS, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
 
@@ -169,7 +171,7 @@ function renderDestinationCard(trip) {
         <h3>${tripTitle}</h3>
         <div class="destination-card__meta">
           ${shouldShowDate ? `<span class="destination-card__date">${escapeHtml(dateLabel)}</span>` : ""}
-          ${isTripStartingSoon(trip) ? `<span>Starting soon</span>` : ""}
+          ${isTripStartingSoon(trip) ? `<span class="destination-card__soon">Starting soon</span>` : ""}
         </div>
       </div>
     </article>
@@ -212,6 +214,11 @@ function renderCreateDestinationModal(destinationsPage) {
           <label class="field">
             <span>Description</span>
             <input name="description" type="text" maxlength="160" placeholder="Optional short note" />
+          </label>
+
+          <label class="field">
+            <span>Photo</span>
+            <input name="photo" type="file" accept="image/*" />
           </label>
 
           <div class="destinations-form-grid">
@@ -309,10 +316,12 @@ function wireCreateDestinationModal() {
     const formData = new FormData(form);
     const targetYear = parseOptionalYear(formData.get("targetYear"));
     const targetMonth = targetYear ? parseOptionalMonth(formData.get("targetMonth")) : null;
+    const photoFile = getSelectedPhotoFile(formData);
 
     appStore.updateDestinationsPage({ isCreatingDestination: true });
 
     try {
+      let didPhotoFail = false;
       const newDestination = await createDestination({
         ownerId: session.user.id,
         title: String(formData.get("title") || "").trim(),
@@ -320,10 +329,18 @@ function wireCreateDestinationModal() {
         targetYear,
         targetMonth,
       });
+      const destinationWithPhoto = await uploadDestinationPhotoSafely({
+        destination: newDestination,
+        file: photoFile,
+        userId: session.user.id,
+        onPhotoFailure: () => {
+          didPhotoFail = true;
+        },
+      });
 
-      tripStore.prependTrip(newDestination);
+      tripStore.prependTrip(destinationWithPhoto);
       appStore.updateDestinationsPage({ isCreatingDestination: false });
-      showToast("Destination added.", "success");
+      showToast(didPhotoFail ? "Destination added, but the photo did not save." : "Destination added.", didPhotoFail ? "error" : "success");
       closeModal();
       form.reset();
       rerenderDestinations();
@@ -334,6 +351,46 @@ function wireCreateDestinationModal() {
       rerenderDestinations();
     }
   });
+}
+
+function getSelectedPhotoFile(formData) {
+  const photo = formData.get("photo");
+  return photo instanceof File && photo.size > 0 ? photo : null;
+}
+
+async function uploadDestinationPhotoSafely({ destination, file, userId, onPhotoFailure }) {
+  if (!file) {
+    return destination;
+  }
+
+  try {
+    return await uploadDestinationPhoto({ destination, file, userId });
+  } catch (error) {
+    console.error(error);
+    onPhotoFailure();
+    return destination;
+  }
+}
+
+async function uploadDestinationPhoto({ destination, file, userId }) {
+  const croppedBlob = await openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
+
+  if (!croppedBlob) {
+    return destination;
+  }
+
+  const photo = await saveUploadedPrimaryPhoto({
+    userId,
+    tripId: destination.id,
+    context: PHOTO_CONTEXTS.tripHero,
+    blob: croppedBlob,
+  });
+
+  return {
+    ...destination,
+    hero_photo_url: photo.public_url,
+    hero_photo: photo,
+  };
 }
 
 function parseOptionalYear(value) {
