@@ -33,9 +33,9 @@ import {
   renderAllocationConfirmModal,
   renderAllocationRow,
   renderDeleteBaseConfirmModal,
-  renderTimezoneOptionsDatalist,
   renderTripLengthConfirmModal,
 } from "./base-allocation-controller.js";
+import { renderTimezoneOptionsDatalist } from "./timezone-picker.js";
 import { renderDaysView } from "./days-view-controller.js";
 import {
   getInterleavedDayItems,

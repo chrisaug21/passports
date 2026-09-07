@@ -5,7 +5,7 @@ import {
   batchUpdateTripItems,
   createDetailedTripItem,
   softDeleteTripItem,
-} from "../../../services/trips-service.js";
+} from "../../../services/items-service.js";
 import { showToast } from "../../shared/toast.js";
 import { tripDetailState, rerenderTripDetail } from "./trip-detail-state.js";
 import { normalizeNullableId } from "./base-allocation-controller.js";

@@ -1,6 +1,6 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
-import { batchUpdateTripItems } from "../../../services/trips-service.js";
+import { batchUpdateTripItems } from "../../../services/items-service.js";
 import { showToast } from "../../shared/toast.js";
 import { tripDetailState, rerenderTripDetail } from "./trip-detail-state.js";
 import { getDisplayTitleForToast } from "./trip-detail-ui.js";
