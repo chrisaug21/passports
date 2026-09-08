@@ -2,6 +2,9 @@
   width: min(1120px, calc(100% - 1.5rem));
   margin: 0 auto;
   padding: 0.6rem 0 3rem;
+  /* Horizontal-scroll guard lives here, not on html/body — overflow-x on the
+     root scrolling element breaks position:fixed tracking on iOS Safari. */
+  overflow-x: hidden;
 }
 
 .app-shell--loading {
@@ -296,6 +299,9 @@
     border-radius: 0;
     background: var(--color-surface-strong);
     box-shadow: var(--shadow-soft);
+    /* Forces its own compositing layer so iOS Safari doesn't lose track of
+       this element's position during fast/inertial scrolling. */
+    transform: translateZ(0);
     justify-content: space-around;
   }
 
