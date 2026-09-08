@@ -4,12 +4,6 @@ export function getFlexItemsForDay(items, dayId, excludedItemId = null) {
     .sort(compareFlexItems);
 }
 
-export function getAnchorDestinationSortOrder(items, dayId, excludedItemId = null) {
-  return items
-    .filter((item) => item.day_id === dayId && item.id !== excludedItemId)
-    .length;
-}
-
 export function buildItemSaveBatch(currentItem, nextItem, items) {
   const updates = [];
   const previousDayId = currentItem.day_id ?? null;
@@ -30,14 +24,16 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
     ));
   }
 
+  // An anchor's sort_order is trigger-owned exactly like a timed flex item's:
+  // whenever day_id or time_start actually changes, the trigger recomputes it
+  // chronologically server-side regardless of what's sent here, and when
+  // neither changes (e.g. only is_anchor was toggled) the item's existing
+  // sort_order is already a correct time-sorted position -- overwriting it
+  // with a raw sibling count (as this used to) discarded that correct
+  // position and stuck permanently, since the trigger only recomputes on a
+  // real time/day change.
   if (nextItem.is_anchor) {
-    const nextAnchorItem = (changedDay || changedAnchorState)
-      ? buildUpdatedItem(nextItem, {
-          sort_order: getAnchorDestinationSortOrder(items, nextDayId, currentItem.id),
-        })
-      : nextItem;
-
-    updates.push(nextAnchorItem);
+    updates.push(nextItem);
     return dedupeItemsById(updates);
   }
 
@@ -50,8 +46,11 @@ export function buildItemSaveBatch(currentItem, nextItem, items) {
   }
 
   if (changedDay || changedAnchorState) {
+    // Only untimed siblings need renumbering -- see the comment on the
+    // shouldRemoveFromSourceFlex block above; the same stale-snapshot risk
+    // applies here to the destination day.
     updates.push(...normalizeFlexItems([
-      ...getFlexItemsForDay(items, nextDayId, currentItem.id),
+      ...getFlexItemsForDay(items, nextDayId, currentItem.id).filter((item) => !item.time_start),
       nextItem,
     ]));
     return dedupeItemsById(updates);
