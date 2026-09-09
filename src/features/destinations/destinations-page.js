@@ -464,7 +464,7 @@ function renderDestinationDetailModal(destinationsPage) {
           </button>
         </div>
         <button class="button" type="submit" ${destinationsPage.isSavingDestination ? "disabled" : ""}>
-          ${destinationsPage.isSavingDestination ? "Saving..." : "Save Changes"}
+          ${destinationsPage.isSavingDestination ? "Saving..." : "Save"}
         </button>
       </div>
     </form>
@@ -1163,9 +1163,8 @@ async function handleSaveDestination(form) {
     });
 
     tripStore.updateTrip(destinationWithPhoto);
-    appStore.updateDestinationsPage({ isSavingDestination: false });
     showToast(didPhotoFail ? "Destination saved, but the photo did not save." : "Destination saved.", didPhotoFail ? "error" : "success");
-    rerenderDestinations();
+    closeDestinationDetail();
   } catch (error) {
     console.error(error);
     appStore.updateDestinationsPage({ isSavingDestination: false });
