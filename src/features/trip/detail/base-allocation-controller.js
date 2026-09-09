@@ -605,6 +605,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
 
       try {
         await saveAllocationDraft(trip, loadTripDetail);
+        notifyMapDataChanged();
         tripDetailState.allocationDraft = null;
         tripDetailState.allocationConfirmState = null;
         appStore.updateTripDetail({

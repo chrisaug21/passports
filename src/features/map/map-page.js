@@ -1,21 +1,23 @@
 import { navigate, renderRoute } from "../../app/router.js";
 import { MAP_TILE_PROVIDER } from "../../lib/map-provider.js";
-import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
+import { formatDestinationTargetDate, formatShortDateRange, formatTripDateSummary } from "../../lib/format.js";
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import { listBasesForTrips } from "../../services/bases-service.js";
+import { listDaysForTrips } from "../../services/days-service.js";
 import { loadDashboard, setDashboardRenderer } from "../dashboard/dashboard-page.js";
 
 const MAP_FILTERS = [
-  { id: "destinations", label: "Wishlist" },
-  { id: "planning", label: "Planning" },
-  { id: "active", label: "Active" },
-  { id: "done", label: "Archive" },
+  { id: "destinations", label: "Someday" },
+  { id: "planning", label: "Planned" },
+  { id: "active", label: "Traveling Now" },
+  { id: "done", label: "Visited" },
 ];
 
 let mapState = {
   status: "idle",
   bases: [],
+  days: [],
   error: "",
   selectedStatuses: MAP_FILTERS.map((filter) => filter.id),
   isShowingMobileFilters: false,
@@ -24,7 +26,7 @@ let mapState = {
 };
 
 let activeMap = null;
-let activeMapPins = [];
+let activeMapPinGroups = [];
 let baseDataVersion = 0;
 let isPopupClickBound = false;
 
@@ -36,7 +38,12 @@ window.addEventListener("passports:map-data-invalidated", () => {
 export function renderMapPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
-  const mapData = buildMapData({ trips, bases: mapState.bases, selectedStatuses: mapState.selectedStatuses });
+  const mapData = buildMapData({
+    trips,
+    bases: mapState.bases,
+    days: mapState.days,
+    selectedStatuses: mapState.selectedStatuses,
+  });
   const hasActiveFilters = mapState.isShowingMobileFilters || mapState.selectedStatuses.length < MAP_FILTERS.length;
 
   return `
@@ -147,12 +154,16 @@ export async function loadMapPage(options = {}) {
     }
 
     const tripIds = tripStore.getTrips().map((trip) => trip.id).filter(Boolean);
-    const bases = await listBasesForTrips(tripIds);
+    const [bases, days] = await Promise.all([
+      listBasesForTrips(tripIds),
+      listDaysForTrips(tripIds),
+    ]);
 
     mapState = {
       ...mapState,
       status: "ready",
       bases,
+      days,
       error: "",
       loadedTripSignature: getTripSignature(),
       loadedBaseDataVersion: baseDataVersion,
@@ -316,7 +327,8 @@ function initializeMap() {
   }
 
   const pins = parsePins(mapEl.getAttribute("data-map-pins"));
-  activeMapPins = pins;
+  const pinGroups = groupPinsByCoordinates(pins);
+  activeMapPinGroups = pinGroups;
   const map = window.L.map(mapEl, {
     worldCopyJump: true,
   }).setView([20, 0], 2);
@@ -330,19 +342,19 @@ function initializeMap() {
     ? window.L.markerClusterGroup({ showCoverageOnHover: false })
     : window.L.layerGroup();
 
-  pins.forEach((pin) => {
-    const marker = window.L.marker([pin.lat, pin.lng], {
-      icon: createMapIcon(pin.status),
-      title: pin.title,
-    }).bindPopup(renderPinPopup(pin));
+  pinGroups.forEach((pinGroup) => {
+    const marker = window.L.marker([pinGroup.lat, pinGroup.lng], {
+      icon: createMapIcon(pinGroup),
+      title: pinGroup.title,
+    }).bindPopup(renderPinPopup(pinGroup));
 
     markerLayer.addLayer(marker);
   });
 
   markerLayer.addTo(map);
 
-  if (pins.length > 0) {
-    const bounds = window.L.latLngBounds(pins.map((pin) => [pin.lat, pin.lng]));
+  if (pinGroups.length > 0) {
+    const bounds = window.L.latLngBounds(pinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
     map.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
   }
 
@@ -366,8 +378,8 @@ function resetActiveMapView() {
     return;
   }
 
-  if (activeMapPins.length > 0) {
-    const bounds = window.L.latLngBounds(activeMapPins.map((pin) => [pin.lat, pin.lng]));
+  if (activeMapPinGroups.length > 0) {
+    const bounds = window.L.latLngBounds(activeMapPinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
     activeMap.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
     return;
   }
@@ -375,22 +387,39 @@ function resetActiveMapView() {
   activeMap.setView([20, 0], 2);
 }
 
-function createMapIcon(status) {
+function createMapIcon(pinGroup) {
+  const statuses = pinGroup.statuses || [pinGroup.status];
+  const isMultiPin = statuses.length > 1 || pinGroup.pins?.length > 1;
+
   return window.L.divIcon({
-    className: `travel-map-pin travel-map-pin--${status}`,
-    html: '<span aria-hidden="true"></span>',
+    className: `travel-map-pin travel-map-pin--${pinGroup.status} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
+    html: isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>',
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -12],
   });
 }
 
+function renderMultiPinSegments(statuses) {
+  const visibleStatuses = statuses.slice(0, 4);
+
+  return `
+    <span class="travel-map-pin__segments" aria-hidden="true">
+      ${visibleStatuses.map((status) => `<span class="travel-map-pin__segment travel-map-pin__segment--${escapeHtml(status)}"></span>`).join("")}
+    </span>
+  `;
+}
+
 function renderPinPopup(pin) {
+  if (pin.pins?.length > 1) {
+    return renderGroupedPinPopup(pin);
+  }
+
   return `
     <article class="map-popup">
       <p class="eyebrow">${escapeHtml(getStatusLabel(pin.status))}</p>
       <h3>${escapeHtml(pin.title)}</h3>
-      <p>${escapeHtml(pin.baseName)}</p>
+      ${pin.baseName ? `<p>${escapeHtml(pin.baseName)}</p>` : ""}
       ${pin.dateLabel ? `<p class="muted">${escapeHtml(pin.dateLabel)}</p>` : ""}
       <button class="button button--secondary" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
         Open
@@ -399,10 +428,31 @@ function renderPinPopup(pin) {
   `;
 }
 
-function buildMapData({ trips, bases, selectedStatuses }) {
+function renderGroupedPinPopup(pinGroup) {
+  return `
+    <article class="map-popup map-popup--group">
+      <p class="eyebrow">${pinGroup.pins.length} Places</p>
+      <h3>${escapeHtml(pinGroup.placeLabel)}</h3>
+      <div class="map-popup__list">
+        ${pinGroup.pins.map((pin) => `
+          <button class="map-popup__item" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
+            <span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>
+            <span>
+              <strong>${escapeHtml(pin.title)}</strong>
+              ${pin.dateLabel ? `<small>${escapeHtml(pin.dateLabel)}</small>` : ""}
+            </span>
+          </button>
+        `).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function buildMapData({ trips, bases, days, selectedStatuses }) {
   const selectedSet = new Set(selectedStatuses);
   const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
   const basesByTripId = groupBasesByTripId(bases);
+  const daysByBaseId = groupDaysByBaseId(days);
   const pins = [];
   const missingLocations = [];
 
@@ -431,11 +481,12 @@ function buildMapData({ trips, bases, selectedStatuses }) {
         id: `${base.id}-${trip.status}`,
         tripId: trip.id,
         title: trip.title || "Untitled trip",
-        baseName: base.name || base.location_name || trip.title || "Untitled base",
+        baseName: tripBases.length > 1 ? base.name || base.location_name || "Untitled base" : "",
+        placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
         dateLabel: trip.status === "destinations"
           ? formatDestinationTargetDate(trip)
-          : formatTripDateSummary(trip, { includeYear: trip.status === "done" }),
+          : formatBaseDateSummary({ trip, base, days: daysByBaseId.get(base.id) || [] }),
         lat,
         lng,
       });
@@ -448,6 +499,27 @@ function buildMapData({ trips, bases, selectedStatuses }) {
   };
 }
 
+function formatBaseDateSummary({ trip, days }) {
+  if (!trip?.start_date) {
+    return formatTripDateSummary(trip);
+  }
+
+  if (!Array.isArray(days) || days.length === 0) {
+    return formatTripDateSummary(trip, { includeYear: trip.status === "done" });
+  }
+
+  const sortedDayNumbers = days
+    .map((day) => Number(day.day_number))
+    .filter((dayNumber) => Number.isInteger(dayNumber))
+    .sort((left, right) => left - right);
+
+  const firstDay = sortedDayNumbers[0];
+  const lastDay = sortedDayNumbers[sortedDayNumbers.length - 1];
+
+  return formatShortDateRange(trip.start_date, firstDay, lastDay)
+    || formatTripDateSummary(trip, { includeYear: trip.status === "done" });
+}
+
 function groupBasesByTripId(bases) {
   return bases.reduce((map, base) => {
     const tripBases = map.get(base.trip_id) || [];
@@ -455,6 +527,64 @@ function groupBasesByTripId(bases) {
     map.set(base.trip_id, tripBases);
     return map;
   }, new Map());
+}
+
+function groupDaysByBaseId(days) {
+  return days.reduce((map, day) => {
+    if (!day.base_id) {
+      return map;
+    }
+
+    const baseDays = map.get(day.base_id) || [];
+    baseDays.push(day);
+    map.set(day.base_id, baseDays);
+    return map;
+  }, new Map());
+}
+
+function groupPinsByCoordinates(pins) {
+  const groupedPins = [];
+  const groupsByKey = new Map();
+
+  pins.forEach((pin) => {
+    const key = getCoordinateGroupKey(pin);
+    const existingGroup = groupsByKey.get(key);
+
+    if (existingGroup) {
+      existingGroup.pins.push(pin);
+      existingGroup.statuses = getUniqueStatuses(existingGroup.pins);
+      existingGroup.status = existingGroup.statuses[0] || pin.status;
+      existingGroup.title = `${existingGroup.pins.length} places`;
+      return;
+    }
+
+    const group = {
+      ...pin,
+      placeLabel: pin.placeLabel || pin.baseName || pin.title,
+      pins: [pin],
+      statuses: [pin.status],
+    };
+    groupsByKey.set(key, group);
+    groupedPins.push(group);
+  });
+
+  return groupedPins;
+}
+
+function getCoordinateGroupKey(pin) {
+  return `${Number(pin.lat).toFixed(4)},${Number(pin.lng).toFixed(4)}`;
+}
+
+function getUniqueStatuses(pins) {
+  const statuses = [];
+
+  pins.forEach((pin) => {
+    if (!statuses.includes(pin.status)) {
+      statuses.push(pin.status);
+    }
+  });
+
+  return statuses;
 }
 
 function parsePins(value) {
