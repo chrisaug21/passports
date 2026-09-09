@@ -11,6 +11,7 @@ export function renderLocationSearchField({
   hint = "",
 }) {
   const hasCoordinates = isValidCoordinate(lat) && isValidCoordinate(lng);
+  const statusText = hasCoordinates ? `Mapped to ${escapeHtml(value || "selected location")}.` : escapeHtml(hint);
 
   return `
     <div
@@ -36,9 +37,7 @@ export function renderLocationSearchField({
       <input name="locationLat" type="hidden" value="${hasCoordinates ? escapeHtml(String(lat)) : ""}" data-location-lat />
       <input name="locationLng" type="hidden" value="${hasCoordinates ? escapeHtml(String(lng)) : ""}" data-location-lng />
       <input name="mappedLocationName" type="hidden" value="${hasCoordinates ? escapeHtml(value || "") : ""}" data-location-mapped-name />
-      <p class="field-hint" data-location-status>
-        ${hasCoordinates ? `Mapped to ${escapeHtml(value || "selected location")}.` : escapeHtml(hint)}
-      </p>
+      <p class="field-hint" data-location-status ${statusText ? "" : "hidden"}>${statusText}</p>
       <div class="location-search__results" data-location-results hidden></div>
     </div>
   `;
@@ -63,9 +62,9 @@ export function wireLocationSearch(form) {
       }
 
       mappedNameInput.value = "";
-      status.textContent = latInput.value && lngInput.value
+      setStatus(status, latInput.value && lngInput.value
         ? "Existing map location kept until you choose a new search result."
-        : "";
+        : "");
     });
 
     input?.addEventListener("keydown", (event) => {
@@ -103,7 +102,7 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
   }
 
   button.disabled = true;
-  status.textContent = "Searching locations...";
+  setStatus(status, "Searching locations...");
   results.hidden = true;
   results.innerHTML = "";
 
@@ -111,11 +110,11 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
     const locations = await searchLocations(query);
 
     if (locations.length === 0) {
-      status.textContent = "No matching locations found.";
+      setStatus(status, "No matching locations found.");
       return;
     }
 
-    status.textContent = "Choose the matching place.";
+    setStatus(status, "Choose the matching place.");
     results.innerHTML = locations.map((location) => renderLocationResult(location)).join("");
     results.hidden = false;
 
@@ -125,18 +124,27 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
         latInput.value = resultButton.getAttribute("data-location-lat") || "";
         lngInput.value = resultButton.getAttribute("data-location-lng") || "";
         mappedNameInput.value = input.value;
-        status.textContent = `Mapped to ${input.value}.`;
+        setStatus(status, `Mapped to ${input.value}.`);
         results.hidden = true;
         results.innerHTML = "";
       });
     });
   } catch (error) {
     console.error(error);
-    status.textContent = "";
+    setStatus(status, "");
     showToast("Could not search locations right now.", "error");
   } finally {
     button.disabled = false;
   }
+}
+
+function setStatus(status, text) {
+  if (!status) {
+    return;
+  }
+
+  status.textContent = text;
+  status.hidden = !text;
 }
 
 function renderLocationResult(location) {

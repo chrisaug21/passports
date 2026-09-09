@@ -25,6 +25,10 @@ let mapState = {
 let activeMap = null;
 let isPopupClickBound = false;
 
+window.addEventListener("passports:map-data-invalidated", () => {
+  invalidateMapPageData();
+});
+
 export function renderMapPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
@@ -91,6 +95,13 @@ export function wireMapPage() {
     isPopupClickBound = true;
   }
   initializeMap();
+}
+
+export function invalidateMapPageData() {
+  mapState = {
+    ...mapState,
+    loadedTripSignature: "",
+  };
 }
 
 export async function loadMapPage(options = {}) {

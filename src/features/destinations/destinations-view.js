@@ -339,7 +339,6 @@ function renderCreateDestinationModal(destinationsPage) {
             idPrefix: "create-destination",
             label: "Mapped Location",
             required: true,
-            hint: "Search and choose the place that should appear on the map.",
           })}
 
           <label class="field">
@@ -379,6 +378,7 @@ function renderCreateDestinationModal(destinationsPage) {
 
 function renderDestinationDetailModal(destinationsPage) {
   const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+  const destinationBase = getDestinationMapBase(destinationsPage.selectedDestinationBases);
 
   if (!destinationsPage.selectedDestinationId) {
     return "";
@@ -439,6 +439,14 @@ function renderDestinationDetailModal(destinationsPage) {
           </label>
         </div>
 
+        ${renderLocationSearchField({
+          idPrefix: `destination-detail-${destination.id}`,
+          label: "Mapped Location",
+          value: destinationBase?.location_name || destinationBase?.name || "",
+          lat: destinationBase?.lat,
+          lng: destinationBase?.lng,
+        })}
+
         ${renderDestinationNotesPreview(destination, destinationsPage)}
       </div>
 
@@ -457,6 +465,14 @@ function renderDestinationDetailModal(destinationsPage) {
       </div>
     </form>
   `, destination);
+}
+
+function getDestinationMapBase(bases = []) {
+  if (!Array.isArray(bases) || bases.length === 0) {
+    return null;
+  }
+
+  return bases.find((base) => base.lat == null || base.lng == null) || bases[0];
 }
 
 function renderDestinationDetailShell(content, destination = null) {

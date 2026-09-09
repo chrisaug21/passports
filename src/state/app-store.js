@@ -96,6 +96,7 @@ function createInitialDestinationsPage() {
     destinationDetailStatus: "idle",
     destinationDetailError: "",
     selectedDestinationNotes: [],
+    selectedDestinationBases: [],
     isSavingDestination: false,
     isPromotingDestination: false,
     promotingDestinationId: null,
