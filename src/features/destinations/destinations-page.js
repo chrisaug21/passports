@@ -68,9 +68,9 @@ export function renderDestinationsPage() {
 }
 
 function renderPromoteDestinationModal(destinationsPage) {
-  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+  const destination = getSelectedDestination(destinationsPage.promotingDestinationId);
 
-  if (!destinationsPage.isShowingPromoteModal || !destination) {
+  if (!destination) {
     return "";
   }
 
@@ -90,7 +90,7 @@ function renderPromoteDestinationModal(destinationsPage) {
           <div class="destinations-form-grid destinations-form-grid--compact">
             <label class="field">
               <span>Trip Length</span>
-              <input name="promoteTripLength" type="number" min="1" max="60" value="7" required />
+              <input class="destinations-trip-length-input" name="promoteTripLength" type="number" min="1" max="60" value="7" required />
             </label>
             <label class="field">
               <span>Start Date</span>
@@ -654,7 +654,7 @@ function closeDestinationDetail() {
     selectedDestinationNotes: [],
     isSavingDestination: false,
     isPromotingDestination: false,
-    isShowingPromoteModal: false,
+    promotingDestinationId: null,
     isShowingDeleteDestinationConfirm: false,
     isDeletingDestination: false,
   });
@@ -678,8 +678,7 @@ function openBoardPromoteModal(tripId) {
     return;
   }
 
-  openDestinationDetail(tripId);
-  appStore.updateDestinationsPage({ isShowingPromoteModal: true });
+  appStore.updateDestinationsPage({ promotingDestinationId: tripId });
   rerenderDestinations();
 }
 
@@ -898,7 +897,7 @@ function beginBoardDrag({ startEvent, card, columnEl, list }) {
       if (isReorderable) {
         await commitWishlistReorder(list);
       } else {
-        showToast("Dates control this order — edit the date to reorder.");
+        showToast("This trip has a date assigned. Change its dates to re-order it.");
       }
       return;
     }
@@ -1057,7 +1056,8 @@ function wireDestinationDetailModal() {
   document.querySelector("#confirm-delete-destination")?.addEventListener("click", handleConfirmDeleteDestination);
 
   document.querySelector("#open-promote-destination-modal")?.addEventListener("click", () => {
-    appStore.updateDestinationsPage({ isShowingPromoteModal: true });
+    const destinationId = appStore.getState().destinationsPage.selectedDestinationId;
+    appStore.updateDestinationsPage({ promotingDestinationId: destinationId });
     rerenderDestinations();
   });
   document.querySelector("#cancel-promote-destination")?.addEventListener("click", closePromoteDestinationModal);
@@ -1078,7 +1078,7 @@ function closeDeleteDestinationConfirm() {
 
 function closePromoteDestinationModal() {
   appStore.updateDestinationsPage({
-    isShowingPromoteModal: false,
+    promotingDestinationId: null,
     isPromotingDestination: false,
   });
   rerenderDestinations();
@@ -1175,7 +1175,7 @@ async function handleSaveDestination(form) {
 }
 
 async function handlePromoteDestination(form) {
-  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.promotingDestinationId);
 
   if (!form || !destination?.id) {
     return;

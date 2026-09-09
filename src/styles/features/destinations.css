@@ -267,7 +267,7 @@ html.is-board-drag-active {
 }
 
 .destinations-date-input {
-  width: auto;
+  width: 100%;
   min-width: 0;
 }
 
@@ -304,8 +304,7 @@ html.is-board-drag-active {
 }
 
 .destination-detail-photo {
-  min-height: 180px;
-  max-height: 220px;
+  width: 100%;
   border-radius: var(--radius-control);
   overflow: hidden;
   cursor: pointer;
@@ -395,8 +394,13 @@ html.is-board-drag-active {
   }
 
   .destinations-form-grid--compact {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
     align-items: end;
+  }
+
+  .destinations-trip-length-input {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
   }
 
   .destination-notes-panel__header {
