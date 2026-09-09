@@ -58,7 +58,7 @@
 }
 
 /* Shown while a card from another column is dragged over this one as a
-   valid promote/demote target (see BOARD_DRAG_CROSS_TARGET in destinations-page.js). */
+   valid promote/demote target (see BOARD_DRAG_CROSS_TARGET in destinations-drag.js). */
 .destinations-column.is-drop-target {
   border-color: var(--color-action);
   background: var(--color-action-tint);
