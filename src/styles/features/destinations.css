@@ -85,6 +85,7 @@
 }
 
 .destination-card {
+  position: relative;
   min-width: 0;
   min-height: 68px;
   border: 1px solid var(--color-border-card);
@@ -107,6 +108,44 @@
 .destination-card:focus-visible {
   outline: 2px solid var(--color-structure-tint);
   outline-offset: 3px;
+}
+
+.destination-card.is-dragging {
+  opacity: 0.6;
+  box-shadow: var(--shadow-panel);
+}
+
+.destination-card__drag-handle,
+.destination-card__quick-action {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
+  color: var(--color-text-muted);
+}
+
+.destination-card__drag-handle svg,
+.destination-card__quick-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+.destination-card__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.destination-card__quick-action:hover,
+.destination-card__quick-action:focus-visible {
+  color: var(--color-text);
+  background: var(--color-surface-strong);
 }
 
 .destination-card__media {

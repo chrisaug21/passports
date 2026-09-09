@@ -43,6 +43,8 @@ function createInitialTripDetail() {
     isDeletingTrip: false,
     showMoveToNextTripConfirm: false,
     isMovingToNextTrip: false,
+    showDemoteToWishlistConfirm: false,
+    isDemotingTrip: false,
     isShowingMembersModal: false,
     overviewEditorMode: null,
     editingOverviewBlockId: null,
@@ -96,6 +98,8 @@ function createInitialDestinationsPage() {
     selectedDestinationNotes: [],
     isSavingDestination: false,
     isPromotingDestination: false,
+    demotingDestinationId: null,
+    isDemotingDestination: false,
   };
 }
 

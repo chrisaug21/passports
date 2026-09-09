@@ -259,6 +259,10 @@ export function wireTripDetailPageEvents(handlers) {
   bindAll("[data-move-to-next-trip-scope]", "click", (button) => {
     handlers.onConfirmMoveToNextTrip?.(button.getAttribute("data-move-to-next-trip-scope"));
   });
+  bindClick("#open-demote-to-wishlist-confirm", handlers.onOpenDemoteToWishlistConfirm);
+  bindClick("#cancel-demote-to-wishlist", handlers.onCancelDemoteToWishlistConfirm);
+  bindClick("[data-cancel-demote-to-wishlist]", handlers.onCancelDemoteToWishlistConfirm);
+  bindClick("#confirm-demote-to-wishlist", handlers.onConfirmDemoteToWishlist);
   bindClick("[data-open-guide]", handlers.onOpenGuide);
   bindClick("[data-open-notes]", handlers.onOpenNotes);
   bindClick("[data-open-prep]", handlers.onOpenPrep);
