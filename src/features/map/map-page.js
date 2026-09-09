@@ -23,6 +23,7 @@ let mapState = {
 };
 
 let activeMap = null;
+let isPopupClickBound = false;
 
 export function renderMapPage() {
   const { dashboard } = appStore.getState();
@@ -85,7 +86,10 @@ export function wireMapPage() {
     });
   });
 
-  document.addEventListener("click", handleMapPopupClick);
+  if (!isPopupClickBound) {
+    document.addEventListener("click", handleMapPopupClick);
+    isPopupClickBound = true;
+  }
   initializeMap();
 }
 
@@ -314,9 +318,17 @@ function initializeMap() {
     map.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
   }
 
+  requestAnimationFrame(() => {
+    map.invalidateSize();
+
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+  });
+
   setTimeout(() => {
     map.invalidateSize();
-  }, 0);
+  }, 250);
 
   activeMap = map;
 }
