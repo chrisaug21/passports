@@ -83,21 +83,21 @@ function renderPromoteDestinationModal(destinationsPage) {
             <p class="eyebrow">Promote</p>
             <h3>Turn "${escapeHtml(destination.title || "this destination")}" into a planned trip</h3>
           </div>
+          <button class="icon-button" id="cancel-promote-destination" type="button" aria-label="Cancel promote" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>x</button>
         </div>
         <form class="create-trip-form" id="promote-destination-form">
           <p class="muted">Add real dates and Passports will create the starter base and days.</p>
-          <div class="destinations-form-grid">
+          <div class="destinations-form-grid destinations-form-grid--compact">
             <label class="field">
               <span>Trip Length</span>
               <input name="promoteTripLength" type="number" min="1" max="60" value="7" required />
             </label>
             <label class="field">
               <span>Start Date</span>
-              <input name="promoteStartDate" type="date" required />
+              <input class="destinations-date-input" name="promoteStartDate" type="date" required />
             </label>
           </div>
-          <div class="modal-card__actions">
-            <button class="button button--secondary" id="cancel-promote-destination" type="button" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>Cancel</button>
+          <div class="modal-card__actions modal-card__actions--end">
             <button class="button" type="submit" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
               ${destinationsPage.isPromotingDestination ? "Promoting…" : "Promote to Planning"}
             </button>
@@ -125,8 +125,8 @@ function renderDeleteDestinationConfirmModal(destinationsPage) {
             <h3>${escapeHtml(destination.title || "Untitled destination")}</h3>
           </div>
         </div>
-        <p class="muted">This hides ${escapeHtml(destination.title || "this destination")} from your Wishlist.</p>
-        <div class="modal-card__actions">
+        <p class="muted">This deletes ${escapeHtml(destination.title || "this destination")} from your Wishlist.</p>
+        <div class="modal-card__actions modal-card__actions--row">
           <button class="button button--secondary" id="cancel-delete-destination" type="button">Cancel</button>
           <button class="button button--danger" id="confirm-delete-destination" type="button" ${destinationsPage.isDeletingDestination ? "disabled" : ""}>
             ${destinationsPage.isDeletingDestination ? "Deleting…" : "Delete"}
@@ -153,10 +153,10 @@ function renderBoardDemoteConfirmModal(destinationsPage) {
             <p class="eyebrow">Move to Wishlist</p>
             <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
           </div>
+          <button class="icon-button" id="cancel-demote-destination" type="button" aria-label="Cancel move to Wishlist">x</button>
         </div>
         <p class="muted">This clears the trip's start date. Bases, days, items, notes, and photos all stay intact.</p>
-        <div class="modal-card__actions">
-          <button class="button button--secondary" id="cancel-demote-destination" type="button">Cancel</button>
+        <div class="modal-card__actions modal-card__actions--end">
           <button class="button" id="confirm-demote-destination" type="button" ${destinationsPage.isDemotingDestination ? "disabled" : ""}>
             ${destinationsPage.isDemotingDestination ? "Moving…" : "Move to Wishlist"}
           </button>
@@ -267,7 +267,9 @@ function renderDestinationCard(trip) {
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
   const shouldShowDate = trip.status !== "destinations" || hasDestinationTargetDate(trip);
   const isUndatedWishlistCard = trip.status === "destinations" && !hasDestinationTargetDate(trip);
-  const isDemotablePlanningCard = trip.status === "planning";
+  const isDatedWishlistCard = trip.status === "destinations" && !isUndatedWishlistCard;
+  const isPlanningCard = trip.status === "planning";
+  const isDraggableCard = isUndatedWishlistCard || isDatedWishlistCard || isPlanningCard;
 
   return `
     <article
@@ -278,8 +280,15 @@ function renderDestinationCard(trip) {
       tabindex="0"
       aria-label="Open ${tripTitle}"
     >
-      ${isUndatedWishlistCard ? `
-        <button class="destination-card__drag-handle" data-drag-handle type="button" aria-label="Reorder ${tripTitle}" tabindex="-1">
+      ${isDraggableCard ? `
+        <button
+          class="destination-card__drag-handle"
+          data-drag-handle
+          ${isUndatedWishlistCard ? 'data-reorderable="true"' : ""}
+          type="button"
+          aria-label="${isUndatedWishlistCard ? `Reorder ${tripTitle}` : `Drag ${tripTitle} to a different column`}"
+          tabindex="-1"
+        >
           <i data-lucide="grip-vertical" aria-hidden="true"></i>
         </button>
       ` : ""}
@@ -293,11 +302,6 @@ function renderDestinationCard(trip) {
           ${isTripStartingSoon(trip) ? `<span class="destination-card__soon">Starting soon</span>` : ""}
         </div>
       </div>
-      ${isDemotablePlanningCard ? `
-        <button class="destination-card__quick-action" data-demote-destination="${escapeHtml(String(trip.id))}" type="button" title="Move to Wishlist" aria-label="Move ${tripTitle} to Wishlist">
-          <i data-lucide="bookmark" aria-hidden="true"></i>
-        </button>
-      ` : ""}
     </article>
   `;
 }
@@ -587,17 +591,10 @@ export function wireDestinationsPage() {
     });
   });
 
-  document.querySelectorAll("[data-demote-destination]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openBoardDemoteConfirm(button.getAttribute("data-demote-destination"));
-    });
-  });
-
   wireCreateDestinationModal();
   wireDestinationDetailModal();
   wireBoardDemoteConfirmModal();
-  wireWishlistDragReorder();
+  wireBoardDragHandles();
 }
 
 export function loadDestinationsPage() {
@@ -676,6 +673,16 @@ function openBoardDemoteConfirm(tripId) {
   rerenderDestinations();
 }
 
+function openBoardPromoteModal(tripId) {
+  if (!tripId) {
+    return;
+  }
+
+  openDestinationDetail(tripId);
+  appStore.updateDestinationsPage({ isShowingPromoteModal: true });
+  rerenderDestinations();
+}
+
 function closeBoardDemoteConfirm() {
   appStore.updateDestinationsPage({
     demotingDestinationId: null,
@@ -718,27 +725,36 @@ async function handleConfirmBoardDemote() {
   }
 }
 
-// Pointer-based reorder for undated Wishlist cards: mouse drags immediately,
+// Wishlist cards can promote into Planning; Planning cards can demote into
+// Wishlist. Only undated Wishlist cards can reorder within their own column
+// (dated Wishlist cards and Planning cards are sorted by date, so dragging
+// them within their own column is a no-op). Mouse drags start immediately;
 // touch requires a brief hold so a normal horizontal-scroll swipe across the
 // board isn't mistaken for a drag.
-function wireWishlistDragReorder() {
-  document.querySelectorAll('[data-destination-column="wishlist"] [data-drag-handle]').forEach((handle) => {
+const BOARD_DRAG_CROSS_TARGET = {
+  wishlist: "planning",
+  planning: "wishlist",
+};
+
+function wireBoardDragHandles() {
+  document.querySelectorAll('[data-destination-column="wishlist"] [data-drag-handle], [data-destination-column="planning"] [data-drag-handle]').forEach((handle) => {
     handle.addEventListener("click", (event) => event.stopPropagation());
-    handle.addEventListener("pointerdown", onWishlistDragHandlePointerDown);
+    handle.addEventListener("pointerdown", onBoardDragHandlePointerDown);
   });
 }
 
-function onWishlistDragHandlePointerDown(downEvent) {
+function onBoardDragHandlePointerDown(downEvent) {
   const handle = downEvent.currentTarget;
   const card = handle.closest("[data-destination-card]");
-  const list = handle.closest('[data-destination-column="wishlist"]')?.querySelector(".destinations-column__cards");
+  const columnEl = handle.closest("[data-destination-column]");
+  const list = columnEl?.querySelector(".destinations-column__cards");
 
-  if (!card || !list) {
+  if (!card || !columnEl || !list) {
     return;
   }
 
   if (downEvent.pointerType === "mouse") {
-    beginWishlistDrag({ startEvent: downEvent, card, list });
+    beginBoardDrag({ startEvent: downEvent, card, columnEl, list });
     return;
   }
 
@@ -748,7 +764,7 @@ function onWishlistDragHandlePointerDown(downEvent) {
 
   const longPressTimer = setTimeout(() => {
     didStartDrag = true;
-    beginWishlistDrag({ startEvent: downEvent, card, list });
+    beginBoardDrag({ startEvent: downEvent, card, columnEl, list });
   }, 350);
 
   const cancelPendingDrag = () => {
@@ -776,17 +792,26 @@ function onWishlistDragHandlePointerDown(downEvent) {
 // The dragged card floats at the pointer (position: fixed + a translate
 // offset) while a dashed placeholder holds its landing spot in the list, so
 // dragging reads as picking the card up rather than swapping slots outright.
-function beginWishlistDrag({ startEvent, card, list }) {
+// Dropping over a different column never mutates data directly — it opens
+// the same Promote/Move-to-Wishlist modal the board already uses elsewhere,
+// and the card visually snaps back to its origin until that modal is confirmed.
+function beginBoardDrag({ startEvent, card, columnEl, list }) {
   const pointerId = startEvent.pointerId;
+  const tripId = card.getAttribute("data-trip-id");
+  const originColumnId = columnEl.getAttribute("data-destination-column");
+  const isReorderable = card.dataset.reorderable === "true";
+  const startX = startEvent.clientX;
+  const startY = startEvent.clientY;
   const rect = card.getBoundingClientRect();
-  const offsetX = startEvent.clientX - rect.left;
-  const offsetY = startEvent.clientY - rect.top;
+  const offsetX = startX - rect.left;
+  const offsetY = startY - rect.top;
 
   const placeholder = document.createElement("div");
   placeholder.className = "destination-card-placeholder";
   placeholder.style.height = `${rect.height}px`;
   list.insertBefore(placeholder, card.nextSibling);
 
+  document.documentElement.classList.add("is-board-drag-active");
   card.dataset.justDragged = "true";
   card.classList.add("is-dragging");
   card.style.position = "fixed";
@@ -796,32 +821,47 @@ function beginWishlistDrag({ startEvent, card, list }) {
 
   card.setPointerCapture(pointerId);
 
+  let didMove = false;
+  let hoveredColumnId = originColumnId;
+  let dropTargetColumnEl = null;
+
+  const setDropTargetColumn = (nextColumnEl) => {
+    if (dropTargetColumnEl === nextColumnEl) {
+      return;
+    }
+
+    dropTargetColumnEl?.classList.remove("is-drop-target");
+    dropTargetColumnEl = nextColumnEl || null;
+    dropTargetColumnEl?.classList.add("is-drop-target");
+  };
+
   const onPointerMove = (moveEvent) => {
     card.style.top = `${moveEvent.clientY - offsetY}px`;
     card.style.left = `${moveEvent.clientX - offsetX}px`;
 
-    const undatedSiblings = Array.from(list.children).filter(
-      (child) => child !== placeholder && child !== card && child.querySelector?.("[data-drag-handle]")
-    );
-
-    let insertBeforeEl = null;
-
-    for (const sibling of undatedSiblings) {
-      const siblingRect = sibling.getBoundingClientRect();
-
-      if (moveEvent.clientY < siblingRect.top + siblingRect.height / 2) {
-        insertBeforeEl = sibling;
-        break;
-      }
+    if (!didMove && (Math.abs(moveEvent.clientX - startX) > 6 || Math.abs(moveEvent.clientY - startY) > 6)) {
+      didMove = true;
     }
 
-    if (insertBeforeEl) {
-      if (insertBeforeEl !== placeholder.nextSibling) {
-        list.insertBefore(placeholder, insertBeforeEl);
+    const hoveredColumnEl = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest("[data-destination-column]");
+    hoveredColumnId = hoveredColumnEl?.getAttribute("data-destination-column") || null;
+
+    if (hoveredColumnId === originColumnId) {
+      setDropTargetColumn(null);
+
+      if (isReorderable) {
+        updateReorderPlaceholder({ list, card, placeholder, pointerY: moveEvent.clientY });
       }
-    } else if (placeholder !== list.lastElementChild) {
-      list.appendChild(placeholder);
+
+      return;
     }
+
+    if (hoveredColumnEl && BOARD_DRAG_CROSS_TARGET[originColumnId] === hoveredColumnId) {
+      setDropTargetColumn(hoveredColumnEl);
+      return;
+    }
+
+    setDropTargetColumn(null);
   };
 
   const finishDrag = async () => {
@@ -835,6 +875,9 @@ function beginWishlistDrag({ startEvent, card, list }) {
       // Already released (e.g. pointercancel fired first) — nothing to do.
     }
 
+    document.documentElement.classList.remove("is-board-drag-active");
+    setDropTargetColumn(null);
+
     list.insertBefore(card, placeholder);
     placeholder.remove();
 
@@ -847,30 +890,78 @@ function beginWishlistDrag({ startEvent, card, list }) {
       delete card.dataset.justDragged;
     }, 0);
 
-    const orderedTripIds = Array.from(list.children)
-      .filter((child) => child.querySelector("[data-drag-handle]"))
-      .map((child) => child.getAttribute("data-trip-id"));
-
-    if (orderedTripIds.length < 2) {
+    if (!didMove) {
       return;
     }
 
-    orderedTripIds.forEach((tripId, index) => {
-      tripStore.updateTrip({ id: tripId, sort_order: index });
-    });
+    if (hoveredColumnId === originColumnId) {
+      if (isReorderable) {
+        await commitWishlistReorder(list);
+      } else {
+        showToast("Dates control this order — edit the date to reorder.");
+      }
+      return;
+    }
 
-    try {
-      await reorderWishlistDestinations({ orderedTripIds });
-    } catch (error) {
-      console.error(error);
-      showToast("Could not save that order right now.", "error");
-      rerenderDestinations();
+    if (BOARD_DRAG_CROSS_TARGET[originColumnId] === hoveredColumnId) {
+      if (originColumnId === "wishlist") {
+        openBoardPromoteModal(tripId);
+      } else if (originColumnId === "planning") {
+        openBoardDemoteConfirm(tripId);
+      }
     }
   };
 
   document.addEventListener("pointermove", onPointerMove);
   document.addEventListener("pointerup", finishDrag);
   document.addEventListener("pointercancel", finishDrag);
+}
+
+function updateReorderPlaceholder({ list, card, placeholder, pointerY }) {
+  const reorderableSiblings = Array.from(list.children).filter(
+    (child) => child !== placeholder && child !== card && child.querySelector?.('[data-reorderable="true"]')
+  );
+
+  let insertBeforeEl = null;
+
+  for (const sibling of reorderableSiblings) {
+    const siblingRect = sibling.getBoundingClientRect();
+
+    if (pointerY < siblingRect.top + siblingRect.height / 2) {
+      insertBeforeEl = sibling;
+      break;
+    }
+  }
+
+  if (insertBeforeEl) {
+    if (insertBeforeEl !== placeholder.nextSibling) {
+      list.insertBefore(placeholder, insertBeforeEl);
+    }
+  } else if (placeholder !== list.lastElementChild) {
+    list.appendChild(placeholder);
+  }
+}
+
+async function commitWishlistReorder(list) {
+  const orderedTripIds = Array.from(list.children)
+    .filter((child) => child.querySelector('[data-reorderable="true"]'))
+    .map((child) => child.getAttribute("data-trip-id"));
+
+  if (orderedTripIds.length < 2) {
+    return;
+  }
+
+  orderedTripIds.forEach((tripId, index) => {
+    tripStore.updateTrip({ id: tripId, sort_order: index });
+  });
+
+  try {
+    await reorderWishlistDestinations({ orderedTripIds });
+  } catch (error) {
+    console.error(error);
+    showToast("Could not save that order right now.", "error");
+    rerenderDestinations();
+  }
 }
 
 function wireCreateDestinationModal() {
