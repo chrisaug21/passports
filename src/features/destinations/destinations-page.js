@@ -730,10 +730,10 @@ async function handleConfirmBoardDemote() {
 // them within their own column is a no-op). Mouse drags start immediately;
 // touch requires a brief hold so a normal horizontal-scroll swipe across the
 // board isn't mistaken for a drag.
-const BOARD_DRAG_CROSS_TARGET = {
-  wishlist: "planning",
-  planning: "wishlist",
-};
+const BOARD_DRAG_CROSS_TARGET = new Map([
+  ["wishlist", "planning"],
+  ["planning", "wishlist"],
+]);
 
 function wireBoardDragHandles() {
   document.querySelectorAll('[data-destination-column="wishlist"] [data-drag-handle], [data-destination-column="planning"] [data-drag-handle]').forEach((handle) => {
@@ -855,7 +855,7 @@ function beginBoardDrag({ startEvent, card, columnEl, list }) {
       return;
     }
 
-    if (hoveredColumnEl && BOARD_DRAG_CROSS_TARGET[originColumnId] === hoveredColumnId) {
+    if (hoveredColumnEl && BOARD_DRAG_CROSS_TARGET.get(originColumnId) === hoveredColumnId) {
       setDropTargetColumn(hoveredColumnEl);
       return;
     }
@@ -902,7 +902,7 @@ function beginBoardDrag({ startEvent, card, columnEl, list }) {
       return;
     }
 
-    if (BOARD_DRAG_CROSS_TARGET[originColumnId] === hoveredColumnId) {
+    if (BOARD_DRAG_CROSS_TARGET.get(originColumnId) === hoveredColumnId) {
       if (originColumnId === "wishlist") {
         openBoardPromoteModal(tripId);
       } else if (originColumnId === "planning") {
