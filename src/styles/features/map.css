@@ -1,5 +1,5 @@
 .map-page {
-  --map-canvas-height: clamp(28rem, calc(100vh - 12rem), 38rem);
+  --map-canvas-height: clamp(24rem, calc(100vh - 18rem), 32rem);
 
   display: grid;
   gap: var(--space-4);
@@ -106,7 +106,7 @@
 .map-canvas-shell {
   position: relative;
   height: var(--map-canvas-height);
-  min-height: 28rem;
+  min-height: 24rem;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
@@ -117,6 +117,136 @@
 .travel-map {
   width: 100%;
   height: 100%;
+}
+
+/* Leaflet's CDN stylesheet is still loaded in index.html, but these core
+   layout rules keep tiles usable if that external CSS is slow or blocked. */
+.leaflet-container {
+  overflow: hidden;
+  background: var(--color-surface-muted);
+  outline-offset: 1px;
+}
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  user-select: none;
+}
+
+.leaflet-tile {
+  border: 0;
+  visibility: hidden;
+}
+
+.leaflet-tile-loaded {
+  visibility: inherit;
+}
+
+.leaflet-zoom-animated {
+  transform-origin: 0 0;
+}
+
+.leaflet-interactive {
+  cursor: pointer;
+}
+
+.leaflet-control {
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.leaflet-top {
+  top: 0;
+}
+
+.leaflet-right {
+  right: 0;
+}
+
+.leaflet-bottom {
+  bottom: 0;
+}
+
+.leaflet-left {
+  left: 0;
+}
+
+.leaflet-control-attribution {
+  padding: 0 var(--space-2);
+  background: var(--color-surface-overlay);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-structure);
+}
+
+.leaflet-control-zoom {
+  margin: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.leaflet-control-zoom a {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.leaflet-control-zoom a + a {
+  border-top: 1px solid var(--color-border);
+}
+
+.leaflet-popup {
+  position: absolute;
+  text-align: center;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-overlay);
+  box-shadow: var(--shadow-soft);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  text-align: left;
+}
+
+.leaflet-popup-tip-container {
+  display: none;
 }
 
 .map-empty-state {
@@ -256,11 +386,11 @@
   }
 
   .map-page {
-    --map-canvas-height: clamp(24rem, calc(100dvh - 13rem), 34rem);
+    --map-canvas-height: clamp(22rem, calc(100dvh - 15rem), 30rem);
   }
 
   .map-canvas-shell {
-    min-height: 24rem;
+    min-height: 22rem;
   }
 
   .location-search__controls {
