@@ -9,6 +9,7 @@ import {
   demoteTripToWishlist,
   promoteDestinationToTrip,
   reorderWishlistDestinations,
+  softDeleteTrip,
   updateDestination,
 } from "../../services/trips-service.js";
 import { fetchTripNotes } from "../../services/notes-service.js";
@@ -59,8 +60,80 @@ export function renderDestinationsPage() {
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
       ${renderDestinationDetailModal(destinationsPage)}
+      ${renderPromoteDestinationModal(destinationsPage)}
+      ${renderDeleteDestinationConfirmModal(destinationsPage)}
       ${renderBoardDemoteConfirmModal(destinationsPage)}
     </section>
+  `;
+}
+
+function renderPromoteDestinationModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+
+  if (!destinationsPage.isShowingPromoteModal || !destination) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-promote-destination></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Promote</p>
+            <h3>Turn "${escapeHtml(destination.title || "this destination")}" into a planned trip</h3>
+          </div>
+        </div>
+        <form class="create-trip-form" id="promote-destination-form">
+          <p class="muted">Add real dates and Passports will create the starter base and days.</p>
+          <div class="destinations-form-grid">
+            <label class="field">
+              <span>Trip Length</span>
+              <input name="promoteTripLength" type="number" min="1" max="60" value="7" required />
+            </label>
+            <label class="field">
+              <span>Start Date</span>
+              <input name="promoteStartDate" type="date" required />
+            </label>
+          </div>
+          <div class="modal-card__actions">
+            <button class="button button--secondary" id="cancel-promote-destination" type="button" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>Cancel</button>
+            <button class="button" type="submit" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
+              ${destinationsPage.isPromotingDestination ? "Promoting…" : "Promote to Planning"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderDeleteDestinationConfirmModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+
+  if (!destinationsPage.isShowingDeleteDestinationConfirm || !destination) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-delete-destination></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Delete</p>
+            <h3>${escapeHtml(destination.title || "Untitled destination")}</h3>
+          </div>
+        </div>
+        <p class="muted">This hides ${escapeHtml(destination.title || "this destination")} from your Wishlist.</p>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-delete-destination" type="button">Cancel</button>
+          <button class="button button--danger" id="confirm-delete-destination" type="button" ${destinationsPage.isDeletingDestination ? "disabled" : ""}>
+            ${destinationsPage.isDeletingDestination ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -285,7 +358,10 @@ function renderCreateDestinationModal(destinationsPage) {
           <div class="destinations-form-grid">
             <label class="field">
               <span>Target Year</span>
-              <input name="targetYear" type="number" min="2026" max="2100" placeholder="2028" />
+              <select name="targetYear">
+                <option value="">No target year</option>
+                ${getWishlistTargetYearOptions().map((year) => renderYearOption(year)).join("")}
+              </select>
             </label>
 
             <label class="field">
@@ -353,15 +429,13 @@ function renderDestinationDetailModal(destinationsPage) {
           <input name="description" type="text" maxlength="160" value="${escapeHtml(destination.description || "")}" placeholder="Optional short note" />
         </label>
 
-        <label class="field">
-          <span>Photo</span>
-          <input name="photo" type="file" accept="image/*" />
-        </label>
-
         <div class="destinations-form-grid">
           <label class="field">
             <span>Target Year</span>
-            <input name="targetYear" type="number" min="2026" max="2100" value="${escapeHtml(destination.target_year || "")}" placeholder="2028" />
+            <select name="targetYear">
+              <option value="">No target year</option>
+              ${getWishlistTargetYearOptions().map((year) => renderYearOption(year, destination.target_year)).join("")}
+            </select>
           </label>
 
           <label class="field">
@@ -374,31 +448,17 @@ function renderDestinationDetailModal(destinationsPage) {
         </div>
 
         ${renderDestinationNotesPreview(destination, destinationsPage)}
-
-        <section class="destination-promote-panel">
-          <div>
-            <p class="eyebrow">Promote</p>
-            <h3>Turn this into a planned trip</h3>
-            <p class="muted">Add real dates and Passports will create the starter base and days.</p>
-          </div>
-          <div class="destinations-form-grid">
-            <label class="field">
-              <span>Trip Length</span>
-              <input name="promoteTripLength" type="number" min="1" max="60" value="7" />
-            </label>
-            <label class="field">
-              <span>Start Date</span>
-              <input name="promoteStartDate" type="date" />
-            </label>
-          </div>
-          <button class="button button--secondary" id="promote-destination" type="button" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
-            ${destinationsPage.isPromotingDestination ? "Promoting..." : "Promote to Planning"}
-          </button>
-        </section>
       </div>
 
       <div class="modal-card__actions modal-card__actions--sticky">
-        <button class="button button--secondary" id="close-destination-detail-footer" type="button">Close</button>
+        <div class="trip-settings-form__destructive-actions">
+          <button class="icon-button icon-button--danger" id="open-delete-destination-confirm" type="button" title="Delete" aria-label="Delete destination">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+          <button class="icon-button" id="open-promote-destination-modal" type="button" title="Promote to Planning" aria-label="Promote to Planning">
+            <i data-lucide="calendar-check" aria-hidden="true"></i>
+          </button>
+        </div>
         <button class="button" type="submit" ${destinationsPage.isSavingDestination ? "disabled" : ""}>
           ${destinationsPage.isSavingDestination ? "Saving..." : "Save Changes"}
         </button>
@@ -429,9 +489,11 @@ function renderDestinationPhotoField(destination) {
   const safeCoverUrl = sanitizeCoverUrl(destination.hero_photo_url || destination.cover_photo_url);
 
   return `
-    <div class="destination-detail-photo photo-hero">
-      ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : `<span class="photo-hero__empty-label">Add photo</span>`}
-    </div>
+    <label class="destination-detail-photo photo-hero" data-destination-photo-field>
+      <input class="sr-only" name="photo" type="file" accept="image/*" data-destination-photo-input />
+      <img class="photo-hero__image" ${safeCoverUrl ? `src="${escapeHtml(safeCoverUrl)}"` : ""} alt="" loading="lazy" decoding="async" data-destination-photo-preview ${safeCoverUrl ? "" : "hidden"} />
+      <span class="photo-hero__empty-label" data-destination-photo-empty-label ${safeCoverUrl ? "hidden" : ""}>Add photo</span>
+    </label>
   `;
 }
 
@@ -487,6 +549,16 @@ function renderMonthOption(month, selectedMonth = null) {
   return `<option value="${month}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
+function getWishlistTargetYearOptions() {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 16 }, (_value, index) => currentYear + index);
+}
+
+function renderYearOption(year, selectedYear = null) {
+  const isSelected = Number(selectedYear) === year;
+  return `<option value="${year}" ${isSelected ? "selected" : ""}>${year}</option>`;
+}
+
 export function wireDestinationsPage() {
   document.querySelector("#open-create-destination-modal")?.addEventListener("click", openCreateDestinationModal);
   document.querySelector("#retry-destinations-load")?.addEventListener("click", () => {
@@ -498,7 +570,15 @@ export function wireDestinationsPage() {
       openDestinationCard(card.getAttribute("data-trip-id"));
     };
 
-    card.addEventListener("click", openCard);
+    card.addEventListener("click", (event) => {
+      if (card.dataset.justDragged === "true") {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      openCard();
+    });
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -577,6 +657,9 @@ function closeDestinationDetail() {
     selectedDestinationNotes: [],
     isSavingDestination: false,
     isPromotingDestination: false,
+    isShowingPromoteModal: false,
+    isShowingDeleteDestinationConfirm: false,
+    isDeletingDestination: false,
   });
   rerenderDestinations();
 }
@@ -655,7 +738,7 @@ function onWishlistDragHandlePointerDown(downEvent) {
   }
 
   if (downEvent.pointerType === "mouse") {
-    beginWishlistDrag({ pointerId: downEvent.pointerId, card, list });
+    beginWishlistDrag({ startEvent: downEvent, card, list });
     return;
   }
 
@@ -665,7 +748,7 @@ function onWishlistDragHandlePointerDown(downEvent) {
 
   const longPressTimer = setTimeout(() => {
     didStartDrag = true;
-    beginWishlistDrag({ pointerId: downEvent.pointerId, card, list });
+    beginWishlistDrag({ startEvent: downEvent, card, list });
   }, 350);
 
   const cancelPendingDrag = () => {
@@ -690,40 +773,79 @@ function onWishlistDragHandlePointerDown(downEvent) {
   handle.addEventListener("pointercancel", cancelPendingDrag);
 }
 
-function beginWishlistDrag({ pointerId, card, list }) {
-  card.setPointerCapture(pointerId);
+// The dragged card floats at the pointer (position: fixed + a translate
+// offset) while a dashed placeholder holds its landing spot in the list, so
+// dragging reads as picking the card up rather than swapping slots outright.
+function beginWishlistDrag({ startEvent, card, list }) {
+  const pointerId = startEvent.pointerId;
+  const rect = card.getBoundingClientRect();
+  const offsetX = startEvent.clientX - rect.left;
+  const offsetY = startEvent.clientY - rect.top;
+
+  const placeholder = document.createElement("div");
+  placeholder.className = "destination-card-placeholder";
+  placeholder.style.height = `${rect.height}px`;
+  list.insertBefore(placeholder, card.nextSibling);
+
+  card.dataset.justDragged = "true";
   card.classList.add("is-dragging");
+  card.style.position = "fixed";
+  card.style.top = `${rect.top}px`;
+  card.style.left = `${rect.left}px`;
+  card.style.width = `${rect.width}px`;
+
+  card.setPointerCapture(pointerId);
 
   const onPointerMove = (moveEvent) => {
-    const target = document
-      .elementFromPoint(moveEvent.clientX, moveEvent.clientY)
-      ?.closest("[data-destination-card]");
+    card.style.top = `${moveEvent.clientY - offsetY}px`;
+    card.style.left = `${moveEvent.clientX - offsetX}px`;
 
-    if (!target || target === card || target.parentElement !== list || !target.querySelector("[data-drag-handle]")) {
-      return;
+    const undatedSiblings = Array.from(list.children).filter(
+      (child) => child !== placeholder && child !== card && child.querySelector?.("[data-drag-handle]")
+    );
+
+    let insertBeforeEl = null;
+
+    for (const sibling of undatedSiblings) {
+      const siblingRect = sibling.getBoundingClientRect();
+
+      if (moveEvent.clientY < siblingRect.top + siblingRect.height / 2) {
+        insertBeforeEl = sibling;
+        break;
+      }
     }
 
-    const cards = Array.from(list.children);
-    const cardIndex = cards.indexOf(card);
-    const targetIndex = cards.indexOf(target);
-
-    if (cardIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    if (cardIndex < targetIndex) {
-      list.insertBefore(card, target.nextSibling);
-    } else {
-      list.insertBefore(card, target);
+    if (insertBeforeEl) {
+      if (insertBeforeEl !== placeholder.nextSibling) {
+        list.insertBefore(placeholder, insertBeforeEl);
+      }
+    } else if (placeholder !== list.lastElementChild) {
+      list.appendChild(placeholder);
     }
   };
 
   const finishDrag = async () => {
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", finishDrag);
+    document.removeEventListener("pointercancel", finishDrag);
+
+    try {
+      card.releasePointerCapture(pointerId);
+    } catch {
+      // Already released (e.g. pointercancel fired first) — nothing to do.
+    }
+
+    list.insertBefore(card, placeholder);
+    placeholder.remove();
+
     card.classList.remove("is-dragging");
-    card.releasePointerCapture(pointerId);
-    card.removeEventListener("pointermove", onPointerMove);
-    card.removeEventListener("pointerup", finishDrag);
-    card.removeEventListener("pointercancel", finishDrag);
+    card.style.position = "";
+    card.style.top = "";
+    card.style.left = "";
+    card.style.width = "";
+    setTimeout(() => {
+      delete card.dataset.justDragged;
+    }, 0);
 
     const orderedTripIds = Array.from(list.children)
       .filter((child) => child.querySelector("[data-drag-handle]"))
@@ -746,9 +868,9 @@ function beginWishlistDrag({ pointerId, card, list }) {
     }
   };
 
-  card.addEventListener("pointermove", onPointerMove);
-  card.addEventListener("pointerup", finishDrag);
-  card.addEventListener("pointercancel", finishDrag);
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", finishDrag);
 }
 
 function wireCreateDestinationModal() {
@@ -814,7 +936,6 @@ function wireDestinationDetailModal() {
   const form = document.querySelector("#destination-detail-form");
 
   document.querySelector("#close-destination-detail-modal")?.addEventListener("click", closeDestinationDetail);
-  document.querySelector("#close-destination-detail-footer")?.addEventListener("click", closeDestinationDetail);
   document.querySelector("[data-close-destination-detail]")?.addEventListener("click", closeDestinationDetail);
   document.querySelector("[data-open-destination-notes]")?.addEventListener("click", (event) => {
     const destinationId = event.currentTarget.getAttribute("data-open-destination-notes");
@@ -828,14 +949,89 @@ function wireDestinationDetailModal() {
       navigate(`/app/trip/${destinationId}/notes`);
     }
   });
-  document.querySelector("#promote-destination")?.addEventListener("click", () => {
-    handlePromoteDestination(form);
-  });
 
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     handleSaveDestination(form);
   });
+
+  wireDestinationPhotoField(form);
+
+  document.querySelector("#open-delete-destination-confirm")?.addEventListener("click", () => {
+    appStore.updateDestinationsPage({ isShowingDeleteDestinationConfirm: true });
+    rerenderDestinations();
+  });
+  document.querySelector("#cancel-delete-destination")?.addEventListener("click", closeDeleteDestinationConfirm);
+  document.querySelector("[data-cancel-delete-destination]")?.addEventListener("click", closeDeleteDestinationConfirm);
+  document.querySelector("#confirm-delete-destination")?.addEventListener("click", handleConfirmDeleteDestination);
+
+  document.querySelector("#open-promote-destination-modal")?.addEventListener("click", () => {
+    appStore.updateDestinationsPage({ isShowingPromoteModal: true });
+    rerenderDestinations();
+  });
+  document.querySelector("#cancel-promote-destination")?.addEventListener("click", closePromoteDestinationModal);
+  document.querySelector("[data-cancel-promote-destination]")?.addEventListener("click", closePromoteDestinationModal);
+  document.querySelector("#promote-destination-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handlePromoteDestination(event.currentTarget);
+  });
+}
+
+function closeDeleteDestinationConfirm() {
+  appStore.updateDestinationsPage({
+    isShowingDeleteDestinationConfirm: false,
+    isDeletingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function closePromoteDestinationModal() {
+  appStore.updateDestinationsPage({
+    isShowingPromoteModal: false,
+    isPromotingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function wireDestinationPhotoField(form) {
+  const input = form?.querySelector("[data-destination-photo-input]");
+  const preview = form?.querySelector("[data-destination-photo-preview]");
+  const emptyLabel = form?.querySelector("[data-destination-photo-empty-label]");
+
+  input?.addEventListener("change", () => {
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    preview.src = URL.createObjectURL(file);
+    preview.hidden = false;
+    emptyLabel.hidden = true;
+  });
+}
+
+async function handleConfirmDeleteDestination() {
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+
+  if (!destination?.id) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isDeletingDestination: true });
+  rerenderDestinations();
+
+  try {
+    await softDeleteTrip(destination.id);
+    tripStore.removeTrip(destination.id);
+    closeDestinationDetail();
+    showToast(`${destination.title || "Destination"} deleted.`, "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isDeletingDestination: false });
+    showToast("Could not delete that destination right now.", "error");
+    rerenderDestinations();
+  }
 }
 
 async function handleSaveDestination(form) {
@@ -889,19 +1085,17 @@ async function handleSaveDestination(form) {
 
 async function handlePromoteDestination(form) {
   const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
-  const { session } = sessionStore.getState();
 
-  if (!form || !destination?.id || !session?.user?.id) {
+  if (!form || !destination?.id) {
     return;
   }
 
   const formData = new FormData(form);
-  const values = getDestinationFormValues(formData);
   const tripLength = Number(formData.get("promoteTripLength"));
   const startDate = String(formData.get("promoteStartDate") || "").trim();
 
-  if (!values.title || !Number.isInteger(tripLength) || tripLength < 1 || !isValidDateInput(startDate)) {
-    showToast("Add a title, trip length, and valid start date before promoting.", "error");
+  if (!Number.isInteger(tripLength) || tripLength < 1 || !isValidDateInput(startDate)) {
+    showToast("Add a trip length and a valid start date before promoting.", "error");
     return;
   }
 
@@ -909,32 +1103,17 @@ async function handlePromoteDestination(form) {
   rerenderDestinations();
 
   try {
-    let didPhotoFail = false;
     const promotedTrip = await promoteDestinationToTrip({
       tripId: destination.id,
-      title: values.title,
-      description: values.description,
+      title: destination.title,
+      description: destination.description,
       tripLength,
       startDate,
     });
-    const promotedTripWithPhoto = await uploadDestinationPhotoSafely({
-      destination: promotedTrip,
-      file: getSelectedPhotoFile(formData),
-      userId: session.user.id,
-      onPhotoFailure: () => {
-        didPhotoFail = true;
-      },
-    });
 
-    tripStore.updateTrip(promotedTripWithPhoto);
-    appStore.updateDestinationsPage({
-      selectedDestinationId: null,
-      destinationDetailStatus: "idle",
-      selectedDestinationNotes: [],
-      isPromotingDestination: false,
-    });
-    navigate(`/app/trip/${promotedTrip.id}`);
-    showToast(didPhotoFail ? "Trip promoted, but the photo did not save." : "Destination promoted to Planning.", didPhotoFail ? "error" : "success");
+    tripStore.updateTrip(promotedTrip);
+    closeDestinationDetail();
+    showToast("Destination promoted to Planning.", "success");
   } catch (error) {
     console.error(error);
     appStore.updateDestinationsPage({ isPromotingDestination: false });

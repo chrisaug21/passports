@@ -98,6 +98,9 @@ function createInitialDestinationsPage() {
     selectedDestinationNotes: [],
     isSavingDestination: false,
     isPromotingDestination: false,
+    isShowingPromoteModal: false,
+    isShowingDeleteDestinationConfirm: false,
+    isDeletingDestination: false,
     demotingDestinationId: null,
     isDemotingDestination: false,
   };
