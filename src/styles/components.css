@@ -160,6 +160,10 @@
   pointer-events: none;
 }
 
+.photo-hero__empty-label[hidden] {
+  display: none;
+}
+
 .photo-hero__image {
   position: absolute;
   inset: 0;

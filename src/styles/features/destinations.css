@@ -38,6 +38,12 @@
   gap: 1rem;
   align-items: start;
   padding-bottom: 0.25rem;
+  /* A long-press to pick up a card for dragging can otherwise register as a
+     text-selection gesture on nearby column header text (most visibly the
+     next column's header, since that's where a cross-column drag heads). */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .destinations-column {
