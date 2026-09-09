@@ -78,7 +78,7 @@ function beginBoardDrag({ startEvent, card, columnEl, list }) {
   const pointerId = startEvent.pointerId;
   const tripId = card.getAttribute("data-trip-id");
   const originColumnId = columnEl.getAttribute("data-destination-column");
-  const isReorderable = card.dataset.reorderable === "true";
+  const isReorderable = Boolean(card.querySelector('[data-reorderable="true"]'));
   const startX = startEvent.clientX;
   const startY = startEvent.clientY;
   const rect = card.getBoundingClientRect();
