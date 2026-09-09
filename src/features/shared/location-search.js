@@ -11,7 +11,7 @@ export function renderLocationSearchField({
   hint = "",
 }) {
   const hasCoordinates = isValidCoordinate(lat) && isValidCoordinate(lng);
-  const statusText = hasCoordinates ? `Mapped to ${escapeHtml(value || "selected location")}.` : escapeHtml(hint);
+  const statusText = hasCoordinates ? `Mapped to ${value || "selected location"}.` : hint;
 
   return `
     <div
@@ -37,7 +37,7 @@ export function renderLocationSearchField({
       <input name="locationLat" type="hidden" value="${hasCoordinates ? escapeHtml(String(lat)) : ""}" data-location-lat />
       <input name="locationLng" type="hidden" value="${hasCoordinates ? escapeHtml(String(lng)) : ""}" data-location-lng />
       <input name="mappedLocationName" type="hidden" value="${hasCoordinates ? escapeHtml(value || "") : ""}" data-location-mapped-name />
-      <p class="field-hint" data-location-status ${statusText ? "" : "hidden"}>${statusText}</p>
+      <p class="field-hint" data-location-status ${statusText ? "" : "hidden"}>${escapeHtml(statusText)}</p>
       <div class="location-search__results" data-location-results hidden></div>
     </div>
   `;

@@ -20,12 +20,16 @@ let mapState = {
   selectedStatuses: MAP_FILTERS.map((filter) => filter.id),
   isShowingMobileFilters: false,
   loadedTripSignature: "",
+  loadedBaseDataVersion: 0,
 };
 
 let activeMap = null;
+let activeMapPins = [];
+let baseDataVersion = 0;
 let isPopupClickBound = false;
 
 window.addEventListener("passports:map-data-invalidated", () => {
+  baseDataVersion += 1;
   invalidateMapPageData();
 });
 
@@ -33,6 +37,7 @@ export function renderMapPage() {
   const { dashboard } = appStore.getState();
   const trips = tripStore.getTrips();
   const mapData = buildMapData({ trips, bases: mapState.bases, selectedStatuses: mapState.selectedStatuses });
+  const hasActiveFilters = mapState.isShowingMobileFilters || mapState.selectedStatuses.length < MAP_FILTERS.length;
 
   return `
     <section class="map-page">
@@ -41,7 +46,7 @@ export function renderMapPage() {
           <p class="eyebrow">Map</p>
           <h1>Travel Map</h1>
         </div>
-        <button class="button button--secondary map-header__filter-button" id="toggle-map-filters" type="button">
+        <button class="button button--secondary map-header__filter-button ${hasActiveFilters ? "is-active" : ""}" id="toggle-map-filters" type="button">
           <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
           Filters
         </button>
@@ -55,6 +60,10 @@ export function renderMapPage() {
 export function wireMapPage() {
   document.querySelector("#retry-map-load")?.addEventListener("click", () => {
     loadMapPage({ force: true });
+  });
+
+  document.querySelector("#reset-map-view")?.addEventListener("click", () => {
+    resetActiveMapView();
   });
 
   document.querySelector("#toggle-map-filters")?.addEventListener("click", () => {
@@ -119,7 +128,8 @@ export async function loadMapPage(options = {}) {
     !options.force &&
     mapState.status === "ready" &&
     appStore.getState().dashboard.status === "ready" &&
-    mapState.loadedTripSignature === currentTripSignature
+    mapState.loadedTripSignature === currentTripSignature &&
+    mapState.loadedBaseDataVersion === baseDataVersion
   ) {
     return;
   }
@@ -145,6 +155,7 @@ export async function loadMapPage(options = {}) {
       bases,
       error: "",
       loadedTripSignature: getTripSignature(),
+      loadedBaseDataVersion: baseDataVersion,
     };
     renderRoute({ preserveScroll: true });
   } catch (error) {
@@ -209,6 +220,10 @@ function renderMapContent({ dashboard, mapData }) {
           data-map-pins="${escapeHtml(JSON.stringify(mapData.pins))}"
           aria-label="Travel map"
         ></div>
+        <button class="map-reset-button" id="reset-map-view" type="button" aria-label="Show all pins">
+          <i data-lucide="globe-2" aria-hidden="true"></i>
+          Reset
+        </button>
         ${mapData.pins.length === 0 ? renderNoPinsState(mapData.missingLocations) : ""}
       </section>
     </div>
@@ -230,6 +245,7 @@ function renderMapFilters() {
               data-map-filter="${escapeHtml(filter.id)}"
               ${mapState.selectedStatuses.includes(filter.id) ? "checked" : ""}
             />
+            <span class="map-filter__legend map-filter__legend--${escapeHtml(filter.id)}" aria-hidden="true"></span>
             <span>${escapeHtml(filter.label)}</span>
           </label>
         `).join("")}
@@ -300,6 +316,7 @@ function initializeMap() {
   }
 
   const pins = parsePins(mapEl.getAttribute("data-map-pins"));
+  activeMapPins = pins;
   const map = window.L.map(mapEl, {
     worldCopyJump: true,
   }).setView([20, 0], 2);
@@ -342,6 +359,20 @@ function initializeMap() {
   }, 250);
 
   activeMap = map;
+}
+
+function resetActiveMapView() {
+  if (!activeMap) {
+    return;
+  }
+
+  if (activeMapPins.length > 0) {
+    const bounds = window.L.latLngBounds(activeMapPins.map((pin) => [pin.lat, pin.lng]));
+    activeMap.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
+    return;
+  }
+
+  activeMap.setView([20, 0], 2);
 }
 
 function createMapIcon(status) {

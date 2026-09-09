@@ -33,9 +33,9 @@ export async function searchLocations(query) {
     return [];
   }
 
-  return data
+  return dedupeLocationResults(data
     .map(normalizeLocationResult)
-    .filter((result) => result.label && Number.isFinite(result.lat) && Number.isFinite(result.lng));
+    .filter((result) => result.label && Number.isFinite(result.lat) && Number.isFinite(result.lng)));
 }
 
 function normalizeLocationResult(result) {
@@ -45,4 +45,42 @@ function normalizeLocationResult(result) {
     lat: Number(result.lat),
     lng: Number(result.lon),
   };
+}
+
+function dedupeLocationResults(results) {
+  const seenKeys = new Set();
+  const dedupedResults = [];
+
+  results.forEach((result) => {
+    const labelKey = normalizeLocationKey(result.label);
+    const coordinateKey = normalizeCoordinateKey(result);
+    const keys = [labelKey, coordinateKey].filter(Boolean);
+
+    if (keys.length === 0 || keys.some((key) => seenKeys.has(key))) {
+      return;
+    }
+
+    keys.forEach((key) => {
+      seenKeys.add(key);
+    });
+    dedupedResults.push(result);
+  });
+
+  return dedupedResults;
+}
+
+function normalizeLocationKey(label) {
+  return String(label || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
+function normalizeCoordinateKey(result) {
+  if (!Number.isFinite(result.lat) || !Number.isFinite(result.lng)) {
+    return "";
+  }
+
+  return `${result.lat.toFixed(3)},${result.lng.toFixed(3)}`;
 }

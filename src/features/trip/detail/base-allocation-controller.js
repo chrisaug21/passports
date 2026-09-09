@@ -676,6 +676,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
           localTimezone,
           sortOrder: bases.length,
         });
+        notifyMapDataChanged();
 
         appStore.updateTripDetail({
           isSavingBase: false,
@@ -719,6 +720,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
           lng: location.lng,
           localTimezone,
         });
+        notifyMapDataChanged();
 
         appStore.updateTripDetail({
           isSavingBase: false,
@@ -788,4 +790,8 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
       }
     },
   };
+}
+
+function notifyMapDataChanged() {
+  window.dispatchEvent(new CustomEvent("passports:map-data-invalidated"));
 }
