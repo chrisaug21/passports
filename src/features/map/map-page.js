@@ -431,8 +431,8 @@ function renderPinPopup(pin) {
 function renderGroupedPinPopup(pinGroup) {
   return `
     <article class="map-popup map-popup--group">
-      <p class="eyebrow">${pinGroup.pins.length} Places</p>
-      <h3>${escapeHtml(pinGroup.placeLabel)}</h3>
+      <p class="eyebrow">${pinGroup.pins.length} Trips</p>
+      <h3>${escapeHtml(getGroupedPinTitle(pinGroup))}</h3>
       <div class="map-popup__list">
         ${pinGroup.pins.map((pin) => `
           <button class="map-popup__item" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
@@ -482,6 +482,7 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
         tripId: trip.id,
         title: trip.title || "Untitled trip",
         baseName: tripBases.length > 1 ? base.name || base.location_name || "Untitled base" : "",
+        baseLabel: base.name || "",
         placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
         dateLabel: trip.status === "destinations"
@@ -554,7 +555,7 @@ function groupPinsByCoordinates(pins) {
       existingGroup.pins.push(pin);
       existingGroup.statuses = getUniqueStatuses(existingGroup.pins);
       existingGroup.status = existingGroup.statuses[0] || pin.status;
-      existingGroup.title = `${existingGroup.pins.length} places`;
+      existingGroup.title = `${existingGroup.pins.length} trips`;
       return;
     }
 
@@ -569,6 +570,40 @@ function groupPinsByCoordinates(pins) {
   });
 
   return groupedPins;
+}
+
+function getGroupedPinTitle(pinGroup) {
+  const sharedBaseLabel = getSharedPinValue(pinGroup.pins, "baseLabel");
+
+  if (sharedBaseLabel && !isGenericBaseLabel(sharedBaseLabel)) {
+    return sharedBaseLabel;
+  }
+
+  return getSharedPinValue(pinGroup.pins, "placeLabel") || pinGroup.placeLabel || "Mapped place";
+}
+
+function getSharedPinValue(pins, key) {
+  const values = pins
+    .map((pin) => String(pin[key] || "").trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    return "";
+  }
+
+  const firstValue = values[0];
+  const normalizedFirstValue = normalizeLabel(firstValue);
+
+  return values.every((value) => normalizeLabel(value) === normalizedFirstValue) ? firstValue : "";
+}
+
+function isGenericBaseLabel(value) {
+  const normalizedValue = normalizeLabel(value);
+  return normalizedValue === "main base" || normalizedValue === "untitled base";
+}
+
+function normalizeLabel(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function getCoordinateGroupKey(pin) {
