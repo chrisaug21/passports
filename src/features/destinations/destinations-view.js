@@ -3,6 +3,7 @@ import { tripStore } from "../../state/trip-store.js";
 import { sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
+import { renderLocationSearchField } from "../shared/location-search.js";
 
 const BOARD_COLUMNS = [
   {
@@ -333,6 +334,13 @@ function renderCreateDestinationModal(destinationsPage) {
             <span>Description</span>
             <input name="description" type="text" maxlength="160" placeholder="Optional short note" />
           </label>
+
+          ${renderLocationSearchField({
+            idPrefix: "create-destination",
+            label: "Mapped Location",
+            required: true,
+            hint: "Search and choose the place that should appear on the map.",
+          })}
 
           <label class="field">
             <span>Photo</span>

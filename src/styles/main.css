@@ -6,5 +6,6 @@
 @import "./features/auth.css";
 @import "./features/dashboard.css";
 @import "./features/destinations.css";
+@import "./features/map.css";
 @import "./features/trip-detail.css";
 @import "./features/settings.css";

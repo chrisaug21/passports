@@ -6,6 +6,7 @@ The current foundation includes:
 - Supabase auth
 - dashboard and trip creation
 - destinations board for Wishlist, Planning, and Archive trips
+- destination map with base-level pins
 - trip detail pages
 - master list quick add and editing
 - base management
@@ -71,7 +72,8 @@ src/
   - base soft delete
   - trip delete
   - days view
-- Destinations: create and edit lightweight Wishlist entries, then promote them into planned trips
+- Destinations: create and edit lightweight Wishlist entries with mapped locations, then promote them into planned trips
+- Map: browse Wishlist, Planning, Active, and Archive bases as clustered pins
 
 ## Key Data Rules
 

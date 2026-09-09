@@ -14,6 +14,7 @@ import { fetchTripNotes } from "../../services/notes-service.js";
 import { DEFAULT_PHOTO_ASPECT_RATIO, openPhotoCropModal } from "../../lib/photo-upload.js";
 import { PHOTO_CONTEXTS, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
 import { isValidDateInput } from "../../lib/derive.js";
+import { getLocationSelection, wireLocationSearch } from "../shared/location-search.js";
 import { getSelectedDestination } from "./destinations-view.js";
 import { rerenderDestinations } from "./destinations-state.js";
 
@@ -178,6 +179,12 @@ export function wireCreateDestinationModal() {
     const targetYear = parseOptionalYear(formData.get("targetYear"));
     const targetMonth = targetYear ? parseOptionalMonth(formData.get("targetMonth")) : null;
     const photoFile = getSelectedPhotoFile(formData);
+    const location = getLocationSelection(form);
+
+    if (!location.locationName || !location.hasCoordinates) {
+      showToast("Search and choose a mapped location before adding.", "error");
+      return;
+    }
 
     appStore.updateDestinationsPage({ isCreatingDestination: true });
 
@@ -189,6 +196,9 @@ export function wireCreateDestinationModal() {
         description: String(formData.get("description") || "").trim(),
         targetYear,
         targetMonth,
+        locationName: location.locationName,
+        lat: location.lat,
+        lng: location.lng,
       });
       const destinationWithPhoto = await uploadDestinationPhotoSafely({
         destination: newDestination,
@@ -212,6 +222,8 @@ export function wireCreateDestinationModal() {
       rerenderDestinations();
     }
   });
+
+  wireLocationSearch(form);
 }
 
 export function wireDestinationDetailModal() {

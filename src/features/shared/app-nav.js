@@ -3,6 +3,7 @@ import { navigate } from "../../app/router.js";
 const NAV_ITEMS = [
   { id: "trips", label: "Trips", path: "/app", icon: "luggage" },
   { id: "destinations", label: "Destinations", path: "/app/destinations", icon: "map" },
+  { id: "map", label: "Map", path: "/app/map", icon: "map-pinned" },
   { id: "archive", label: "Archive", path: "/app/archive", icon: "archive" },
 ];
 

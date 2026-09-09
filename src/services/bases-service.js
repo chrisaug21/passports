@@ -28,6 +28,8 @@ export async function createTripBase({
   tripId,
   name,
   locationName,
+  lat = null,
+  lng = null,
   localTimezone,
   sortOrder,
 }) {
@@ -42,12 +44,14 @@ export async function createTripBase({
       trip_id: tripId,
       name,
       location_name: locationName || null,
+      lat,
+      lng,
       local_timezone: validatedTimezone,
       sort_order: sortOrder,
       created_at: now,
       updated_at: now,
     })
-    .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
+    .select("id, trip_id, name, location_name, lat, lng, local_timezone, sort_order, notes")
     .single();
 
   if (error) {
@@ -61,21 +65,29 @@ export async function updateTripBase({
   baseId,
   name,
   locationName,
+  lat,
+  lng,
   localTimezone,
 }) {
   const supabase = getSupabase();
   const validatedTimezone = getValidatedTimezone(localTimezone);
+  const patch = {
+    name,
+    location_name: locationName || null,
+    local_timezone: validatedTimezone,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof lat !== "undefined" && typeof lng !== "undefined") {
+    patch.lat = lat;
+    patch.lng = lng;
+  }
 
   const { data, error } = await supabase
     .from("trip_bases")
-    .update({
-      name,
-      location_name: locationName || null,
-      local_timezone: validatedTimezone,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("id", baseId)
-    .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
+    .select("id, trip_id, name, location_name, lat, lng, local_timezone, sort_order, notes")
     .single();
 
   if (error) {
@@ -97,4 +109,23 @@ export async function softDeleteTripBase(baseId) {
 
     throw error;
   }
+}
+
+export async function listBasesForTrips(tripIds) {
+  if (!Array.isArray(tripIds) || tripIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await getSupabase()
+    .from("trip_bases")
+    .select("id, trip_id, name, location_name, lat, lng, local_timezone, sort_order")
+    .in("trip_id", tripIds)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
 }
