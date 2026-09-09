@@ -377,10 +377,10 @@ function buildMapData({ trips, bases, selectedStatuses }) {
     }
 
     tripBases.forEach((base) => {
-      const lat = Number(base.lat);
-      const lng = Number(base.lng);
+      const lat = parseCoordinate(base.lat);
+      const lng = parseCoordinate(base.lng);
 
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      if (lat == null || lng == null) {
         missingLocations.push({ trip, base });
         return;
       }
@@ -422,6 +422,15 @@ function parsePins(value) {
   } catch (_error) {
     return [];
   }
+}
+
+function parseCoordinate(value) {
+  if (value == null || String(value).trim() === "") {
+    return null;
+  }
+
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : null;
 }
 
 function handleMapPopupClick(event) {
