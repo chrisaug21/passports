@@ -304,11 +304,20 @@ html.is-board-drag-active {
 }
 
 .destination-detail-photo {
+  /* The photo-hero image is position:absolute, so it contributes no in-flow
+     height for the parent grid's row sizing to measure — aspect-ratio alone
+     left the grid treating this row as zero-height and stacking the fields
+     below it right on top of the photo. padding-top establishes a real,
+     in-flow box height instead, so the grid sizes its row correctly. */
+  position: relative;
+  display: block;
   width: 100%;
+  aspect-ratio: auto;
+  height: 0;
+  padding-top: 66.6667%;
   border-radius: var(--radius-control);
   overflow: hidden;
   cursor: pointer;
-  display: block;
 }
 
 .destination-notes-panel {
@@ -394,8 +403,17 @@ html.is-board-drag-active {
   }
 
   .destinations-form-grid--compact {
-    grid-template-columns: 4.5rem minmax(0, 1fr);
+    grid-template-columns: 5.5rem minmax(0, 1fr);
     align-items: end;
+  }
+
+  .destinations-form-grid--compact .destinations-trip-length-input,
+  .destinations-form-grid--compact .destinations-date-input {
+    height: 3.25rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .destinations-trip-length-input {

@@ -897,7 +897,7 @@ function beginBoardDrag({ startEvent, card, columnEl, list }) {
       if (isReorderable) {
         await commitWishlistReorder(list);
       } else {
-        showToast("This trip has a date assigned. Change its dates to re-order it.");
+        showToast("This trip has a date assigned. Change its date to re-order it.");
       }
       return;
     }
