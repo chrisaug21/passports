@@ -230,6 +230,13 @@ async function commitWishlistReorder(list) {
     return;
   }
 
+  const previousSortOrders = new Map(
+    orderedTripIds.map((tripId) => [
+      tripId,
+      tripStore.getTrips().find((trip) => String(trip.id) === String(tripId))?.sort_order,
+    ])
+  );
+
   orderedTripIds.forEach((tripId, index) => {
     tripStore.updateTrip({ id: tripId, sort_order: index });
   });
@@ -238,6 +245,9 @@ async function commitWishlistReorder(list) {
     await reorderWishlistDestinations({ orderedTripIds });
   } catch (error) {
     console.error(error);
+    previousSortOrders.forEach((sortOrder, tripId) => {
+      tripStore.updateTrip({ id: tripId, sort_order: sortOrder });
+    });
     showToast("Could not save that order right now.", "error");
     rerenderDestinations();
   }
