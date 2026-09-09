@@ -6,7 +6,10 @@ import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../da
 import { showToast } from "../shared/toast.js";
 import {
   createDestination,
+  demoteTripToWishlist,
   promoteDestinationToTrip,
+  reorderWishlistDestinations,
+  softDeleteTrip,
   updateDestination,
 } from "../../services/trips-service.js";
 import { fetchTripNotes } from "../../services/notes-service.js";
@@ -57,7 +60,109 @@ export function renderDestinationsPage() {
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
       ${renderDestinationDetailModal(destinationsPage)}
+      ${renderPromoteDestinationModal(destinationsPage)}
+      ${renderDeleteDestinationConfirmModal(destinationsPage)}
+      ${renderBoardDemoteConfirmModal(destinationsPage)}
     </section>
+  `;
+}
+
+function renderPromoteDestinationModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.promotingDestinationId);
+
+  if (!destination) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-promote-destination></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Promote</p>
+            <h3>Turn "${escapeHtml(destination.title || "this destination")}" into a planned trip</h3>
+          </div>
+          <button class="icon-button" id="cancel-promote-destination" type="button" aria-label="Cancel promote" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>x</button>
+        </div>
+        <form class="create-trip-form" id="promote-destination-form">
+          <p class="muted">Add real dates and Passports will create the starter base and days.</p>
+          <div class="destinations-form-grid destinations-form-grid--compact">
+            <label class="field">
+              <span>Trip Length</span>
+              <input class="destinations-trip-length-input" name="promoteTripLength" type="number" min="1" max="60" value="7" required />
+            </label>
+            <label class="field">
+              <span>Start Date</span>
+              <input class="destinations-date-input" name="promoteStartDate" type="date" required />
+            </label>
+          </div>
+          <div class="modal-card__actions modal-card__actions--end">
+            <button class="button" type="submit" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
+              ${destinationsPage.isPromotingDestination ? "Promoting…" : "Promote to Planning"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderDeleteDestinationConfirmModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+
+  if (!destinationsPage.isShowingDeleteDestinationConfirm || !destination) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-delete-destination></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Delete</p>
+            <h3>${escapeHtml(destination.title || "Untitled destination")}</h3>
+          </div>
+        </div>
+        <p class="muted">This deletes ${escapeHtml(destination.title || "this destination")} from your Wishlist.</p>
+        <div class="modal-card__actions modal-card__actions--row">
+          <button class="button button--secondary" id="cancel-delete-destination" type="button">Cancel</button>
+          <button class="button button--danger" id="confirm-delete-destination" type="button" ${destinationsPage.isDeletingDestination ? "disabled" : ""}>
+            ${destinationsPage.isDeletingDestination ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderBoardDemoteConfirmModal(destinationsPage) {
+  const trip = getSelectedDestination(destinationsPage.demotingDestinationId);
+
+  if (!trip) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-demote-destination></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Move to Wishlist</p>
+            <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
+          </div>
+          <button class="icon-button" id="cancel-demote-destination" type="button" aria-label="Cancel move to Wishlist">x</button>
+        </div>
+        <p class="muted">This clears the trip's start date. Bases, days, items, notes, and photos all stay intact.</p>
+        <div class="modal-card__actions modal-card__actions--end">
+          <button class="button" id="confirm-demote-destination" type="button" ${destinationsPage.isDemotingDestination ? "disabled" : ""}>
+            ${destinationsPage.isDemotingDestination ? "Moving…" : "Move to Wishlist"}
+          </button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -161,6 +266,10 @@ function renderDestinationCard(trip) {
     : formatTripDateSummary(trip, { includeYear: trip.status === "done" });
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
   const shouldShowDate = trip.status !== "destinations" || hasDestinationTargetDate(trip);
+  const isUndatedWishlistCard = trip.status === "destinations" && !hasDestinationTargetDate(trip);
+  const isDatedWishlistCard = trip.status === "destinations" && !isUndatedWishlistCard;
+  const isPlanningCard = trip.status === "planning";
+  const isDraggableCard = isUndatedWishlistCard || isDatedWishlistCard || isPlanningCard;
 
   return `
     <article
@@ -171,6 +280,18 @@ function renderDestinationCard(trip) {
       tabindex="0"
       aria-label="Open ${tripTitle}"
     >
+      ${isDraggableCard ? `
+        <button
+          class="destination-card__drag-handle"
+          data-drag-handle
+          ${isUndatedWishlistCard ? 'data-reorderable="true"' : ""}
+          type="button"
+          aria-label="${isUndatedWishlistCard ? `Reorder ${tripTitle}` : `Drag ${tripTitle} to a different column`}"
+          tabindex="-1"
+        >
+          <i data-lucide="grip-vertical" aria-hidden="true"></i>
+        </button>
+      ` : ""}
       <div class="destination-card__media">
         ${safeCoverUrl ? `<img src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
       </div>
@@ -241,7 +362,10 @@ function renderCreateDestinationModal(destinationsPage) {
           <div class="destinations-form-grid">
             <label class="field">
               <span>Target Year</span>
-              <input name="targetYear" type="number" min="2026" max="2100" placeholder="2028" />
+              <select name="targetYear">
+                <option value="">No target year</option>
+                ${getWishlistTargetYearOptions().map((year) => renderYearOption(year)).join("")}
+              </select>
             </label>
 
             <label class="field">
@@ -309,15 +433,13 @@ function renderDestinationDetailModal(destinationsPage) {
           <input name="description" type="text" maxlength="160" value="${escapeHtml(destination.description || "")}" placeholder="Optional short note" />
         </label>
 
-        <label class="field">
-          <span>Photo</span>
-          <input name="photo" type="file" accept="image/*" />
-        </label>
-
         <div class="destinations-form-grid">
           <label class="field">
             <span>Target Year</span>
-            <input name="targetYear" type="number" min="2026" max="2100" value="${escapeHtml(destination.target_year || "")}" placeholder="2028" />
+            <select name="targetYear">
+              <option value="">No target year</option>
+              ${getWishlistTargetYearOptions().map((year) => renderYearOption(year, destination.target_year)).join("")}
+            </select>
           </label>
 
           <label class="field">
@@ -330,33 +452,19 @@ function renderDestinationDetailModal(destinationsPage) {
         </div>
 
         ${renderDestinationNotesPreview(destination, destinationsPage)}
-
-        <section class="destination-promote-panel">
-          <div>
-            <p class="eyebrow">Promote</p>
-            <h3>Turn this into a planned trip</h3>
-            <p class="muted">Add real dates and Passports will create the starter base and days.</p>
-          </div>
-          <div class="destinations-form-grid">
-            <label class="field">
-              <span>Trip Length</span>
-              <input name="promoteTripLength" type="number" min="1" max="60" value="7" />
-            </label>
-            <label class="field">
-              <span>Start Date</span>
-              <input name="promoteStartDate" type="date" />
-            </label>
-          </div>
-          <button class="button button--secondary" id="promote-destination" type="button" ${destinationsPage.isPromotingDestination ? "disabled" : ""}>
-            ${destinationsPage.isPromotingDestination ? "Promoting..." : "Promote to Planning"}
-          </button>
-        </section>
       </div>
 
       <div class="modal-card__actions modal-card__actions--sticky">
-        <button class="button button--secondary" id="close-destination-detail-footer" type="button">Close</button>
+        <div class="trip-settings-form__destructive-actions">
+          <button class="icon-button icon-button--danger" id="open-delete-destination-confirm" type="button" title="Delete" aria-label="Delete destination">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+          <button class="icon-button" id="open-promote-destination-modal" type="button" title="Promote to Planning" aria-label="Promote to Planning">
+            <i data-lucide="calendar-check" aria-hidden="true"></i>
+          </button>
+        </div>
         <button class="button" type="submit" ${destinationsPage.isSavingDestination ? "disabled" : ""}>
-          ${destinationsPage.isSavingDestination ? "Saving..." : "Save Changes"}
+          ${destinationsPage.isSavingDestination ? "Saving..." : "Save"}
         </button>
       </div>
     </form>
@@ -385,9 +493,11 @@ function renderDestinationPhotoField(destination) {
   const safeCoverUrl = sanitizeCoverUrl(destination.hero_photo_url || destination.cover_photo_url);
 
   return `
-    <div class="destination-detail-photo photo-hero">
-      ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : `<span class="photo-hero__empty-label">Add photo</span>`}
-    </div>
+    <label class="destination-detail-photo photo-hero" data-destination-photo-field>
+      <input class="sr-only" name="photo" type="file" accept="image/*" data-destination-photo-input />
+      <img class="photo-hero__image" ${safeCoverUrl ? `src="${escapeHtml(safeCoverUrl)}"` : ""} alt="" loading="lazy" decoding="async" data-destination-photo-preview ${safeCoverUrl ? "" : "hidden"} />
+      <span class="photo-hero__empty-label" data-destination-photo-empty-label ${safeCoverUrl ? "hidden" : ""}>Add photo</span>
+    </label>
   `;
 }
 
@@ -443,6 +553,16 @@ function renderMonthOption(month, selectedMonth = null) {
   return `<option value="${month}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
+function getWishlistTargetYearOptions() {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 16 }, (_value, index) => currentYear + index);
+}
+
+function renderYearOption(year, selectedYear = null) {
+  const isSelected = Number(selectedYear) === year;
+  return `<option value="${year}" ${isSelected ? "selected" : ""}>${year}</option>`;
+}
+
 export function wireDestinationsPage() {
   document.querySelector("#open-create-destination-modal")?.addEventListener("click", openCreateDestinationModal);
   document.querySelector("#retry-destinations-load")?.addEventListener("click", () => {
@@ -454,7 +574,15 @@ export function wireDestinationsPage() {
       openDestinationCard(card.getAttribute("data-trip-id"));
     };
 
-    card.addEventListener("click", openCard);
+    card.addEventListener("click", (event) => {
+      if (card.dataset.justDragged === "true") {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      openCard();
+    });
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -465,6 +593,8 @@ export function wireDestinationsPage() {
 
   wireCreateDestinationModal();
   wireDestinationDetailModal();
+  wireBoardDemoteConfirmModal();
+  wireBoardDragHandles();
 }
 
 export function loadDestinationsPage() {
@@ -524,8 +654,313 @@ function closeDestinationDetail() {
     selectedDestinationNotes: [],
     isSavingDestination: false,
     isPromotingDestination: false,
+    promotingDestinationId: null,
+    isShowingDeleteDestinationConfirm: false,
+    isDeletingDestination: false,
   });
   rerenderDestinations();
+}
+
+function openBoardDemoteConfirm(tripId) {
+  if (!tripId) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({
+    demotingDestinationId: tripId,
+    isDemotingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function openBoardPromoteModal(tripId) {
+  if (!tripId) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({ promotingDestinationId: tripId });
+  rerenderDestinations();
+}
+
+function closeBoardDemoteConfirm() {
+  appStore.updateDestinationsPage({
+    demotingDestinationId: null,
+    isDemotingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function wireBoardDemoteConfirmModal() {
+  document.querySelector("#cancel-demote-destination")?.addEventListener("click", closeBoardDemoteConfirm);
+  document.querySelector("[data-cancel-demote-destination]")?.addEventListener("click", closeBoardDemoteConfirm);
+  document.querySelector("#confirm-demote-destination")?.addEventListener("click", handleConfirmBoardDemote);
+}
+
+async function handleConfirmBoardDemote() {
+  const { demotingDestinationId } = appStore.getState().destinationsPage;
+  const trip = getSelectedDestination(demotingDestinationId);
+
+  if (!trip?.id) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isDemotingDestination: true });
+  rerenderDestinations();
+
+  try {
+    const demotedTrip = await demoteTripToWishlist({ tripId: trip.id });
+    tripStore.updateTrip(demotedTrip);
+    appStore.updateDestinationsPage({
+      demotingDestinationId: null,
+      isDemotingDestination: false,
+    });
+    showToast(`${trip.title || "Trip"} moved to Wishlist.`, "success");
+    rerenderDestinations();
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isDemotingDestination: false });
+    showToast("Could not move that trip to Wishlist right now.", "error");
+    rerenderDestinations();
+  }
+}
+
+// Wishlist cards can promote into Planning; Planning cards can demote into
+// Wishlist. Only undated Wishlist cards can reorder within their own column
+// (dated Wishlist cards and Planning cards are sorted by date, so dragging
+// them within their own column is a no-op). Mouse drags start immediately;
+// touch requires a brief hold so a normal horizontal-scroll swipe across the
+// board isn't mistaken for a drag.
+const BOARD_DRAG_CROSS_TARGET = new Map([
+  ["wishlist", "planning"],
+  ["planning", "wishlist"],
+]);
+
+function wireBoardDragHandles() {
+  document.querySelectorAll('[data-destination-column="wishlist"] [data-drag-handle], [data-destination-column="planning"] [data-drag-handle]').forEach((handle) => {
+    handle.addEventListener("click", (event) => event.stopPropagation());
+    handle.addEventListener("pointerdown", onBoardDragHandlePointerDown);
+  });
+}
+
+function onBoardDragHandlePointerDown(downEvent) {
+  const handle = downEvent.currentTarget;
+  const card = handle.closest("[data-destination-card]");
+  const columnEl = handle.closest("[data-destination-column]");
+  const list = columnEl?.querySelector(".destinations-column__cards");
+
+  if (!card || !columnEl || !list) {
+    return;
+  }
+
+  if (downEvent.pointerType === "mouse") {
+    beginBoardDrag({ startEvent: downEvent, card, columnEl, list });
+    return;
+  }
+
+  const startX = downEvent.clientX;
+  const startY = downEvent.clientY;
+  let didStartDrag = false;
+
+  const longPressTimer = setTimeout(() => {
+    didStartDrag = true;
+    beginBoardDrag({ startEvent: downEvent, card, columnEl, list });
+  }, 350);
+
+  const cancelPendingDrag = () => {
+    clearTimeout(longPressTimer);
+    handle.removeEventListener("pointermove", onEarlyMove);
+    handle.removeEventListener("pointerup", cancelPendingDrag);
+    handle.removeEventListener("pointercancel", cancelPendingDrag);
+  };
+
+  const onEarlyMove = (moveEvent) => {
+    if (didStartDrag) {
+      return;
+    }
+
+    if (Math.abs(moveEvent.clientX - startX) > 8 || Math.abs(moveEvent.clientY - startY) > 8) {
+      cancelPendingDrag();
+    }
+  };
+
+  handle.addEventListener("pointermove", onEarlyMove);
+  handle.addEventListener("pointerup", cancelPendingDrag);
+  handle.addEventListener("pointercancel", cancelPendingDrag);
+}
+
+// The dragged card floats at the pointer (position: fixed + a translate
+// offset) while a dashed placeholder holds its landing spot in the list, so
+// dragging reads as picking the card up rather than swapping slots outright.
+// Dropping over a different column never mutates data directly — it opens
+// the same Promote/Move-to-Wishlist modal the board already uses elsewhere,
+// and the card visually snaps back to its origin until that modal is confirmed.
+function beginBoardDrag({ startEvent, card, columnEl, list }) {
+  const pointerId = startEvent.pointerId;
+  const tripId = card.getAttribute("data-trip-id");
+  const originColumnId = columnEl.getAttribute("data-destination-column");
+  const isReorderable = card.dataset.reorderable === "true";
+  const startX = startEvent.clientX;
+  const startY = startEvent.clientY;
+  const rect = card.getBoundingClientRect();
+  const offsetX = startX - rect.left;
+  const offsetY = startY - rect.top;
+
+  const placeholder = document.createElement("div");
+  placeholder.className = "destination-card-placeholder";
+  placeholder.style.height = `${rect.height}px`;
+  list.insertBefore(placeholder, card.nextSibling);
+
+  document.documentElement.classList.add("is-board-drag-active");
+  card.dataset.justDragged = "true";
+  card.classList.add("is-dragging");
+  card.style.position = "fixed";
+  card.style.top = `${rect.top}px`;
+  card.style.left = `${rect.left}px`;
+  card.style.width = `${rect.width}px`;
+
+  card.setPointerCapture(pointerId);
+
+  let didMove = false;
+  let hoveredColumnId = originColumnId;
+  let dropTargetColumnEl = null;
+
+  const setDropTargetColumn = (nextColumnEl) => {
+    if (dropTargetColumnEl === nextColumnEl) {
+      return;
+    }
+
+    dropTargetColumnEl?.classList.remove("is-drop-target");
+    dropTargetColumnEl = nextColumnEl || null;
+    dropTargetColumnEl?.classList.add("is-drop-target");
+  };
+
+  const onPointerMove = (moveEvent) => {
+    card.style.top = `${moveEvent.clientY - offsetY}px`;
+    card.style.left = `${moveEvent.clientX - offsetX}px`;
+
+    if (!didMove && (Math.abs(moveEvent.clientX - startX) > 6 || Math.abs(moveEvent.clientY - startY) > 6)) {
+      didMove = true;
+    }
+
+    const hoveredColumnEl = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest("[data-destination-column]");
+    hoveredColumnId = hoveredColumnEl?.getAttribute("data-destination-column") || null;
+
+    if (hoveredColumnId === originColumnId) {
+      setDropTargetColumn(null);
+
+      if (isReorderable) {
+        updateReorderPlaceholder({ list, card, placeholder, pointerY: moveEvent.clientY });
+      }
+
+      return;
+    }
+
+    if (hoveredColumnEl && BOARD_DRAG_CROSS_TARGET.get(originColumnId) === hoveredColumnId) {
+      setDropTargetColumn(hoveredColumnEl);
+      return;
+    }
+
+    setDropTargetColumn(null);
+  };
+
+  const finishDrag = async () => {
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", finishDrag);
+    document.removeEventListener("pointercancel", finishDrag);
+
+    try {
+      card.releasePointerCapture(pointerId);
+    } catch {
+      // Already released (e.g. pointercancel fired first) — nothing to do.
+    }
+
+    document.documentElement.classList.remove("is-board-drag-active");
+    setDropTargetColumn(null);
+
+    list.insertBefore(card, placeholder);
+    placeholder.remove();
+
+    card.classList.remove("is-dragging");
+    card.style.position = "";
+    card.style.top = "";
+    card.style.left = "";
+    card.style.width = "";
+    setTimeout(() => {
+      delete card.dataset.justDragged;
+    }, 0);
+
+    if (!didMove) {
+      return;
+    }
+
+    if (hoveredColumnId === originColumnId) {
+      if (isReorderable) {
+        await commitWishlistReorder(list);
+      } else {
+        showToast("This trip has a date assigned. Change its date to re-order it.");
+      }
+      return;
+    }
+
+    if (BOARD_DRAG_CROSS_TARGET.get(originColumnId) === hoveredColumnId) {
+      if (originColumnId === "wishlist") {
+        openBoardPromoteModal(tripId);
+      } else if (originColumnId === "planning") {
+        openBoardDemoteConfirm(tripId);
+      }
+    }
+  };
+
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", finishDrag);
+}
+
+function updateReorderPlaceholder({ list, card, placeholder, pointerY }) {
+  const reorderableSiblings = Array.from(list.children).filter(
+    (child) => child !== placeholder && child !== card && child.querySelector?.('[data-reorderable="true"]')
+  );
+
+  let insertBeforeEl = null;
+
+  for (const sibling of reorderableSiblings) {
+    const siblingRect = sibling.getBoundingClientRect();
+
+    if (pointerY < siblingRect.top + siblingRect.height / 2) {
+      insertBeforeEl = sibling;
+      break;
+    }
+  }
+
+  if (insertBeforeEl) {
+    if (insertBeforeEl !== placeholder.nextSibling) {
+      list.insertBefore(placeholder, insertBeforeEl);
+    }
+  } else if (placeholder !== list.lastElementChild) {
+    list.appendChild(placeholder);
+  }
+}
+
+async function commitWishlistReorder(list) {
+  const orderedTripIds = Array.from(list.children)
+    .filter((child) => child.querySelector('[data-reorderable="true"]'))
+    .map((child) => child.getAttribute("data-trip-id"));
+
+  if (orderedTripIds.length < 2) {
+    return;
+  }
+
+  orderedTripIds.forEach((tripId, index) => {
+    tripStore.updateTrip({ id: tripId, sort_order: index });
+  });
+
+  try {
+    await reorderWishlistDestinations({ orderedTripIds });
+  } catch (error) {
+    console.error(error);
+    showToast("Could not save that order right now.", "error");
+    rerenderDestinations();
+  }
 }
 
 function wireCreateDestinationModal() {
@@ -591,7 +1026,6 @@ function wireDestinationDetailModal() {
   const form = document.querySelector("#destination-detail-form");
 
   document.querySelector("#close-destination-detail-modal")?.addEventListener("click", closeDestinationDetail);
-  document.querySelector("#close-destination-detail-footer")?.addEventListener("click", closeDestinationDetail);
   document.querySelector("[data-close-destination-detail]")?.addEventListener("click", closeDestinationDetail);
   document.querySelector("[data-open-destination-notes]")?.addEventListener("click", (event) => {
     const destinationId = event.currentTarget.getAttribute("data-open-destination-notes");
@@ -605,14 +1039,90 @@ function wireDestinationDetailModal() {
       navigate(`/app/trip/${destinationId}/notes`);
     }
   });
-  document.querySelector("#promote-destination")?.addEventListener("click", () => {
-    handlePromoteDestination(form);
-  });
 
   form?.addEventListener("submit", (event) => {
     event.preventDefault();
     handleSaveDestination(form);
   });
+
+  wireDestinationPhotoField(form);
+
+  document.querySelector("#open-delete-destination-confirm")?.addEventListener("click", () => {
+    appStore.updateDestinationsPage({ isShowingDeleteDestinationConfirm: true });
+    rerenderDestinations();
+  });
+  document.querySelector("#cancel-delete-destination")?.addEventListener("click", closeDeleteDestinationConfirm);
+  document.querySelector("[data-cancel-delete-destination]")?.addEventListener("click", closeDeleteDestinationConfirm);
+  document.querySelector("#confirm-delete-destination")?.addEventListener("click", handleConfirmDeleteDestination);
+
+  document.querySelector("#open-promote-destination-modal")?.addEventListener("click", () => {
+    const destinationId = appStore.getState().destinationsPage.selectedDestinationId;
+    appStore.updateDestinationsPage({ promotingDestinationId: destinationId });
+    rerenderDestinations();
+  });
+  document.querySelector("#cancel-promote-destination")?.addEventListener("click", closePromoteDestinationModal);
+  document.querySelector("[data-cancel-promote-destination]")?.addEventListener("click", closePromoteDestinationModal);
+  document.querySelector("#promote-destination-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handlePromoteDestination(event.currentTarget);
+  });
+}
+
+function closeDeleteDestinationConfirm() {
+  appStore.updateDestinationsPage({
+    isShowingDeleteDestinationConfirm: false,
+    isDeletingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function closePromoteDestinationModal() {
+  appStore.updateDestinationsPage({
+    promotingDestinationId: null,
+    isPromotingDestination: false,
+  });
+  rerenderDestinations();
+}
+
+function wireDestinationPhotoField(form) {
+  const input = form?.querySelector("[data-destination-photo-input]");
+  const preview = form?.querySelector("[data-destination-photo-preview]");
+  const emptyLabel = form?.querySelector("[data-destination-photo-empty-label]");
+
+  input?.addEventListener("change", () => {
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    preview.src = URL.createObjectURL(file);
+    preview.hidden = false;
+    emptyLabel.hidden = true;
+  });
+}
+
+async function handleConfirmDeleteDestination() {
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+
+  if (!destination?.id) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isDeletingDestination: true });
+  rerenderDestinations();
+
+  try {
+    await softDeleteTrip(destination.id);
+    tripStore.removeTrip(destination.id);
+    closeDestinationDetail();
+    showToast(`${destination.title || "Destination"} deleted.`, "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isDeletingDestination: false });
+    showToast("Could not delete that destination right now.", "error");
+    rerenderDestinations();
+  }
 }
 
 async function handleSaveDestination(form) {
@@ -653,9 +1163,8 @@ async function handleSaveDestination(form) {
     });
 
     tripStore.updateTrip(destinationWithPhoto);
-    appStore.updateDestinationsPage({ isSavingDestination: false });
     showToast(didPhotoFail ? "Destination saved, but the photo did not save." : "Destination saved.", didPhotoFail ? "error" : "success");
-    rerenderDestinations();
+    closeDestinationDetail();
   } catch (error) {
     console.error(error);
     appStore.updateDestinationsPage({ isSavingDestination: false });
@@ -665,20 +1174,18 @@ async function handleSaveDestination(form) {
 }
 
 async function handlePromoteDestination(form) {
-  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
-  const { session } = sessionStore.getState();
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.promotingDestinationId);
 
-  if (!form || !destination?.id || !session?.user?.id) {
+  if (!form || !destination?.id) {
     return;
   }
 
   const formData = new FormData(form);
-  const values = getDestinationFormValues(formData);
   const tripLength = Number(formData.get("promoteTripLength"));
   const startDate = String(formData.get("promoteStartDate") || "").trim();
 
-  if (!values.title || !Number.isInteger(tripLength) || tripLength < 1 || !isValidDateInput(startDate)) {
-    showToast("Add a title, trip length, and valid start date before promoting.", "error");
+  if (!Number.isInteger(tripLength) || tripLength < 1 || !isValidDateInput(startDate)) {
+    showToast("Add a trip length and a valid start date before promoting.", "error");
     return;
   }
 
@@ -686,32 +1193,17 @@ async function handlePromoteDestination(form) {
   rerenderDestinations();
 
   try {
-    let didPhotoFail = false;
     const promotedTrip = await promoteDestinationToTrip({
       tripId: destination.id,
-      title: values.title,
-      description: values.description,
+      title: destination.title,
+      description: destination.description,
       tripLength,
       startDate,
     });
-    const promotedTripWithPhoto = await uploadDestinationPhotoSafely({
-      destination: promotedTrip,
-      file: getSelectedPhotoFile(formData),
-      userId: session.user.id,
-      onPhotoFailure: () => {
-        didPhotoFail = true;
-      },
-    });
 
-    tripStore.updateTrip(promotedTripWithPhoto);
-    appStore.updateDestinationsPage({
-      selectedDestinationId: null,
-      destinationDetailStatus: "idle",
-      selectedDestinationNotes: [],
-      isPromotingDestination: false,
-    });
-    navigate(`/app/trip/${promotedTrip.id}`);
-    showToast(didPhotoFail ? "Trip promoted, but the photo did not save." : "Destination promoted to Planning.", didPhotoFail ? "error" : "success");
+    tripStore.updateTrip(promotedTrip);
+    closeDestinationDetail();
+    showToast("Destination promoted to Planning.", "success");
   } catch (error) {
     console.error(error);
     appStore.updateDestinationsPage({ isPromotingDestination: false });

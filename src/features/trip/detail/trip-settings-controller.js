@@ -3,6 +3,7 @@ import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { sessionStore } from "../../../state/session-store.js";
 import {
+  demoteTripToWishlist,
   moveItemsToNextTrip,
   softDeleteTrip,
   updateTripSettings,
@@ -254,7 +255,16 @@ export function renderTripSettingsForm(trip, isSaving) {
           </div>
 
           <div class="modal-card__actions modal-card__actions--sticky">
-            <button class="button-link button-link--danger" id="open-delete-trip-confirm-footer" type="button">Delete Trip</button>
+            <div class="trip-settings-form__destructive-actions">
+              <button class="icon-button icon-button--danger" id="open-delete-trip-confirm-footer" type="button" title="Delete Trip" aria-label="Delete Trip">
+                <i data-lucide="trash-2" aria-hidden="true"></i>
+              </button>
+              ${trip.status === "planning" ? `
+                <button class="icon-button" id="open-demote-to-wishlist-confirm" type="button" title="Move to Wishlist" aria-label="Move to Wishlist">
+                  <i data-lucide="bookmark" aria-hidden="true"></i>
+                </button>
+              ` : ""}
+            </div>
             <button class="button" type="submit" ${isSaving ? "disabled" : ""}>${isSaving ? "Saving…" : "Save Changes"}</button>
           </div>
         </form>
@@ -309,6 +319,31 @@ export function renderDeleteTripConfirmModal({ trip, isOpen, isDeleting }) {
         <div class="modal-card__actions">
           <button class="button button--secondary" id="cancel-delete-trip" type="button">Cancel</button>
           <button class="button button--danger" id="confirm-delete-trip" type="button" ${isDeleting ? "disabled" : ""}>${isDeleting ? "Deleting…" : "Delete Trip"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+export function renderDemoteToWishlistConfirmModal({ trip, isOpen, isDemoting }) {
+  if (!isOpen || !trip) {
+    return "";
+  }
+
+  return `
+    <div class="modal-shell" aria-hidden="false">
+      <div class="modal-backdrop" data-cancel-demote-to-wishlist></div>
+      <section class="panel modal-card modal-card--confirm">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Move to Wishlist</p>
+            <h3>${escapeHtml(trip.title || "Untitled trip")}</h3>
+          </div>
+        </div>
+        <p class="muted">This clears the trip's start date. Bases, days, items, notes, and photos all stay intact.</p>
+        <div class="modal-card__actions">
+          <button class="button button--secondary" id="cancel-demote-to-wishlist" type="button">Cancel</button>
+          <button class="button" id="confirm-demote-to-wishlist" type="button" ${isDemoting ? "disabled" : ""}>${isDemoting ? "Moving…" : "Move to Wishlist"}</button>
         </div>
       </section>
     </div>
@@ -552,6 +587,47 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         });
         rerenderTripDetail();
         showToast(getTripItemErrorMessage("moveToNextTrip"), "error");
+      }
+    },
+    onOpenDemoteToWishlistConfirm: () => {
+      appStore.updateTripDetail({
+        showDemoteToWishlistConfirm: true,
+      });
+      rerenderTripDetail();
+    },
+    onCancelDemoteToWishlistConfirm: () => {
+      appStore.updateTripDetail({
+        showDemoteToWishlistConfirm: false,
+        isDemotingTrip: false,
+      });
+      rerenderTripDetail();
+    },
+    onConfirmDemoteToWishlist: async () => {
+      const trip = tripStore.getCurrentTrip();
+
+      if (!trip?.id) {
+        return;
+      }
+
+      appStore.updateTripDetail({
+        isDemotingTrip: true,
+      });
+      rerenderTripDetail();
+
+      try {
+        const demotedTrip = await demoteTripToWishlist({ tripId: trip.id });
+        tripStore.updateTrip(demotedTrip);
+        tripStore.resetCurrentTrip();
+        appStore.resetTripDetail();
+        navigate("/app/destinations");
+        showToast(`${getDisplayTitleForToast(demotedTrip.title, "Trip")} moved to Wishlist.`, "success");
+      } catch (error) {
+        console.error(error);
+        appStore.updateTripDetail({
+          isDemotingTrip: false,
+        });
+        rerenderTripDetail();
+        showToast(getTripItemErrorMessage("demoteToWishlist"), "error");
       }
     },
   };

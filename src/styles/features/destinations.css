@@ -38,6 +38,12 @@
   gap: 1rem;
   align-items: start;
   padding-bottom: 0.25rem;
+  /* A long-press to pick up a card for dragging can otherwise register as a
+     text-selection gesture on nearby column header text (most visibly the
+     next column's header, since that's where a cross-column drag heads). */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .destinations-column {
@@ -48,6 +54,14 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+/* Shown while a card from another column is dragged over this one as a
+   valid promote/demote target (see BOARD_DRAG_CROSS_TARGET in destinations-page.js). */
+.destinations-column.is-drop-target {
+  border-color: var(--color-action);
+  background: var(--color-action-tint);
 }
 
 .destinations-column__header {
@@ -85,6 +99,7 @@
 }
 
 .destination-card {
+  position: relative;
   min-width: 0;
   min-height: 68px;
   border: 1px solid var(--color-border-card);
@@ -96,6 +111,10 @@
   display: grid;
   grid-template-columns: 60px minmax(0, 1fr);
   transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .destination-card:hover {
@@ -107,6 +126,58 @@
 .destination-card:focus-visible {
   outline: 2px solid var(--color-structure-tint);
   outline-offset: 3px;
+}
+
+.destination-card.is-dragging {
+  z-index: 1000;
+  box-shadow: var(--shadow-panel);
+  transform: scale(1.03) rotate(-1deg);
+  cursor: grabbing;
+  pointer-events: none;
+}
+
+.destination-card-placeholder {
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-translucent-surface);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Suppresses page-level edge gestures (rubber-band, peek/shrink previews) while a
+   card is being dragged, which otherwise fight with the pointer-based drag on iOS. */
+html.is-board-drag-active {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.destination-card__drag-handle {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.destination-card__drag-handle svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
 }
 
 .destination-card__media {
@@ -201,6 +272,16 @@
   box-sizing: border-box;
 }
 
+.destinations-date-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.modal-card__actions--row {
+  flex-direction: row;
+  align-items: center;
+}
+
 #create-destination-form input[type="file"] {
   width: 100%;
   min-height: var(--touch-target);
@@ -229,13 +310,23 @@
 }
 
 .destination-detail-photo {
-  min-height: 180px;
+  /* The photo-hero image is position:absolute, so it contributes no in-flow
+     height for the parent grid's row sizing to measure — aspect-ratio alone
+     left the grid treating this row as zero-height and stacking the fields
+     below it right on top of the photo. padding-top establishes a real,
+     in-flow box height instead, so the grid sizes its row correctly. */
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: auto;
+  height: 0;
+  padding-top: 66.6667%;
   border-radius: var(--radius-control);
   overflow: hidden;
+  cursor: pointer;
 }
 
-.destination-notes-panel,
-.destination-promote-panel {
+.destination-notes-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface-subtle);
@@ -249,6 +340,10 @@
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.destination-notes-panel__header .eyebrow {
+  margin-bottom: 0.15rem;
 }
 
 .destination-notes-panel__header .button {
@@ -276,10 +371,6 @@
 .destination-note-preview p {
   color: var(--color-text-muted);
   font-size: 0.85rem;
-}
-
-.destination-promote-panel h3 {
-  font-size: 1rem;
 }
 
 @media (max-width: 900px) {
@@ -315,6 +406,25 @@
 
   .destinations-form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .destinations-form-grid--compact {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .destinations-form-grid--compact .destinations-trip-length-input,
+  .destinations-form-grid--compact .destinations-date-input {
+    height: 3.25rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .destinations-trip-length-input {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
   }
 
   .destination-notes-panel__header {

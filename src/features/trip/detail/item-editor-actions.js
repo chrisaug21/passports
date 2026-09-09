@@ -35,6 +35,7 @@ export function getTripItemErrorMessage(action = "update") {
     tripDelete: "Could not delete that trip right now. Please try again.",
     tripUpdate: "Could not update that trip right now. Please try again.",
     moveToNextTrip: "Could not move those items right now. Please try again.",
+    demoteToWishlist: "Could not move that trip to Wishlist right now. Please try again.",
   };
 
   return messages[action] || "Something went wrong. Please try again.";

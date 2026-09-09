@@ -378,6 +378,71 @@ export async function promoteDestinationToTrip({ tripId, title, description, tri
   return reconciledTrip;
 }
 
+export async function demoteTripToWishlist({ tripId }) {
+  const supabase = getSupabase();
+  const { data: topWishlistRows, error: topWishlistError } = await supabase
+    .from("trips")
+    .select("sort_order")
+    .eq("status", "destinations")
+    .is("target_year", null)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .limit(1);
+
+  if (topWishlistError) {
+    throw topWishlistError;
+  }
+
+  const nextSortOrder = (Number(topWishlistRows?.[0]?.sort_order) || 0) - 1;
+
+  const { data, error } = await supabase
+    .from("trips")
+    .update({
+      status: "destinations",
+      start_date: null,
+      sort_order: nextSortOrder,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tripId)
+    .eq("status", "planning")
+    .is("deleted_at", null)
+    .select(TRIP_ROW_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function reorderWishlistDestinations({ orderedTripIds }) {
+  if (!Array.isArray(orderedTripIds) || orderedTripIds.length === 0) {
+    return;
+  }
+
+  const supabase = getSupabase();
+  const now = new Date().toISOString();
+
+  const results = await Promise.all(
+    orderedTripIds.map((tripId, index) =>
+      supabase
+        .from("trips")
+        .update({ sort_order: index, updated_at: now })
+        .eq("id", tripId)
+        .eq("status", "destinations")
+        .is("target_year", null)
+        .is("deleted_at", null)
+    )
+  );
+
+  const failedResult = results.find((result) => result.error);
+
+  if (failedResult) {
+    throw failedResult.error;
+  }
+}
+
 export async function fetchTripDetailBundle(tripId) {
   const supabase = getSupabase();
 

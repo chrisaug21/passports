@@ -13,6 +13,7 @@ import {
 import { tripDetailState } from "./trip-detail-state.js";
 import {
   renderDeleteTripConfirmModal,
+  renderDemoteToWishlistConfirmModal,
   renderMoveToNextTripConfirmModal,
   renderTripSettingsForm,
   renderTripSettingsSummary,
@@ -293,6 +294,11 @@ export function renderTripDetailPageView() {
         isMoving: tripDetail.isMovingToNextTrip,
         unassignedCount: items.filter((item) => !item.day_id).length,
         notDoneCount: items.filter((item) => !item.is_done).length,
+      })}
+      ${renderDemoteToWishlistConfirmModal({
+        trip,
+        isOpen: tripDetail.showDemoteToWishlistConfirm,
+        isDemoting: tripDetail.isDemotingTrip,
       })}
       ${renderTimezoneOptionsDatalist()}
       ${renderMembersModal()}

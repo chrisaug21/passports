@@ -1,39 +1,40 @@
 # Destinations — Spec (Board + Map)
 
-**Status:** Board core is implemented in `chrisaug21/passports` PR #63 on branch `ca/destinations-board-core`. Phase 0 and the navigation reshuffle are already merged. PR #63 is mergeable after conflict resolution and is now the current destination-board baseline. The next phase should start from this branch/PR if it is still open, or from `main` after PR #63 merges.
+**Status:** Board core, the Wishlist detail/edit experience, and board movement/interactions are all shipped (`chrisaug21/passports` PR #63, then PR #65, then PR #68). The Map phase is next and not yet started.
 
-**Progress:** Phase 0 shipped and merged in PR #61. Navigation shipped and merged in PR #62. Board core is implemented in PR #63, including the database migration, `/app/destinations` board UI, lightweight Wishlist destination creation, optional destination photo upload, compact responsive cards, and the agreed 3-column board model. Map, Wishlist detail depth, drag-and-drop moves, and destination-specific edit/detail views are intentionally still next-phase work.
+**Progress:** Phase 0 shipped and merged in PR #61. Navigation shipped and merged in PR #62. Board core shipped in PR #63. Wishlist destination detail modal — editing, notes preview, promote-to-Planning — shipped in PR #65. Board movement/interactions — Wishlist drag-to-reorder, cross-column drag (Wishlist ↔ Planning), and Planning → Wishlist demotion from the trip settings modal — shipped in PR #68. Map and destination-specific edit views beyond the Wishlist detail modal are still ahead.
 
 **Audience:** A fresh Claude Code session with no memory of the design conversation. Read this whole document before writing any code.
 
-## Current Handoff — After Board Core
+## Current Handoff — After Board Movement/Interactions (PR #68)
 
-PR #63 implements the first real Destinations surface:
+The board (`/app/destinations`, `src/features/destinations/destinations-page.js`) now supports the full Wishlist lifecycle, including movement between columns:
 
-- `/app/destinations` now renders a horizontal board with **Wishlist**, **Planning**, and **Archive** columns.
-- `active` trips are intentionally collapsed into **Planning**. They are rare and short-lived, so they do not get a dedicated board column.
-- Mobile keeps the columns side by side in a horizontal scroll container instead of stacking them. This preserves the mental model of a board and avoids tap-based drag/drop being required in this PR.
-- Destination cards are compact horizontal cards with a small cropped image, full wrapping title, plain date text, and a `Starting soon` pill when applicable.
-- Cards no longer show status pills, trip descriptions, explicit promote/open/wishlist buttons, or a `Someday` label for undated Wishlist entries.
-- The create-destination modal supports title, optional description, optional target year/month, and optional uploaded photo. Photo upload reuses the existing cropper and trip-level primary photo path.
-- Wishlist target dates now display month + year when month exists, and no longer fall back to the old browser `Dec 1899` artifact.
-- Clicking any card still opens the existing trip route. For Wishlist cards, this currently opens the full Plan view, which is a known gap for the next PR.
+- Three columns — **Wishlist**, **Planning** (includes `active`), **Archive** — with compact cards (cropped cover image, wrapping title, plain date text, `Starting soon` pill on Planning cards within 14 days of `start_date`).
+- Mobile keeps columns side by side in a horizontal scroll container rather than stacking them.
+- Lightweight creation (title required; description, target year/month, and cover photo optional) via `createDestination()` in `src/services/trips-service.js`.
+- Clicking a Wishlist card opens a detail modal (not the full Plan view) that supports editing title/description/target year-month/photo (`updateDestination()`), a notes preview linking into the full Notes page, and **Promote to Planning** (`promoteDestinationToTrip()`) — prompts for trip length and start date, then scaffolds bases/days like normal trip creation.
+- Clicking a Planning card opens the full Plan view (Guide/Itinerary if `active`); clicking an Archive card opens Guide/Journal.
+- Undated Wishlist cards can be dragged to reorder within the Wishlist column; dragging a Wishlist card into Planning or a Planning card into Wishlist opens the existing promote/demote confirmation flow rather than moving the card directly. See "Board movement/interactions — shipped in PR #68" below for the full mechanics.
+- Schema migration is checked in at `sql/add_destination_board_fields.sql`, already run against the remote Supabase database. `trips` fields used by the board: `target_year`, `target_month`, `sort_order`.
 
-Important implementation notes:
+Recommended next PR — the **Map** phase: base coordinates, geocoded location typeahead, Leaflet board/map toggle, and clustered status-filtered pins (see "Map view" below).
 
-- Schema migration is checked in at `sql/add_destination_board_fields.sql` and has already been run against the remote Supabase database.
-- New `trips` fields used by the board: `target_year`, `target_month`, and `sort_order`.
-- `createDestination()` lives in `src/services/trips-service.js` and inserts a lightweight `trips` row with `status = "destinations"` and `trip_length = 1`.
-- Deferred service helpers for moving/promoting/reordering were removed from PR #63 after Codacy review because they were unused in this PR. Re-add them in the drag/drop PR when the UI actually calls them.
-- Remaining Codacy noise observed on PR #63 was a stylelint configuration warning on `src/styles/features/destinations.css` (`scss_function-disallowed-list` vs `function-disallowed-list`), not an actionable app-code issue.
+## Board movement/interactions — shipped in PR #68
 
-Recommended next PR:
+**Wishlist reordering (undated cards only), via a unified pointer-based drag.** Cards with a target date sort chronologically among themselves; only cards with no target date are manually reorderable, per the existing sort rule below. Rather than the browser's native HTML5 drag-and-drop API, both mouse and touch share one Pointer Events–based drag implementation (`beginBoardDrag` in `destinations-page.js`): a mouse drag starts immediately on pointerdown, while touch adds a ~350ms hold before arming the drag, so an ordinary horizontal swipe across the board isn't mistaken for picking up a card. On drop, `reorderWishlistDestinations()` (new bulk-write function in `trips-service.js`) persists `sort_order` for the affected undated cards.
 
-1. Build the lightweight Wishlist destination detail/edit view so a Wishlist card does not open the full trip Plan view.
-2. Add safe edit controls for Wishlist fields: title, description, target year/month, photo, and any early notes/backlog UI that fits the phase.
-3. Add drag/drop or otherwise intuitive status movement/order controls after the detail/edit shape is clear.
-4. When implementing Planning -> Wishlist demotion, show a confirmation modal because `start_date` will be cleared; keep `trip_length`, bases, days, items, notes, and photos intact.
-5. After that, start the Map PR: base coordinates, geocoded location typeahead, Leaflet board/map toggle, and clustered status-filtered pins.
+**Cross-column drag was added, and reconciles with the promotion/demotion flows rather than bypassing them.** This was explicitly out of scope in the original plan for this phase, on the assumption a drag gesture couldn't replace the promote modal's trip-length/start-date prompt. It shipped anyway, but as a drag-to-*open the existing modal* gesture, not a drag-to-directly-change-status gesture: dragging a Wishlist card onto Planning opens the same trip-length/start-date promote modal described below; dragging a Planning card onto Wishlist opens the same demote confirmation described below. If the drop is cancelled, the card visually snaps back to its origin column. This also absorbed the "second, equivalent entry point on the board" called for below — there's no separate quick-action button on Planning cards, since the drag gesture itself now serves that purpose.
+
+**A drag handle (grip icon) appears on every card that supports some form of drag** — undated Wishlist (reorder + cross-column), dated Wishlist (cross-column only, since chronological sort makes in-column reorder a no-op), and Planning (cross-column only) — not only on undated cards as originally planned. Its accessible label distinguishes the two purposes ("Reorder {title}" vs. "Drag {title} to a different column"). Dragging a dated Wishlist card within its own column shows a toast ("This trip has a date assigned. Change its date to re-order it.") instead of silently doing nothing.
+
+**Planning → Wishlist demotion, as a settings-modal action next to Delete Trip — shipped as planned.** Both live as icon-only destructive-style actions in the trip settings modal's sticky action row (`src/features/trip/detail/trip-settings-controller.js`):
+- Delete Trip is now an icon-only button (trash icon), replacing the old text link.
+- "Move to Wishlist" (bookmark icon) sits next to it, shown only when `trip.status === "planning"`.
+- Both confirm via a modal matching the existing Delete Trip / Move to Next Trip pattern; the Move to Wishlist confirm warns only that the trip's dates will be cleared (bases, days, items, notes, and photos all stay intact).
+- `demoteTripToWishlist()` (new function in `trips-service.js`) sets `status = 'destinations'`, clears `start_date`, and places the trip at the **top** of the undated-Wishlist group (lower `sort_order` than the current minimum) — a demoted trip reads as a recent return to the list, not buried under long-standing someday ideas. The board's drag-triggered demote confirm calls the same function; it's a separate, near-duplicate modal implementation in `destinations-page.js` rather than a shared component, since the two live in very different rendering contexts (full trip settings form vs. the board).
+
+**Manual Archive movement is still out of scope**, unchanged from the original plan — still purely date-driven per Phase 0 (a `done` trip already reopens automatically if its dates move back into the future).
 
 ## Why this exists
 
@@ -80,9 +81,9 @@ On `trip_bases` (Phase B): **`lat`**/**`lng`** (numeric, nullable) — one pin p
 
 Columns, left to right: **Wishlist** (`status = 'destinations'`) → **Planning** (`status = 'planning'` or `active`) → **Archive** (`status = 'done'`).
 
-**Manual movement is deferred.** The board currently opens cards but does not include drag/drop, promote/demote buttons, or manual reordering controls. That was an intentional review decision: the compact visual model should not be bent around temporary controls that will be replaced by better drag/drop or column-management UX in the next PR.
+**Manual movement — drag-to-reorder and cross-column drag — shipped in PR #68.** See "Board movement/interactions — shipped in PR #68" below for the full mechanics.
 
-**Wishlist → Planning is still the key manual transition for a future PR.** That's the moment of commitment — dragging a card out of Wishlist should trigger the same "new trip" prompt (trip length, start date) that trip creation uses today, run the same base/day auto-scaffolding, and flip `status` to `planning`.
+**Wishlist → Planning is the key manual transition.** Dragging a card out of Wishlist onto Planning opens the same "new trip" prompt (trip length, start date) that trip creation uses today, runs the same base/day auto-scaffolding, and flips `status` to `planning`.
 
 **Planning → Active → Archive are still date-driven.** These reflect real date-based progress, not a manual toggle a user could contradict — enforced by Phase 0, not by the board's own UI. `active` is displayed inside Planning instead of its own column.
 
@@ -126,7 +127,7 @@ The guiding line: **Wishlist is about deciding and dreaming; Planning is about e
 
 **Surfacing the backlog on the card itself is deferred.** A future Wishlist card with attached items should show a count (e.g. "12 ideas saved"). Tapping/clicking it can peek at item titles — a simple inline expand, bottom sheet, popover, or lightweight destination detail affordance, but not hover-only. This should be revisited with the next PR's destination-specific detail/edit view.
 
-**Status can move backward (Planning → Wishlist), but it needs a confirmation modal.** Demoting should flip `status` to `destinations` and clear `start_date` so it does not read as a stale commitment next to the target-date fields. Clearing `start_date` is data loss from the user's point of view, so warn and confirm before doing it. Keep `trip_length`, bases, days, items, notes, and photos intact. `day_number` has no dependency on real dates already, so nothing breaks by moving back and forth.
+**Status can move backward (Planning → Wishlist)** — see "Board movement/interactions — shipped in PR #68" above for the entry points and confirmation flow. `day_number` has no dependency on real dates already, so nothing breaks by moving back and forth.
 
 **"Move to Next Trip" should be able to target Wishlist, not just a full trip.** Checked the actual implementation ([trips-service.js:571](src/services/trips-service.js#L571), `moveItemsToNextTrip`) — today it always creates a `status: "planning"` trip, recreates matching bases with full day-scaffolding, and remaps carried-over items onto those bases. A "send to Wishlist instead" option is a small variant of the same function, not a new mechanism: create the new trip with `status: "destinations"`, create the same candidate bases *without* day-scaffolding, and attach the carried-over items to those bases with `day_id` left null — the exact backlog shape described above. ("Someday we'll go back to England and do the stuff we missed" becomes a real Wishlist card with its own leftover idea-backlog attached.) `insertTripRow` already accepts a `status` parameter after PR #63.
 
