@@ -429,24 +429,33 @@ function renderGroupedPinPopup(pinGroup) {
       <p class="eyebrow">${pinGroup.pins.length} Trips</p>
       <h3>${escapeHtml(getGroupedPinTitle(pinGroup))}</h3>
       <div class="map-popup__list">
-        ${pinGroup.pins.map((pin) => renderPopupTripCard(pin)).join("")}
+        ${pinGroup.pins.map((pin) => renderPopupTripCard(pin, { isGrouped: true })).join("")}
       </div>
     </article>
   `;
 }
 
-function renderPopupTripCard(pin) {
+function renderPopupTripCard(pin, options = {}) {
+  const isGrouped = options.isGrouped === true;
+  const primaryLabel = isGrouped ? pin.title : getSinglePinPlaceLabel(pin);
+  const secondaryLabel = isGrouped ? pin.baseName : pin.title;
+
   return `
     <article class="map-popup__trip-card">
       ${renderPopupTripPhoto(pin)}
       <div class="map-popup__trip-copy">
-        <h4>${escapeHtml(pin.title)}</h4>
-        ${pin.baseName ? `<p>${escapeHtml(pin.baseName)}</p>` : ""}
+        <h4>
+          ${escapeHtml(primaryLabel)}
+          ${isGrouped ? `<span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>` : ""}
+        </h4>
+        ${secondaryLabel ? `<p><strong>${isGrouped ? "Base:" : "Trip:"}</strong> ${escapeHtml(secondaryLabel)}</p>` : ""}
         ${pin.dateLabel ? `<small>${escapeHtml(pin.dateLabel)}</small>` : ""}
       </div>
-      <button class="button button--secondary map-popup__open" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
-        Open
-      </button>
+      ${pin.status === "destinations" ? "" : `
+        <button class="button button--secondary map-popup__open" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
+          Open
+        </button>
+      `}
     </article>
   `;
 }
@@ -501,6 +510,7 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
         title: trip.title || "Untitled trip",
         baseName: tripBases.length > 1 ? base.name || base.location_name || "Untitled base" : "",
         baseLabel: base.name || "",
+        displayPlaceName: base.name || base.location_name || trip.title || "Untitled place",
         coverPhotoUrl: trip.hero_photo_url || trip.cover_photo_url || "",
         placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
@@ -639,6 +649,10 @@ function getGroupedPinTitle(pinGroup) {
   }
 
   return getSharedPinValue(pinGroup.pins, "placeLabel") || pinGroup.placeLabel || "Mapped place";
+}
+
+function getSinglePinPlaceLabel(pin) {
+  return pin.displayPlaceName || pin.baseLabel || pin.placeLabel || pin.title || "Mapped place";
 }
 
 function getSharedPinValue(pins, key) {

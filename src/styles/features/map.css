@@ -497,8 +497,19 @@
 }
 
 .map-popup__trip-copy h4 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: 0.98rem;
   line-height: 1.15;
+}
+
+.map-popup--single .map-popup__trip-copy h4 {
+  font-size: 1.1rem;
+}
+
+.map-popup__trip-copy h4 .map-filter__legend {
+  margin-top: 0.1rem;
 }
 
 .map-popup__trip-copy p,
@@ -520,7 +531,7 @@
 
 @media (max-width: 600px) {
   .map-popup__trip-card {
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
   }
 
   .map-popup__trip-photo {
@@ -528,6 +539,8 @@
   }
 
   .map-popup__open {
+    grid-column: 2;
+    justify-self: start;
     min-width: auto;
   }
 }
