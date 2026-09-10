@@ -1,5 +1,3 @@
-const lookupTimezone = require("@photostructure/tz-lookup");
-
 const GEOCODER_ENDPOINT = "https://nominatim.openstreetmap.org/search";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const CACHE_MAX_ENTRIES = 250;
@@ -7,6 +5,7 @@ const GEOCODER_MIN_INTERVAL_MS = 1100;
 const cache = new Map();
 let geocoderQueue = Promise.resolve();
 let lastGeocoderRequestAt = 0;
+let timezoneLookupPromise = null;
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "GET") {
@@ -47,9 +46,10 @@ exports.handler = async (event) => {
     }
 
     const data = await response.json();
-    const results = Array.isArray(data)
-      ? dedupeLocationResults(data.map(normalizeLocationResult).filter(isValidLocationResult))
+    const normalizedResults = Array.isArray(data)
+      ? await Promise.all(data.map(normalizeLocationResult))
       : [];
+    const results = dedupeLocationResults(normalizedResults.filter(isValidLocationResult));
 
     remember(cacheKey, results);
     return jsonResponse(200, { results });
@@ -59,7 +59,7 @@ exports.handler = async (event) => {
   }
 };
 
-function normalizeLocationResult(result) {
+async function normalizeLocationResult(result) {
   const lat = Number(result.lat);
   const lng = Number(result.lon);
 
@@ -68,7 +68,7 @@ function normalizeLocationResult(result) {
     label: String(result.display_name || "").trim(),
     lat,
     lng,
-    timezone: inferTimezone(lat, lng),
+    timezone: await inferTimezone(lat, lng),
   };
 }
 
@@ -86,20 +86,33 @@ function waitForGeocoderSlot() {
     lastGeocoderRequestAt = Date.now();
   });
 
-  geocoderQueue = nextRequest.catch(() => {});
+  geocoderQueue = nextRequest.catch(ignoreQueueError);
   return nextRequest;
 }
 
-function inferTimezone(lat, lng) {
+function ignoreQueueError() {
+  return undefined;
+}
+
+async function inferTimezone(lat, lng) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return "";
   }
 
   try {
+    const lookupTimezone = await getTimezoneLookup();
     return lookupTimezone(lat, lng) || "";
   } catch (_error) {
     return "";
   }
+}
+
+async function getTimezoneLookup() {
+  if (!timezoneLookupPromise) {
+    timezoneLookupPromise = import("@photostructure/tz-lookup").then((module) => module.default || module);
+  }
+
+  return timezoneLookupPromise;
 }
 
 function isValidLocationResult(result) {

@@ -42,7 +42,7 @@ export function renderDestinationsPage() {
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
       ${renderDestinationDetailModal(destinationsPage)}
-      ${renderDestinationBaseEditorModal(destinationsPage)}
+      ${renderDestinationBaseEditorHtml(destinationsPage)}
       ${renderPromoteDestinationModal(destinationsPage)}
       ${renderDeleteDestinationConfirmModal(destinationsPage)}
       ${renderBoardDemoteConfirmModal(destinationsPage)}
@@ -544,7 +544,7 @@ function renderDestinationBaseRow(base) {
   `;
 }
 
-function renderDestinationBaseEditorModal(destinationsPage) {
+function renderDestinationBaseEditorHtml(destinationsPage) {
   const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
 
   if (!destination || !destinationsPage.destinationBaseEditorMode) {

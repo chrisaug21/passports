@@ -116,7 +116,19 @@ export function getLocationSelection(form) {
   };
 }
 
-async function runLocationSearch({ input, button, status, results, latInput, lngInput, timezoneInput, mappedNameInput, requestToken }) {
+async function runLocationSearch(context) {
+  const {
+    input,
+    button,
+    status,
+    results,
+    latInput,
+    lngInput,
+    timezoneInput,
+    mappedNameInput,
+    requestToken,
+  } = context;
+
   if (button.disabled) {
     return;
   }
