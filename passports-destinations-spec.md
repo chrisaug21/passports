@@ -1,12 +1,12 @@
 # Destinations — Spec (Board + Map)
 
-**Status:** Board core, the Wishlist detail/edit experience, and board movement/interactions are all shipped (`chrisaug21/passports` PR #63, then PR #65, then PR #68). The Map phase is next and not yet started.
+**Status:** Board core, the Wishlist detail/edit experience, board movement/interactions, and the Map foundation are all shipped (`chrisaug21/passports` PR #63, PR #65, PR #68, then PR #70). The next work is either a small Map fast-follow mini-phase or the next planned destination phase, depending on which scope feels cleaner after discussion.
 
-**Progress:** Phase 0 shipped and merged in PR #61. Navigation shipped and merged in PR #62. Board core shipped in PR #63. Wishlist destination detail modal — editing, notes preview, promote-to-Planning — shipped in PR #65. Board movement/interactions — Wishlist drag-to-reorder, cross-column drag (Wishlist ↔ Planning), and Planning → Wishlist demotion from the trip settings modal — shipped in PR #68. Map and destination-specific edit views beyond the Wishlist detail modal are still ahead.
+**Progress:** Phase 0 shipped and merged in PR #61. Navigation shipped and merged in PR #62. Board core shipped in PR #63. Wishlist destination detail modal — editing, notes preview, promote-to-Planning — shipped in PR #65. Board movement/interactions — Wishlist drag-to-reorder, cross-column drag (Wishlist ↔ Planning), and Planning → Wishlist demotion from the trip settings modal — shipped in PR #68. Map foundation — `/app/map`, base coordinates, user-confirmed geocoding, status-filtered pins, missing-location repair paths, grouped overlays, and map-provider config — shipped in PR #70. Destination-specific edit views beyond the Wishlist detail modal are still ahead.
 
 **Audience:** A fresh Claude Code session with no memory of the design conversation. Read this whole document before writing any code.
 
-## Current Handoff — After Board Movement/Interactions (PR #68)
+## Current Handoff — After Map Foundation (PR #70)
 
 The board (`/app/destinations`, `src/features/destinations/destinations-page.js`) now supports the full Wishlist lifecycle, including movement between columns:
 
@@ -18,7 +18,24 @@ The board (`/app/destinations`, `src/features/destinations/destinations-page.js`
 - Undated Wishlist cards can be dragged to reorder within the Wishlist column; dragging a Wishlist card into Planning or a Planning card into Wishlist opens the existing promote/demote confirmation flow rather than moving the card directly. See "Board movement/interactions — shipped in PR #68" below for the full mechanics.
 - Schema migration is checked in at `sql/add_destination_board_fields.sql`, already run against the remote Supabase database. `trips` fields used by the board: `target_year`, `target_month`, `sort_order`.
 
-Recommended next PR — the **Map** phase: base coordinates, explicit geocoded location search, a fourth persistent nav item at `/app/map`, and clustered status-filtered pins (see "Map view" below).
+Recommended next discussion — decide whether the polish below becomes a short **Map fast follows** PR before the next planned destination phase, or whether it should be folded into that phase.
+
+## Map foundation — shipped in PR #70
+
+PR #70 turned the map from planned scope into a working fourth app surface:
+
+- Added **Map** as a fourth persistent nav item on desktop and mobile at `/app/map`, separate from the Destinations board.
+- Added nullable `lat`/`lng` columns to `trip_bases` via `sql/add_trip_base_coordinates.sql`, already run against the remote Supabase database.
+- Added Leaflet and Leaflet.markercluster via CDN, with OpenStreetMap tiles as the first tile provider and visible attribution preserved.
+- Centralized map tiles, attribution, Nominatim search, and geocoder result normalization in `src/lib/map-provider.js` so tiles/geocoding can be swapped later without rewriting the map UI.
+- Added explicit, user-triggered location search through `src/features/shared/location-search.js`: type a place, click **Search Location** or press Enter, then choose a result. The app does not live-autocomplete and does not silently geocode free text.
+- Updated Wishlist destination creation/editing to support mapped candidate bases. Creating a Wishlist destination now creates one candidate base with the selected mapped location; editing a Wishlist destination can update that mapped location without exposing a full base-management UI on the board.
+- Updated trip/base editing so existing planning bases and single-base trips can receive or update mapped locations. Editing a base's display name does not clear coordinates; coordinates only change when a geocoded result is selected.
+- Promotion from Wishlist to Planning reuses the existing candidate bases and coordinates instead of replacing them with a new blank default base. Demotion back to Wishlist preserves bases and coordinates.
+- Added a missing-location panel on the map so coordinate-less trips/bases are visible as items to fix rather than silently disappearing.
+- Added status filters that double as a legend. Map labels intentionally use spatial/browsing language: **Someday** (`destinations`), **Planned** (`planning`), **Traveling Now** (`active`), and **Visited** (`done`).
+- Added a mobile filter drawer, map reset control, fixed map sizing, data refresh after map-relevant edits, and safer handling for Leaflet load timing.
+- Added map popups/overlays with base-specific date ranges, years in dates, photos on trip rows, grouped same-coordinate locations, split-color pins for mixed-status grouped locations, and no **Open** button for Wishlist/Someday destinations.
 
 ## Board movement/interactions — shipped in PR #68
 
@@ -45,13 +62,13 @@ A planning/dreaming layer that sits above individual trips: a kanban-style board
 Settled in discussion, not open for re-litigation unless something below changes the calculus:
 
 - **Naming:** the pre-planning column/status is labeled **"Wishlist"** in the UI. The internal `status` column value stays `destinations` regardless.
-- **Navigation:** a full, persistent top nav on desktop, a bottom tab bar on mobile (try it first; side nav is the documented fallback) — new IA territory for this app (before PR #62 there was no persistent multi-item nav, just a topbar with brand/account-menu). PR #62 shipped three items: **Trips** (today's Dashboard — planning/active trips; see "Navigation" below on the label), **Destinations** (this feature), and **Archive** (past/done trips, promoted off the Dashboard into its own page). The Map phase should add **Map** as a fourth top-nav / bottom-tab item at `/app/map`, not as a Board | Map toggle inside Destinations. The map is spatial browsing/exploration rather than board lifecycle management, and four nav items still fit the product IA.
+- **Navigation:** a full, persistent top nav on desktop, a bottom tab bar on mobile (try it first; side nav is the documented fallback) — new IA territory for this app (before PR #62 there was no persistent multi-item nav, just a topbar with brand/account-menu). PR #62 shipped three items: **Trips** (today's Dashboard — planning/active trips; see "Navigation" below on the label), **Destinations** (this feature), and **Archive** (past/done trips, promoted off the Dashboard into its own page). PR #70 added **Map** as a fourth top-nav / bottom-tab item at `/app/map`, not as a Board | Map toggle inside Destinations. The map is spatial browsing/exploration rather than board lifecycle management, and four nav items still fit the product IA.
 - **Map timing:** not "someday" — a near-term follow-up after the board/detail work, not bundled into PR #63. Significant enough scope on its own to warrant its own PR, but close enough behind that it should stay warm in this spec rather than be revisited cold later.
 - **Status authority:** shipped in Phase 0. The stored `trips.status` column is now the single source of truth for trip lifecycle state, auto-advanced by date, replacing the Dashboard's separate `deriveTripStatus`-only display logic.
 - **Map pin coordinates:** explicit geocoded location search — not manual pin-dragging, not blind auto-geocoding of free text, and not live autocomplete. The user types a place and intentionally searches with a **Search Location** button; pressing Enter can trigger the same search as a convenience. Results are shown as a selectable list so the user confirms the exact place before coordinates are saved. Start with **Nominatim** (OpenStreetMap's free geocoding service) because it needs no API key or new env var, but design the geocoder integration behind a small config/helper so a different provider can replace it later. See "Map view" below.
 - **Map pins are per-base, not per-trip:** coordinates live on `trip_bases`, not `trips`. A multi-base trip shows one pin per base.
 - **Wishlist destinations should get a candidate base at creation time:** now that the map is real, lightweight Wishlist creation should ask for a required mapped location. Creating a Wishlist destination creates the `trips` row plus one `trip_bases` candidate row with `location_name`, `lat`, and `lng`, but still no days and no full planning scaffold. If a Planning trip is later demoted back to Wishlist, preserve all existing bases exactly as-is.
-- **Map filter labels should use the app's lifecycle language:** use **Wishlist**, **Planning**, **Active**, and **Archive** instead of broader labels like Want to Go / Going / Been. This is more consistent with the board and avoids "Going" awkwardly covering both future and current trips. On mobile, tuck these filters behind a filter button to start.
+- **Map filter labels use map-specific browsing language:** **Someday** (`destinations`), **Planned** (`planning`), **Traveling Now** (`active`), and **Visited** (`done`). The board keeps **Wishlist**, **Planning**, and **Archive** because that screen is about lifecycle management; the map uses friendlier spatial/history labels because that context felt different once tested.
 - **Missing coordinates:** the map should include a non-scary maintenance state for trips/bases without coordinates, e.g. "3 places need locations," with rows that open the relevant edit/create flow. Hide coordinate-less bases from the map pins themselves, but make them discoverable so the user can fix them.
 - **Editing location names:** do not automatically clear existing `lat`/`lng` when a base's free-text `location_name` changes. The text field has historically been a label, not a strict geospatial source of truth, and the user may simply be renaming or clarifying it. Coordinates should change only when the user selects a new geocoded result.
 - **Provider swappability:** start with OpenStreetMap/Nominatim, but keep map tile URL/attribution and geocoder search/normalization in small dedicated helpers/config rather than scattering provider-specific URLs through UI code.
@@ -80,7 +97,7 @@ Extend `trips` directly rather than introduce a parallel table:
 - **`target_year`** (int, nullable) and **`target_month`** (int 1–12, nullable, requires `target_year` if set) — shipped in PR #63. These hold a loose, optional "roughly when" date for a Wishlist entry ("Nov 2027", or just "sometime in 2028"). Once a real `start_date` exists, display/sort prefers `start_date` and the target fields become vestigial — no need to keep them in sync.
 - **`sort_order`** (int, default 0) — shipped in PR #63. Only meaningful for Wishlist items with no target date (see "Ordering" below) — every other column sorts by a real date instead.
 
-On `trip_bases` (Map phase): **`lat`**/**`lng`** (numeric, nullable) — one pin per base, populated by explicit geocoded search described in "Map view" below, not typed in manually. Consider adding optional provider metadata later only if it becomes useful; the first pass does not need it.
+On `trip_bases`: **`lat`**/**`lng`** (numeric, nullable) — shipped in PR #70. One pin per base, populated by explicit geocoded search described in "Map view" below, not typed in manually. Consider adding optional provider metadata later only if it becomes useful.
 
 ## Kanban board — shipped baseline in PR #63
 
@@ -114,15 +131,15 @@ Phase 0 moved the old derive-from-dates call sites onto stored `status` and adde
 
 **Card content, as shipped:** full wrapping title, compact cropped cover photo, plain date text, and a `Starting soon` pill for planning trips whose `start_date` is within 14 days. Cards intentionally do not show status pills, descriptions, open/promote/wishlist buttons, or `Someday` text for undated Wishlist entries. Wishlist cards show target month + year when both exist, year-only when only a year exists, and no date line when neither exists. A Wishlist card with a backlog/count is deferred until the lightweight Wishlist detail/backlog phase.
 
-## Lightweight destination creation — shipped baseline in PR #63, revised by Map phase
+## Lightweight destination creation — shipped baseline in PR #63, revised in PR #70
 
-The board shipped with a genuinely lighter create path. A Wishlist entry can currently be created with **title only**, plus optional description, target year/month, and uploaded cover photo. There is no length/date prompt and no base/day scaffolding. It inserts directly with `status = 'destinations'`; `trip_length` is set to `1` because the column is `NOT NULL`, but it is meaningless until promoted and is not shown in the Wishlist UI.
+The board shipped with a genuinely lighter create path. The first version allowed a Wishlist entry to be created with **title only**, plus optional description, target year/month, and uploaded cover photo. There was no length/date prompt and no base/day scaffolding. It inserted directly with `status = 'destinations'`; `trip_length` was set to `1` because the column is `NOT NULL`, but it is meaningless until promoted and is not shown in the Wishlist UI.
 
 Promote to Planning shipped in PR #65. It triggers the full creation/planning flow — prompting for the details it still needs, then scaffolding bases/days exactly like a new trip does today.
 
-For the Map phase, revise this flow: a new Wishlist destination should require a mapped location in addition to the destination title. The UI should keep this lightweight — type a place, click **Search Location** (or press Enter), choose one result, then save. Behind the scenes the app should create one candidate base for the Wishlist destination with the selected `location_name`, `lat`, and `lng`, but still skip days and planning scaffolding. Description, target date, and uploaded cover photo remain optional.
+PR #70 revised this flow: a new Wishlist destination now requires a mapped location in addition to the destination title. The UI stays lightweight — type a place, click **Search Location** or press Enter, choose one result, then save. Behind the scenes the app creates one candidate base for the Wishlist destination with the selected `location_name`, `lat`, and `lng`, but still skips days and planning scaffolding. Description, target date, and uploaded cover photo remain optional.
 
-Promotion should reuse any existing Wishlist/candidate bases. If a Wishlist destination already has one or more bases, do not create a duplicate default base named after the trip; scaffold days against the existing bases and preserve their coordinates. If a Wishlist entry somehow has no bases, fall back to the current default-base behavior.
+Promotion reuses any existing Wishlist/candidate bases. If a Wishlist destination already has one or more bases, the app does not create a duplicate default base named after the trip; it scaffolds days against the existing bases and preserves their coordinates. If a Wishlist entry somehow has no bases, it falls back to the current default-base behavior.
 
 ## Wishlist entry scope — what a destination can hold before it's a real trip
 
@@ -163,9 +180,9 @@ A full, persistent nav now exists with three items, replacing the old topbar (wh
 - **Destinations** — now renders the board implemented in PR #63 (`src/features/destinations/destinations-page.js`). The route is `/app/destinations`.
 - **Archive** — a dedicated page for past/done trips (`src/features/archive/archive-page.js`, route `/app/archive`), same photo-card treatment the old Dashboard grid used, promoted to its own full page instead of a collapsible section.
 
-The Map phase should add:
+PR #70 added:
 
-- **Map** — a fourth persistent nav item (`/app/map`) for spatial browsing across the same trips/bases. This should be a separate route, not a view-mode toggle on `/app/destinations`.
+- **Map** — a fourth persistent nav item (`/app/map`) for spatial browsing across the same trips/bases. It is a separate route, not a view-mode toggle on `/app/destinations`.
 
 **Why "Trips," not "Planning":** this app already uses "Plan view" as the established term for a single trip's detail/editing screen (see `CLAUDE.md`'s "Views" section). "Trips" avoids colliding with that and is grammatically parallel to "Destinations"/"Archive."
 
@@ -178,20 +195,20 @@ The Map phase should add:
 - The old contextual "Dashboard" breadcrumb link (previously shown only inside a trip) was removed entirely — the persistent nav covers that job everywhere a session exists now.
 - Trips and Archive each got a page header using the same display-font style Notes/Prep pages already use (`.dashboard-header h1` in `dashboard.css`): Trips reads "Upcoming Trips," Archive reads "Archive of Past Trips."
 
-## Map view (next major phase after Wishlist detail/movement)
+## Map view — shipped foundation in PR #70
 
-- **Route/nav:** add Map as a fourth persistent nav item at `/app/map`. Do not put it behind a Board | Map toggle on `/app/destinations`; the map is a different browsing mode, not a sub-state of the board. Desktop top nav and mobile bottom tab nav should both include it.
-- **Library:** [Leaflet](https://leafletjs.com/), loaded via a CDN `<script>` tag — same loading pattern this app already uses for Lucide, no npm dependency needed in `src/`. Start with free OpenStreetMap tiles because they need no API key and are plenty for validating the product shape. OSM tile attribution must remain visible.
+- **Route/nav:** Map is a fourth persistent nav item at `/app/map`. It is not behind a Board | Map toggle on `/app/destinations`; the map is a different browsing mode, not a sub-state of the board.
+- **Library:** [Leaflet](https://leafletjs.com/) and Leaflet.markercluster are loaded via CDN `<script>` tags — same loading pattern this app already uses for Lucide, no npm dependency needed in `src/`. The first implementation uses free OpenStreetMap tiles because they need no API key and are plenty for validating the product shape. OSM tile attribution must remain visible.
 - **Provider configuration:** isolate tile URL/attribution and geocoder endpoint/result normalization in dedicated map/geocoder helpers. Do not hardcode provider URLs and attribution strings directly throughout UI modules. This lets the app swap to MapTiler, Stadia, Thunderforest, Mapbox, or another provider later without rewriting the map screen.
 - **Pin coordinates:** explicit geocoded search when adding/editing a base and when creating a Wishlist destination. The user types a place, clicks **Search Location** (or presses Enter), then chooses from disambiguated results. This is intentionally not live autocomplete. Start with **Nominatim** (OpenStreetMap, free, no API key) and keep requests user-initiated so the app stays within the service's usage policy. Populate `trip_bases.lat`/`lng` alongside the existing free-text `location_name`; coordinates are not typed manually.
-- **Wishlist creation:** new Wishlist destinations should require a mapped location. Creating the destination also creates one candidate base with the chosen place's `location_name`, `lat`, and `lng`, but does not create days. Optional description, target year/month, and cover photo stay as-is.
-- **Promotion/demotion:** promotion should reuse existing Wishlist bases and their coordinates when scaffolding the trip. Demotion from Planning to Wishlist should preserve all bases and coordinates exactly as they are today; no board-card base list is needed in the first pass.
-- **Editing location names:** changing the free-text `location_name` should not clear existing coordinates automatically. Coordinates should update only when the user selects a new geocoded result.
+- **Wishlist creation:** new Wishlist destinations require a mapped location. Creating the destination also creates one candidate base with the chosen place's `location_name`, `lat`, and `lng`, but does not create days. Optional description, target year/month, and cover photo stay as-is.
+- **Promotion/demotion:** promotion reuses existing Wishlist bases and their coordinates when scaffolding the trip. Demotion from Planning to Wishlist preserves all bases and coordinates exactly as they are today; no board-card base list is needed in the first pass.
+- **Editing location names:** changing the free-text `location_name` does not clear existing coordinates automatically. Coordinates update only when the user selects a new geocoded result.
 - **One pin per base, not per trip** — a multi-base trip shows one pin per base once coordinates exist.
-- **Legibility at different zoom levels:** once multiple pins sit close together at a world/continent zoom (several Japan destinations, say), they need to cluster into a single "N places" marker that expands on zoom-in. This is a mature, drop-in plugin (Leaflet.markercluster) — not something to build from scratch.
-- **Filters:** use the app's lifecycle labels directly: **Wishlist** (`destinations`), **Planning** (`planning`), **Active** (`active`), and **Archive** (`done`). Desktop can keep these visible as filter chips. Mobile should tuck them behind a filter button to start.
-- **Missing coordinates:** bases without `lat`/`lng` should not create pins, but the map page should show a helpful maintenance state such as "3 places need locations." Rows should point the user toward the relevant edit flow so missing pins are fixable, not mysterious.
-- **Data loading:** the current Destinations board data only loads trip rows and primary trip photos. The Map route needs trip rows plus active bases (`id`, `trip_id`, `name`, `location_name`, `lat`, `lng`, `sort_order`) and enough trip metadata to group/filter/open cards.
+- **Legibility at different zoom levels:** nearby pins cluster into a single numbered marker using Leaflet.markercluster, then expand as the user zooms in.
+- **Filters:** map filters use **Someday** (`destinations`), **Planned** (`planning`), **Traveling Now** (`active`), and **Visited** (`done`). Desktop keeps these visible in the left rail and uses the colored dots as a legend. Mobile tucks them behind a filter button.
+- **Missing coordinates:** bases without `lat`/`lng` do not create pins, but the map page shows a helpful maintenance state such as "3 places need locations." Rows point the user toward the relevant edit flow so missing pins are fixable, not mysterious.
+- **Data loading:** the Map route loads trip rows, active bases (`id`, `trip_id`, `name`, `location_name`, `lat`, `lng`, `sort_order`, base date range), primary trip photos, and enough trip metadata to group/filter/open cards.
 - **Related idea, noted for later (not in scope here):** once bases have coordinates, the same map component could show up on a trip's own Overview content — a "where you're going on this trip" map alongside the itinerary, not just the world-level Destinations map. Worth remembering once Phase B's map component exists, since most of the plumbing (coordinates, Leaflet setup) would already be there.
 
 ### Map provider upgrade options for later
@@ -202,6 +219,17 @@ Start with OpenStreetMap tiles and Nominatim geocoding for the first Map phase. 
 - **Stadia Maps:** polished OpenMapTiles-based styles with a free non-commercial tier. Requires an API key/account.
 - **Thunderforest:** distinctive styled maps with a hobby/free tier. Requires an API key.
 - **Mapbox:** most polished all-in-one option for tiles and geocoding, with a generous free tier for small apps but usage-based billing beyond that. Requires account/token setup and introduces a new env var.
+
+## Potential mini-phase — Map fast follows
+
+These are not prerequisites for the shipped map foundation, but they are good candidates for a focused follow-up PR before the next larger destination phase if we want the map to feel more deliberate in day-to-day use:
+
+- **Backend geocoder proxy/cache:** keep the UI's Search Location interaction, but move Nominatim requests behind a Netlify function so the app can centralize rate limiting, caching, user-agent/contact headers, error handling, and future provider swaps. This would also reduce repeated identical searches from the browser.
+- **Timezone inference:** keep `trip_bases.local_timezone` as the stored source of truth, but infer a suggested timezone when a user chooses a mapped location. Good free-ish options to evaluate: a local boundary lookup library/dataset such as `@photostructure/tz-lookup` or `geo-tz`, or a hosted free-tier API such as TimeZoneDB. A local library avoids another external API and likely fits the app best if bundle size and browser compatibility are acceptable; otherwise put the lookup behind the same backend function pattern as geocoding.
+- **Map overlay polish:** continue refining single-location and grouped-location cards: consistent base-first hierarchy, clear trip labels, status-colored dots on every trip row, compact photo-led rows, date ranges with years, and no **Open** button for Someday/Wishlist rows.
+- **Map data health:** add easier repair flows for missing or stale coordinates, especially for older single-base trips where the base was historically hidden behind the trip name.
+- **Provider/style swap readiness:** leave OpenStreetMap as the default, but make sure tile/geocoder configuration remains contained so MapTiler, Stadia, Thunderforest, Mapbox, or another provider can be tested later without touching unrelated UI code.
+- **Public/account map decision:** keep the account-level public board/map idea out of this mini-phase unless we explicitly decide to pull it forward; it is still a larger sharing/privacy design problem.
 
 ## Explicitly out of scope for now
 
