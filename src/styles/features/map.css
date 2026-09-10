@@ -512,17 +512,6 @@
   margin-top: 0.1rem;
 }
 
-.map-popup__trip-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.map-popup__trip-label > span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 .map-popup__status-dot {
   width: 0.7rem;
   height: 0.7rem;
@@ -561,6 +550,17 @@
 
 .map-popup__trip-copy p strong {
   color: var(--color-text);
+}
+
+.map-popup__trip-copy .map-popup__trip-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.map-popup__trip-label > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .map-popup__open {
