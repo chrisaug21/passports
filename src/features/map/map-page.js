@@ -153,11 +153,22 @@ export async function loadMapPage(options = {}) {
       await loadDashboard();
     }
 
+    const requestedTripSignature = getTripSignature();
+    const requestedBaseDataVersion = baseDataVersion;
     const tripIds = tripStore.getTrips().map((trip) => trip.id).filter(Boolean);
     const [bases, days] = await Promise.all([
       listBasesForTrips(tripIds),
       listDaysForTrips(tripIds),
     ]);
+
+    if (requestedTripSignature !== getTripSignature() || requestedBaseDataVersion !== baseDataVersion) {
+      mapState = {
+        ...mapState,
+        status: "idle",
+      };
+      await loadMapPage();
+      return;
+    }
 
     mapState = {
       ...mapState,
@@ -165,8 +176,8 @@ export async function loadMapPage(options = {}) {
       bases,
       days,
       error: "",
-      loadedTripSignature: getTripSignature(),
-      loadedBaseDataVersion: baseDataVersion,
+      loadedTripSignature: requestedTripSignature,
+      loadedBaseDataVersion: requestedBaseDataVersion,
     };
     renderRoute({ preserveScroll: true });
   } catch (error) {
@@ -392,7 +403,7 @@ function createMapIcon(pinGroup) {
   const isMultiPin = statuses.length > 1 || pinGroup.pins?.length > 1;
 
   return window.L.divIcon({
-    className: `travel-map-pin travel-map-pin--${pinGroup.status} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
+    className: `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
     html: isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>',
     iconSize: [22, 22],
     iconAnchor: [11, 11],
@@ -405,7 +416,7 @@ function renderMultiPinSegments(statuses) {
 
   return `
     <span class="travel-map-pin__segments" aria-hidden="true">
-      ${visibleStatuses.map((status) => `<span class="travel-map-pin__segment travel-map-pin__segment--${escapeHtml(status)}"></span>`).join("")}
+      ${visibleStatuses.map((status) => `<span class="travel-map-pin__segment travel-map-pin__segment--${getStatusClassName(status)}"></span>`).join("")}
     </span>
   `;
 }
@@ -468,7 +479,7 @@ function renderGroupedTripCardCopy(pin, options) {
   return `
     <p class="map-popup__trip-label">
       <span><strong>Trip:</strong> ${escapeHtml(pin.title)}</span>
-      <span class="map-popup__status-dot map-popup__status-dot--${escapeHtml(pin.status)}" aria-hidden="true"></span>
+      <span class="map-popup__status-dot map-popup__status-dot--${getStatusClassName(pin.status)}" aria-hidden="true"></span>
     </p>
     ${options.hideBaseName || !pin.baseName ? "" : `<p><strong>Base:</strong> ${escapeHtml(pin.baseName)}</p>`}
   `;
@@ -774,6 +785,10 @@ function openTrip(tripId) {
 function getStatusLabel(status) {
   const filter = MAP_FILTERS.find((entry) => entry.id === status);
   return filter?.label || "Trip";
+}
+
+function getStatusClassName(status) {
+  return MAP_FILTERS.some((filter) => filter.id === status) ? status : "planning";
 }
 
 function escapeHtml(value) {

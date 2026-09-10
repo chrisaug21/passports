@@ -522,9 +522,16 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       const singleBase = bases.length === 1 ? bases[0] : null;
 
       if (singleBase) {
+        const location = getLocationSelection(event.currentTarget);
+
+        if (location.needsSearch) {
+          showToast("Choose a matching mapped location before saving.", "error");
+          return;
+        }
+
         nextSettings.singleBaseMapLocation = {
           baseId: singleBase.id,
-          location: getLocationSelection(event.currentTarget),
+          location,
         };
       }
 

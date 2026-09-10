@@ -657,6 +657,11 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
         return;
       }
 
+      if (location.needsSearch) {
+        showToast("Choose a matching mapped location before saving.", "error");
+        return;
+      }
+
       if (!trip?.id || !baseName) {
         showToast("Add a base name first.", "error");
         return;
@@ -704,6 +709,11 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
       const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
 
       if (!localTimezone || !trip?.id || !baseId) {
+        return;
+      }
+
+      if (location.needsSearch) {
+        showToast("Choose a matching mapped location before saving.", "error");
         return;
       }
 
@@ -767,6 +777,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
 
       try {
         await softDeleteTripBase(deletingBaseId);
+        notifyMapDataChanged();
         tripStore.removeCurrentBase(deletingBaseId);
         appStore.updateTripDetail({
           isDeletingBase: false,

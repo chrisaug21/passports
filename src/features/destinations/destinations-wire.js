@@ -349,9 +349,15 @@ async function handleSaveDestination(form) {
 
   const formData = new FormData(form);
   const values = getDestinationFormValues(formData);
+  const location = getLocationSelection(form);
 
   if (!values.title) {
     showToast("Add a destination title before saving.", "error");
+    return;
+  }
+
+  if (location.needsSearch) {
+    showToast("Choose a matching mapped location before saving.", "error");
     return;
   }
 
@@ -367,10 +373,15 @@ async function handleSaveDestination(form) {
       targetYear: values.targetYear,
       targetMonth: values.targetMonth,
     });
-    await saveDestinationMapBase({
-      destination: updatedDestination,
-      location: getLocationSelection(form),
-    });
+    try {
+      await saveDestinationMapBase({
+        destination: updatedDestination,
+        location,
+      });
+    } catch (mapBaseError) {
+      await restoreDestinationValues(destination);
+      throw mapBaseError;
+    }
     const destinationWithPhoto = await uploadDestinationPhotoSafely({
       destination: updatedDestination,
       file: getSelectedPhotoFile(formData),
@@ -389,6 +400,16 @@ async function handleSaveDestination(form) {
     showToast("Could not save that destination right now.", "error");
     rerenderDestinations();
   }
+}
+
+async function restoreDestinationValues(destination) {
+  await updateDestination({
+    tripId: destination.id,
+    title: destination.title || "",
+    description: destination.description || "",
+    targetYear: destination.target_year,
+    targetMonth: destination.target_month,
+  });
 }
 
 async function saveDestinationMapBase({ destination, location }) {

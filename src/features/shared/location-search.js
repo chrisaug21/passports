@@ -18,6 +18,7 @@ export function renderLocationSearchField({
       class="field location-search"
       data-location-search="${escapeHtml(idPrefix)}"
       data-location-has-initial-coordinates="${hasCoordinates ? "true" : "false"}"
+      data-location-initial-mapped-name="${hasCoordinates ? escapeHtml(value || "") : ""}"
     >
       <label for="${escapeHtml(idPrefix)}-location">${escapeHtml(label)}</label>
       <div class="location-search__controls">
@@ -54,6 +55,16 @@ export function wireLocationSearch(form) {
     const latInput = root.querySelector("[data-location-lat]");
     const lngInput = root.querySelector("[data-location-lng]");
     const mappedNameInput = root.querySelector("[data-location-mapped-name]");
+    let requestToken = 0;
+    const startSearch = () => {
+      if (button?.disabled) {
+        return;
+      }
+
+      requestToken += 1;
+      root.dataset.locationRequestToken = String(requestToken);
+      runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput, requestToken });
+    };
 
     input?.addEventListener("input", () => {
       if (root.dataset.locationHasInitialCoordinates !== "true") {
@@ -61,7 +72,9 @@ export function wireLocationSearch(form) {
         lngInput.value = "";
       }
 
-      mappedNameInput.value = "";
+      mappedNameInput.value = normalizeLocationName(input.value) === normalizeLocationName(root.dataset.locationInitialMappedName)
+        ? root.dataset.locationInitialMappedName
+        : "";
       setStatus(status, latInput.value && lngInput.value
         ? "Existing map location kept until you choose a new search result."
         : "");
@@ -70,30 +83,39 @@ export function wireLocationSearch(form) {
     input?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput });
+        startSearch();
       }
     });
 
     button?.addEventListener("click", () => {
-      runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput });
+      startSearch();
     });
   });
 }
 
 export function getLocationSelection(form) {
   const locationName = String(form?.querySelector("[name='locationName']")?.value || "").trim();
-  const lat = parseCoordinate(form?.querySelector("[name='locationLat']")?.value);
-  const lng = parseCoordinate(form?.querySelector("[name='locationLng']")?.value);
+  const mappedLocationName = String(form?.querySelector("[name='mappedLocationName']")?.value || "").trim();
+  const parsedLat = parseCoordinate(form?.querySelector("[name='locationLat']")?.value);
+  const parsedLng = parseCoordinate(form?.querySelector("[name='locationLng']")?.value);
+  const hasMatchingMappedName = normalizeLocationName(locationName) === normalizeLocationName(mappedLocationName);
+  const hasStoredCoordinates = parsedLat != null && parsedLng != null;
+  const hasCoordinates = hasStoredCoordinates && hasMatchingMappedName;
 
   return {
     locationName,
-    lat,
-    lng,
-    hasCoordinates: lat != null && lng != null,
+    lat: hasCoordinates ? parsedLat : null,
+    lng: hasCoordinates ? parsedLng : null,
+    hasCoordinates,
+    needsSearch: Boolean(locationName && hasStoredCoordinates && !hasMatchingMappedName),
   };
 }
 
-async function runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput }) {
+async function runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput, requestToken }) {
+  if (button.disabled) {
+    return;
+  }
+
   const query = String(input?.value || "").trim();
 
   if (query.length < 3) {
@@ -104,10 +126,13 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
   button.disabled = true;
   setStatus(status, "Searching locations...");
   results.hidden = true;
-  results.innerHTML = "";
+  results.replaceChildren();
 
   try {
     const locations = await searchLocations(query);
+    if (requestToken !== getLatestRequestToken(input)) {
+      return;
+    }
 
     if (locations.length === 0) {
       setStatus(status, "No matching locations found.");
@@ -115,7 +140,7 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
     }
 
     setStatus(status, "Choose the matching place.");
-    results.innerHTML = locations.map((location) => renderLocationResult(location)).join("");
+    results.replaceChildren(...locations.map((location) => createLocationResultButton(location)));
     results.hidden = false;
 
     results.querySelectorAll("[data-location-result]").forEach((resultButton) => {
@@ -126,7 +151,7 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
         mappedNameInput.value = input.value;
         setStatus(status, `Mapped to ${input.value}.`);
         results.hidden = true;
-        results.innerHTML = "";
+        results.replaceChildren();
       });
     });
   } catch (error) {
@@ -147,28 +172,39 @@ function setStatus(status, text) {
   status.hidden = !text;
 }
 
-function renderLocationResult(location) {
-  return `
-    <button
-      class="location-search__result"
-      type="button"
-      data-location-result
-      data-location-label="${escapeHtml(location.label)}"
-      data-location-lat="${escapeHtml(String(location.lat))}"
-      data-location-lng="${escapeHtml(String(location.lng))}"
-    >
-      ${escapeHtml(location.label)}
-    </button>
-  `;
+function getLatestRequestToken(input) {
+  return Number(input?.closest("[data-location-search]")?.dataset.locationRequestToken || 0);
+}
+
+function createLocationResultButton(location) {
+  const button = document.createElement("button");
+  button.className = "location-search__result";
+  button.type = "button";
+  button.dataset.locationResult = "true";
+  button.dataset.locationLabel = location.label;
+  button.dataset.locationLat = String(location.lat);
+  button.dataset.locationLng = String(location.lng);
+  button.textContent = location.label;
+  return button;
 }
 
 function parseCoordinate(value) {
-  const coordinate = Number(value);
+  const normalizedValue = String(value ?? "").trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const coordinate = Number(normalizedValue);
   return Number.isFinite(coordinate) ? coordinate : null;
 }
 
 function isValidCoordinate(value) {
-  return Number.isFinite(Number(value));
+  return parseCoordinate(value) != null;
+}
+
+function normalizeLocationName(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function escapeHtml(value) {
