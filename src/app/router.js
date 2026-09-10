@@ -26,6 +26,7 @@ import {
   renderDestinationsPage,
   wireDestinationsPage,
 } from "../features/destinations/destinations-page.js";
+import { loadMapPage, renderMapPage, wireMapPage } from "../features/map/map-page.js";
 
 const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
 
@@ -36,6 +37,7 @@ function normalizePath(pathname) {
     pathname === "/app/connect" ||
     pathname === "/app/archive" ||
     pathname === "/app/destinations" ||
+    pathname === "/app/map" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname) ||
@@ -195,6 +197,21 @@ export function renderRoute(options = {}) {
         document.title = "Passports | Destinations";
         wireDestinationsPage();
         loadDestinationsPage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
+  if (pathname === "/app/map") {
+    renderAppShell(renderMapPage(), {
+      activeNav: "map",
+      afterRender: () => {
+        document.title = "Passports | Map";
+        wireMapPage();
+        loadMapPage();
         if (preserveScroll) {
           window.scrollTo({ top: previousScrollY });
         }

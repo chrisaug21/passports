@@ -13,6 +13,7 @@ import { saveTripDayAllocations } from "../../../services/day-allocation-service
 import { formatShortDateRange, formatTimezone } from "../../../lib/format.js";
 import { DEFAULT_BASE_TIMEZONE } from "../../../config/constants.js";
 import { showToast } from "../../shared/toast.js";
+import { getLocationSelection, renderLocationSearchField } from "../../shared/location-search.js";
 import {
   tripDetailState,
   rerenderTripDetail,
@@ -76,10 +77,11 @@ export function renderAddBaseForm(isSaving) {
               <span>Name</span>
               <input name="name" type="text" maxlength="120" placeholder="Barcelona" required />
             </label>
-            <label class="field">
-              <span>Location</span>
-              <input name="locationName" type="text" maxlength="120" placeholder="Barcelona, Spain" />
-            </label>
+            ${renderLocationSearchField({
+              idPrefix: "add-base",
+              value: "",
+              hint: "Search and choose a place to put this base on the map.",
+            })}
             <label class="field">
               <span>Timezone</span>
               ${renderTimezonePicker("add-base-timezone", DEFAULT_BASE_TIMEZONE)}
@@ -111,10 +113,13 @@ export function renderEditBaseForm(base, isSaving) {
               <span>Name</span>
               <input name="name" type="text" value="${escapeHtml(base.name)}" required />
             </label>
-            <label class="field">
-              <span>Location</span>
-              <input name="locationName" type="text" value="${escapeHtml(base.location_name || "")}" />
-            </label>
+            ${renderLocationSearchField({
+              idPrefix: `edit-base-${base.id}`,
+              value: base.location_name || "",
+              lat: base.lat,
+              lng: base.lng,
+              hint: "Search and choose a place to update this base's map pin.",
+            })}
             <label class="field">
               <span>Timezone</span>
               ${renderTimezonePicker(`edit-base-timezone-${base.id}`, base.local_timezone || DEFAULT_BASE_TIMEZONE)}
@@ -600,6 +605,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
 
       try {
         await saveAllocationDraft(trip, loadTripDetail);
+        notifyMapDataChanged();
         tripDetailState.allocationDraft = null;
         tripDetailState.allocationConfirmState = null;
         appStore.updateTripDetail({
@@ -644,9 +650,15 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
       const bases = tripStore.getCurrentBases();
       const formData = new FormData(event.currentTarget);
       const baseName = String(formData.get("name") || "").trim();
+      const location = getLocationSelection(event.currentTarget);
       const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
 
       if (!localTimezone) {
+        return;
+      }
+
+      if (location.needsSearch) {
+        showToast("Choose a matching mapped location before saving.", "error");
         return;
       }
 
@@ -664,10 +676,13 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
         await createTripBase({
           tripId: trip.id,
           name: baseName,
-          locationName: String(formData.get("locationName") || "").trim(),
+          locationName: location.locationName,
+          lat: location.lat,
+          lng: location.lng,
           localTimezone,
           sortOrder: bases.length,
         });
+        notifyMapDataChanged();
 
         appStore.updateTripDetail({
           isSavingBase: false,
@@ -690,9 +705,15 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
       const trip = tripStore.getCurrentTrip();
       const baseId = form.getAttribute("data-edit-base-form");
       const formData = new FormData(form);
+      const location = getLocationSelection(form);
       const localTimezone = getValidatedTimezone(formData.get("localTimezone"));
 
       if (!localTimezone || !trip?.id || !baseId) {
+        return;
+      }
+
+      if (location.needsSearch) {
+        showToast("Choose a matching mapped location before saving.", "error");
         return;
       }
 
@@ -705,9 +726,12 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
         await updateTripBase({
           baseId,
           name: String(formData.get("name") || "").trim(),
-          locationName: String(formData.get("locationName") || "").trim(),
+          locationName: location.locationName,
+          lat: location.lat,
+          lng: location.lng,
           localTimezone,
         });
+        notifyMapDataChanged();
 
         appStore.updateTripDetail({
           isSavingBase: false,
@@ -753,6 +777,7 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
 
       try {
         await softDeleteTripBase(deletingBaseId);
+        notifyMapDataChanged();
         tripStore.removeCurrentBase(deletingBaseId);
         appStore.updateTripDetail({
           isDeletingBase: false,
@@ -777,4 +802,8 @@ export function createBaseAllocationHandlers({ getTripItemErrorMessage, loadTrip
       }
     },
   };
+}
+
+function notifyMapDataChanged() {
+  window.dispatchEvent(new CustomEvent("passports:map-data-invalidated"));
 }

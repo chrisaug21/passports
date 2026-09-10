@@ -1,3 +1,5 @@
+import { wireLocationSearch } from "../../shared/location-search.js";
+
 function bindClick(selector, handler) {
   if (!handler) {
     return;
@@ -128,7 +130,9 @@ export function wireTripDetailPageEvents(handlers) {
   bindClick("[data-close-trip-length-confirm]", handlers.onCloseTripLengthConfirm);
   bindClick("#confirm-trip-length-change", handlers.onConfirmTripLengthChange);
   bindSubmit("#add-base-form", handlers.onAddBaseSubmit);
+  wireLocationSearch(document.querySelector("#add-base-form"));
   document.querySelectorAll("[data-edit-base-form]").forEach((form) => {
+    wireLocationSearch(form);
     form.addEventListener("submit", (event) => {
       handlers.onEditBaseSubmit?.(event, form);
     });

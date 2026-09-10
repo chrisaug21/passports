@@ -8,8 +8,11 @@ import {
   softDeleteTrip,
   updateTripSettings,
 } from "../../../services/trips-service.js";
+import { updateTripBase } from "../../../services/bases-service.js";
 import { getTripEndDate, isValidDateInput } from "../../../lib/derive.js";
+import { DEFAULT_BASE_TIMEZONE } from "../../../config/constants.js";
 import { showToast } from "../../shared/toast.js";
+import { getLocationSelection, renderLocationSearchField, wireLocationSearch } from "../../shared/location-search.js";
 import {
   tripDetailState,
   rerenderTripDetail,
@@ -127,6 +130,8 @@ function formatRemovedDayRange(startDayNumber, endDayNumber) {
 
 export function renderTripSettingsForm(trip, isSaving) {
   const endDate = getTripEndDate(trip);
+  const bases = tripStore.getCurrentBases();
+  const singleBase = bases.length === 1 ? bases[0] : null;
   const endDateLabel = endDate
     ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(endDate)
     : "Set start date";
@@ -148,6 +153,8 @@ export function renderTripSettingsForm(trip, isSaving) {
               <span>Title</span>
               <input name="title" type="text" maxlength="120" value="${escapeHtml(trip.title || "")}" required />
             </label>
+
+            ${singleBase ? renderSingleBaseLocationField(singleBase) : ""}
 
             <div class="trip-settings-form__date-grid">
               <label class="field">
@@ -296,6 +303,16 @@ function renderTripSettingsPhotoField(trip) {
   `;
 }
 
+function renderSingleBaseLocationField(base) {
+  return renderLocationSearchField({
+    idPrefix: `trip-settings-base-${base.id}`,
+    label: "Map Location",
+    value: base.location_name || base.name || "",
+    lat: base.lat,
+    lng: base.lng,
+  });
+}
+
 export function renderTripSettingsSummary(_trip) {
   return "";
 }
@@ -399,6 +416,7 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
 
   try {
     const updatedTrip = await updateTripSettings(settings);
+    await saveSingleBaseMapLocation(settings.singleBaseMapLocation);
     tripStore.updateCurrentTrip(updatedTrip);
     tripDetailState.pendingTripSettingsDraft = null;
     tripDetailState.tripLengthConfirmState = null;
@@ -417,6 +435,28 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
     rerenderTripDetail();
     showToast(getTripItemErrorMessage("update"), "error");
   }
+}
+
+async function saveSingleBaseMapLocation(locationDraft) {
+  if (!locationDraft?.baseId || !locationDraft.location?.hasCoordinates) {
+    return;
+  }
+
+  const base = tripStore.getCurrentBases().find((entry) => entry.id === locationDraft.baseId);
+
+  if (!base) {
+    return;
+  }
+
+  await updateTripBase({
+    baseId: base.id,
+    name: base.name || locationDraft.location.locationName,
+    locationName: locationDraft.location.locationName,
+    lat: locationDraft.location.lat,
+    lng: locationDraft.location.lng,
+    localTimezone: base.local_timezone || DEFAULT_BASE_TIMEZONE,
+  });
+  notifyMapDataChanged();
 }
 
 export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDetail }) {
@@ -440,6 +480,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
     onAfterTripSettingsOpen: () => {
       wireTripSettingsDatePreview();
       wireTripSettingsShareLink(tripStore.getCurrentTrip());
+      wireLocationSearch(document.querySelector("#trip-settings-form"));
     },
     onOpenDeleteTripConfirm: () => {
       appStore.updateTripDetail({
@@ -477,6 +518,23 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         isJournalPublic: isPublic && formData.get("isJournalPublic") === "on",
         isPlanningPublic: formData.get("isPlanningPublic") === "on",
       };
+      const bases = tripStore.getCurrentBases();
+      const singleBase = bases.length === 1 ? bases[0] : null;
+
+      if (singleBase) {
+        const location = getLocationSelection(event.currentTarget);
+
+        if (location.needsSearch) {
+          showToast("Choose a matching mapped location before saving.", "error");
+          return;
+        }
+
+        nextSettings.singleBaseMapLocation = {
+          baseId: singleBase.id,
+          location,
+        };
+      }
+
       const shrinkSummary = getTripShrinkSummary(tripLength, tripStore.getCurrentDays(), tripStore.getCurrentItems());
 
       if (tripLength < Number(trip.trip_length) && (shrinkSummary.itemCount > 0 || shrinkSummary.removedDays > 0)) {
@@ -631,4 +689,8 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
       }
     },
   };
+}
+
+function notifyMapDataChanged() {
+  window.dispatchEvent(new CustomEvent("passports:map-data-invalidated"));
 }

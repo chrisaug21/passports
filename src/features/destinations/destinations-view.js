@@ -3,6 +3,7 @@ import { tripStore } from "../../state/trip-store.js";
 import { sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
+import { renderLocationSearchField } from "../shared/location-search.js";
 
 const BOARD_COLUMNS = [
   {
@@ -334,6 +335,12 @@ function renderCreateDestinationModal(destinationsPage) {
             <input name="description" type="text" maxlength="160" placeholder="Optional short note" />
           </label>
 
+          ${renderLocationSearchField({
+            idPrefix: "create-destination",
+            label: "Mapped Location",
+            required: true,
+          })}
+
           <label class="field">
             <span>Photo</span>
             <input name="photo" type="file" accept="image/*" />
@@ -371,6 +378,7 @@ function renderCreateDestinationModal(destinationsPage) {
 
 function renderDestinationDetailModal(destinationsPage) {
   const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+  const destinationBase = getDestinationMapBase(destinationsPage.selectedDestinationBases);
 
   if (!destinationsPage.selectedDestinationId) {
     return "";
@@ -431,6 +439,14 @@ function renderDestinationDetailModal(destinationsPage) {
           </label>
         </div>
 
+        ${renderLocationSearchField({
+          idPrefix: `destination-detail-${destination.id}`,
+          label: "Mapped Location",
+          value: destinationBase?.location_name || destinationBase?.name || "",
+          lat: destinationBase?.lat,
+          lng: destinationBase?.lng,
+        })}
+
         ${renderDestinationNotesPreview(destination, destinationsPage)}
       </div>
 
@@ -449,6 +465,14 @@ function renderDestinationDetailModal(destinationsPage) {
       </div>
     </form>
   `, destination);
+}
+
+function getDestinationMapBase(bases = []) {
+  if (!Array.isArray(bases) || bases.length === 0) {
+    return null;
+  }
+
+  return bases.find((base) => base.lat == null || base.lng == null) || bases[0];
 }
 
 function renderDestinationDetailShell(content, destination = null) {

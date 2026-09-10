@@ -169,6 +169,8 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
     trip_id: tripId,
     name: def.name,
     location_name: def.locationName || null,
+    lat: def.lat ?? null,
+    lng: def.lng ?? null,
     local_timezone: def.localTimezone || DEFAULT_BASE_TIMEZONE,
     sort_order: index,
     created_at: now,
@@ -179,6 +181,14 @@ async function insertTripBasesAndDays(supabase, { tripId, tripLength, baseDefs }
 
   if (baseError) {
     throw baseError;
+  }
+
+  await insertTripDaysForBases(supabase, { tripId, tripLength, baseRows, now });
+}
+
+async function insertTripDaysForBases(supabase, { tripId, tripLength, baseRows, now = new Date().toISOString() }) {
+  if (!Array.isArray(baseRows) || baseRows.length === 0) {
+    return;
   }
 
   const baseCount = baseRows.length;
@@ -276,11 +286,21 @@ export async function createTripWithDefaults({ ownerId, title, description, trip
   }
 }
 
-export async function createDestination({ ownerId, title, description, targetYear = null, targetMonth = null }) {
+export async function createDestination({
+  ownerId,
+  title,
+  description,
+  targetYear = null,
+  targetMonth = null,
+  locationName,
+  lat,
+  lng,
+}) {
   const trips = await listTripsForCurrentUser(ownerId);
   const wishlistTrips = trips.filter((trip) => trip.status === "destinations" && !trip.target_year);
   const nextSortOrder = wishlistTrips.reduce((max, trip) => Math.max(max, Number(trip.sort_order) || 0), -1) + 1;
-  const tripData = await insertTripRow(getSupabase(), {
+  const supabase = getSupabase();
+  const tripData = await insertTripRow(supabase, {
     ownerId,
     title,
     description,
@@ -290,6 +310,33 @@ export async function createDestination({ ownerId, title, description, targetYea
     targetMonth,
     sortOrder: nextSortOrder,
   });
+
+  try {
+    const now = new Date().toISOString();
+    const { error: baseError } = await supabase.from("trip_bases").insert({
+      id: crypto.randomUUID(),
+      trip_id: tripData.id,
+      name: title,
+      location_name: locationName || title,
+      lat,
+      lng,
+      local_timezone: DEFAULT_BASE_TIMEZONE,
+      sort_order: 0,
+      created_at: now,
+      updated_at: now,
+    });
+
+    if (baseError) {
+      throw baseError;
+    }
+  } catch (error) {
+    await supabase
+      .from("trips")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", tripData.id);
+
+    throw error;
+  }
 
   return {
     ...tripData,
@@ -326,10 +373,10 @@ export async function promoteDestinationToTrip({ tripId, title, description, tri
   const [basesResult, daysResult] = await Promise.all([
     supabase
       .from("trip_bases")
-      .select("id")
+      .select("id, sort_order")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
-      .limit(1),
+      .order("sort_order", { ascending: true }),
     supabase
       .from("trip_days")
       .select("id")
@@ -346,11 +393,21 @@ export async function promoteDestinationToTrip({ tripId, title, description, tri
     throw daysResult.error;
   }
 
-  if ((basesResult.data || []).length === 0 && (daysResult.data || []).length === 0) {
+  const existingBases = basesResult.data || [];
+  const existingDays = daysResult.data || [];
+
+  if (existingBases.length === 0 && existingDays.length === 0) {
     await insertTripBasesAndDays(supabase, {
       tripId,
       tripLength,
       baseDefs: [{ name: title, locationName: title, localTimezone: DEFAULT_BASE_TIMEZONE }],
+    });
+  } else if (existingBases.length > 0 && existingDays.length === 0) {
+    await insertTripDaysForBases(supabase, {
+      tripId,
+      tripLength,
+      baseRows: existingBases,
+      now,
     });
   }
 
@@ -475,7 +532,7 @@ export async function fetchTripDetailBundle(tripId) {
       .single(),
     supabase
       .from("trip_bases")
-      .select("id, trip_id, name, location_name, local_timezone, sort_order, notes")
+      .select("id, trip_id, name, location_name, lat, lng, local_timezone, sort_order, notes")
       .eq("trip_id", tripId)
       .is("deleted_at", null)
       .order("sort_order", { ascending: true }),
@@ -721,7 +778,7 @@ async function resolveMovableItemsAndBases(supabase, { sourceTripId, scope }) {
 
   const { data: baseRows, error: basesError } = await supabase
     .from("trip_bases")
-    .select("id, name, location_name, local_timezone, sort_order")
+    .select("id, name, location_name, lat, lng, local_timezone, sort_order")
     .in("id", sourceBaseIds)
     .is("deleted_at", null);
 
@@ -802,6 +859,8 @@ async function createBasesForNextTrip(supabase, { newTripId, newTitle, tripLengt
         sourceId: base.id,
         name: base.name,
         locationName: base.location_name,
+        lat: base.lat,
+        lng: base.lng,
         localTimezone: base.local_timezone,
       }))
     : [{ id: crypto.randomUUID(), sourceId: null, name: newTitle, locationName: newTitle, localTimezone: DEFAULT_BASE_TIMEZONE }];
