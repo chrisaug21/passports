@@ -1,7 +1,12 @@
 import { DEFAULT_BASE_TIMEZONE } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 import { deriveTripStatus } from "../lib/derive.js";
-import { duplicatePrimaryPhotosForNewTrip, getPhotoCardPublicUrl, getPhotoPublicUrl } from "./photos-service.js";
+import {
+  duplicatePrimaryPhotosForNewTrip,
+  getPhotoCardPublicUrl,
+  getPhotoPreviewPublicUrl,
+  getPhotoPublicUrl,
+} from "./photos-service.js";
 import { duplicateOverviewBlocksForNewTrip } from "./overview-service.js";
 import { TRIP_ITEM_SELECT } from "./items-service.js";
 
@@ -105,11 +110,13 @@ async function attachPrimaryTripHeroPhotos(trips) {
     const photo = photosByTripId.get(trip.id) || null;
     const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
     const cardUrl = photo ? getPhotoCardPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+    const previewUrl = photo ? getPhotoPreviewPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
 
     return {
       ...trip,
       hero_photo_url: publicUrl,
       hero_photo_card_url: cardUrl,
+      hero_photo_preview_url: previewUrl,
       hero_photo: photo ? { ...photo, public_url: publicUrl } : null,
     };
   });

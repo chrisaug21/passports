@@ -31,11 +31,13 @@ exports.handler = async (event) => {
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("limit", "5");
     url.searchParams.set("q", query);
+    url.searchParams.set("accept-language", "en");
 
     await waitForGeocoderSlot();
     const response = await fetch(url.toString(), {
       headers: {
         Accept: "application/json",
+        "Accept-Language": "en",
         "User-Agent": "Passports travel planner (https://passports.chrisaug.com)",
       },
     });

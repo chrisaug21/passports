@@ -4,7 +4,7 @@ import { isTripStartingSoon } from "../../lib/derive.js";
 
 export function renderTripCard(trip, options = {}) {
   const safeStatus = TRIP_STATUSES.includes(trip.status) ? trip.status : "planning";
-  const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_url || trip.cover_photo_url);
+  const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_preview_url || trip.hero_photo_url || trip.cover_photo_url);
   const tripId = escapeHtml(String(trip.id ?? ""));
   const tripTitle = escapeHtml(trip.title || "Untitled trip");
   const tripDescription = escapeHtml(trip.description || "Trip details coming next.");
@@ -13,7 +13,17 @@ export function renderTripCard(trip, options = {}) {
   return `
     <article class="trip-card" data-trip-card data-trip-id="${tripId}" role="button" tabindex="0" aria-label="Open ${tripTitle}">
       <div class="trip-card__media photo-hero">
-        ${safeCoverUrl ? `<img class="photo-hero__image" src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
+        ${safeCoverUrl ? `
+          <img
+            class="photo-hero__image"
+            src="${escapeHtml(safeCoverUrl)}"
+            ${trip.hero_photo_preview_url && trip.hero_photo_url ? `data-full-src="${escapeHtml(trip.hero_photo_url)}"` : ""}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            data-trip-card-image
+          />
+        ` : ""}
         <div class="trip-card__status-row">
           <span class="trip-card__status trip-card__status--${safeStatus}">${statusLabel}</span>
           ${startingSoon ? `<span class="trip-card__status trip-card__status--starting-soon">Starting soon</span>` : ""}

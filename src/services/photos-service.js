@@ -249,6 +249,17 @@ export function getPhotoCardPublicUrl(storagePath, cacheKey = "") {
   });
 }
 
+export function getPhotoPreviewPublicUrl(storagePath, cacheKey = "") {
+  return getPhotoPublicUrl(storagePath, cacheKey, {
+    transform: {
+      width: 720,
+      height: 480,
+      resize: "cover",
+      quality: 72,
+    },
+  });
+}
+
 async function insertPrimaryPhotoRecord({ tripId, baseId, storagePath }) {
   const normalizedBaseId = baseId || null;
   const { data, error } = await getSupabase()
