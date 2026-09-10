@@ -102,6 +102,10 @@ function createInitialDestinationsPage() {
     promotingDestinationId: null,
     isShowingDeleteDestinationConfirm: false,
     isDeletingDestination: false,
+    destinationBaseEditorMode: null,
+    editingDestinationBaseId: null,
+    isSavingDestinationBase: false,
+    isDeletingDestinationBase: false,
     demotingDestinationId: null,
     isDemotingDestination: false,
   };

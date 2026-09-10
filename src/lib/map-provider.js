@@ -3,7 +3,7 @@ export const MAP_TILE_PROVIDER = {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 };
 
-const GEOCODER_ENDPOINT = "https://nominatim.openstreetmap.org/search";
+const GEOCODER_ENDPOINT = "/api/location-search";
 
 export async function searchLocations(query) {
   const trimmedQuery = String(query || "").trim();
@@ -12,9 +12,7 @@ export async function searchLocations(query) {
     return [];
   }
 
-  const url = new URL(GEOCODER_ENDPOINT);
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("limit", "5");
+  const url = new URL(GEOCODER_ENDPOINT, window.location.origin);
   url.searchParams.set("q", trimmedQuery);
 
   const response = await fetch(url.toString(), {
@@ -27,7 +25,8 @@ export async function searchLocations(query) {
     throw new Error("LOCATION_SEARCH_FAILED");
   }
 
-  const data = await response.json();
+  const payload = await response.json();
+  const data = Array.isArray(payload?.results) ? payload.results : [];
 
   if (!Array.isArray(data)) {
     return [];
@@ -39,11 +38,15 @@ export async function searchLocations(query) {
 }
 
 function normalizeLocationResult(result) {
+  const lat = Number(result.lat);
+  const lng = Number(result.lng);
+
   return {
-    id: String(result.place_id || `${result.lat},${result.lon}`),
-    label: String(result.display_name || "").trim(),
-    lat: Number(result.lat),
-    lng: Number(result.lon),
+    id: String(result.id || `${result.lat},${result.lng}`),
+    label: String(result.label || "").trim(),
+    lat,
+    lng,
+    timezone: String(result.timezone || "").trim(),
   };
 }
 

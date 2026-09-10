@@ -225,11 +225,22 @@ Start with OpenStreetMap tiles and Nominatim geocoding for the first Map phase. 
 These are not prerequisites for the shipped map foundation, but they are good candidates for a focused follow-up PR before the next larger destination phase if we want the map to feel more deliberate in day-to-day use:
 
 - **Backend geocoder proxy/cache:** keep the UI's Search Location interaction, but move Nominatim requests behind a Netlify function so the app can centralize rate limiting, caching, user-agent/contact headers, error handling, and future provider swaps. This would also reduce repeated identical searches from the browser.
-- **Timezone inference:** keep `trip_bases.local_timezone` as the stored source of truth, but infer a suggested timezone when a user chooses a mapped location. Good free-ish options to evaluate: a local boundary lookup library/dataset such as `@photostructure/tz-lookup` or `geo-tz`, or a hosted free-tier API such as TimeZoneDB. A local library avoids another external API and likely fits the app best if bundle size and browser compatibility are acceptable; otherwise put the lookup behind the same backend function pattern as geocoding.
+- **Timezone inference:** keep `trip_bases.local_timezone` as the stored source of truth, but infer a suggested timezone when a user chooses a mapped location. Decision for the fast-follow branch: use `@photostructure/tz-lookup` in the Netlify geocoder function so coordinate-to-IANA-timezone inference is local, private, fast, and does not introduce another hosted API key. This creates a small root-level backend dependency exception, but nothing in `src/` imports it.
 - **Map overlay polish:** continue refining single-location and grouped-location cards: consistent base-first hierarchy, clear trip labels, status-colored dots on every trip row, compact photo-led rows, date ranges with years, and no **Open** button for Someday/Wishlist rows.
 - **Map data health:** add easier repair flows for missing or stale coordinates, especially for older single-base trips where the base was historically hidden behind the trip name.
 - **Provider/style swap readiness:** leave OpenStreetMap as the default, but make sure tile/geocoder configuration remains contained so MapTiler, Stadia, Thunderforest, Mapbox, or another provider can be tested later without touching unrelated UI code.
 - **Public/account map decision:** keep the account-level public board/map idea out of this mini-phase unless we explicitly decide to pull it forward; it is still a larger sharing/privacy design problem.
+
+### Later map provider/style options
+
+Do not swap providers in the fast-follow PR. Keep OpenStreetMap/Nominatim as the default while moving geocoding behind the Netlify function and keeping tile configuration contained. Once that separation is in place, a later provider test is mostly a tile URL/API-key/attribution change unless we also replace geocoding.
+
+- **MapTiler Cloud:** polished Leaflet-friendly map styles and straightforward tile URLs. Requires an API key and attribution/branding on free plans. Good candidate if the main pain is visual polish.
+- **Stadia Maps:** attractive OpenMapTiles-based styles with a privacy-forward posture and clear usage limits. Requires an API key/account. Good candidate for a nicer OSM-derived look without jumping all the way to Mapbox.
+- **Thunderforest:** distinctive themed map styles and a simple Leaflet tile swap. Requires an API key. Good candidate for a specific visual personality, but less neutral than MapTiler/Stadia.
+- **Mapbox:** strongest all-in-one product for polished maps plus search/geocoding. Requires token/billing awareness, and geocoding result storage/caching rules need care. Best candidate if we want both prettier tiles and a more premium location-search UX.
+
+Provider swap difficulty: low for tiles only, medium if geocoding changes too. The fast-follow architecture should keep provider-specific geocoding behavior in `netlify/functions/location-search.js` and provider-specific tile display in `src/lib/map-provider.js`.
 
 ## Explicitly out of scope for now
 

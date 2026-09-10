@@ -217,7 +217,7 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
   }
 }
 
-export function getPhotoPublicUrl(storagePath, cacheKey = "") {
+export function getPhotoPublicUrl(storagePath, cacheKey = "", options = {}) {
   if (!storagePath) {
     return "";
   }
@@ -225,7 +225,7 @@ export function getPhotoPublicUrl(storagePath, cacheKey = "") {
   const { data } = getSupabase()
     .storage
     .from(PHOTO_BUCKET)
-    .getPublicUrl(storagePath);
+    .getPublicUrl(storagePath, options);
 
   if (!data?.publicUrl) {
     return "";
@@ -236,6 +236,17 @@ export function getPhotoPublicUrl(storagePath, cacheKey = "") {
   }
 
   return `${data.publicUrl}${data.publicUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(cacheKey))}`;
+}
+
+export function getPhotoCardPublicUrl(storagePath, cacheKey = "") {
+  return getPhotoPublicUrl(storagePath, cacheKey, {
+    transform: {
+      width: 360,
+      height: 240,
+      resize: "cover",
+      quality: 70,
+    },
+  });
 }
 
 async function insertPrimaryPhotoRecord({ tripId, baseId, storagePath }) {

@@ -3,6 +3,7 @@ import { tripStore } from "../../state/trip-store.js";
 import { sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
+import { CANONICAL_TIMEZONES, DEFAULT_BASE_TIMEZONE } from "../../config/constants.js";
 import { renderLocationSearchField } from "../shared/location-search.js";
 
 const BOARD_COLUMNS = [
@@ -41,6 +42,7 @@ export function renderDestinationsPage() {
       ${renderDestinationsContent(dashboard, columns)}
       ${renderCreateDestinationModal(destinationsPage)}
       ${renderDestinationDetailModal(destinationsPage)}
+      ${renderDestinationBaseEditorModal(destinationsPage)}
       ${renderPromoteDestinationModal(destinationsPage)}
       ${renderDeleteDestinationConfirmModal(destinationsPage)}
       ${renderBoardDemoteConfirmModal(destinationsPage)}
@@ -241,7 +243,7 @@ function renderBoardColumn(column, trips) {
 }
 
 function renderDestinationCard(trip) {
-  const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_url || trip.cover_photo_url);
+  const safeCoverUrl = sanitizeCoverUrl(trip.hero_photo_card_url || trip.hero_photo_url || trip.cover_photo_url);
   const dateLabel = trip.status === "destinations"
     ? formatDestinationTargetDate(trip)
     : formatTripDateSummary(trip, { includeYear: trip.status === "done" });
@@ -274,7 +276,16 @@ function renderDestinationCard(trip) {
         </button>
       ` : ""}
       <div class="destination-card__media">
-        ${safeCoverUrl ? `<img src="${escapeHtml(safeCoverUrl)}" alt="" loading="lazy" decoding="async" />` : ""}
+        ${safeCoverUrl ? `
+          <img
+            src="${escapeHtml(safeCoverUrl)}"
+            ${trip.hero_photo_card_url && trip.hero_photo_url ? `data-full-src="${escapeHtml(trip.hero_photo_url)}"` : ""}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            data-destination-card-image
+          />
+        ` : ""}
       </div>
       <div class="destination-card__body">
         <h3>${tripTitle}</h3>
@@ -378,8 +389,6 @@ function renderCreateDestinationModal(destinationsPage) {
 
 function renderDestinationDetailModal(destinationsPage) {
   const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
-  const destinationBase = getDestinationMapBase(destinationsPage.selectedDestinationBases);
-
   if (!destinationsPage.selectedDestinationId) {
     return "";
   }
@@ -439,13 +448,7 @@ function renderDestinationDetailModal(destinationsPage) {
           </label>
         </div>
 
-        ${renderLocationSearchField({
-          idPrefix: `destination-detail-${destination.id}`,
-          label: "Mapped Location",
-          value: destinationBase?.location_name || destinationBase?.name || "",
-          lat: destinationBase?.lat,
-          lng: destinationBase?.lng,
-        })}
+        ${renderDestinationBasesPanel(destinationsPage.selectedDestinationBases)}
 
         ${renderDestinationNotesPreview(destination, destinationsPage)}
       </div>
@@ -467,14 +470,6 @@ function renderDestinationDetailModal(destinationsPage) {
   `, destination);
 }
 
-function getDestinationMapBase(bases = []) {
-  if (!Array.isArray(bases) || bases.length === 0) {
-    return null;
-  }
-
-  return bases.find((base) => base.lat == null || base.lng == null) || bases[0];
-}
-
 function renderDestinationDetailShell(content, destination = null) {
   return `
     <div class="modal-shell" id="destination-detail-modal" aria-hidden="false">
@@ -491,6 +486,133 @@ function renderDestinationDetailShell(content, destination = null) {
       </section>
     </div>
   `;
+}
+
+function renderDestinationBasesPanel(bases = []) {
+  const sortedBases = [...(Array.isArray(bases) ? bases : [])].sort((left, right) => {
+    const orderDiff = (Number(left.sort_order) || 0) - (Number(right.sort_order) || 0);
+    return orderDiff || String(left.name || "").localeCompare(String(right.name || ""));
+  });
+
+  return `
+    <section class="destination-bases-panel">
+      <div class="destination-bases-panel__header">
+        <div>
+          <p class="eyebrow">Bases</p>
+          <h3>Map pins</h3>
+        </div>
+        <button class="button button--secondary" id="add-destination-base" type="button">
+          <i data-lucide="plus" aria-hidden="true"></i>
+          Add Base
+        </button>
+      </div>
+      <div class="destination-bases-list">
+        ${
+          sortedBases.length > 0
+            ? sortedBases.map((base) => renderDestinationBaseRow(base)).join("")
+            : `
+              <div class="destination-bases-empty">
+                <p class="muted">Add a base to put this destination on the map.</p>
+              </div>
+            `
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderDestinationBaseRow(base) {
+  const hasCoordinates = base.lat != null && base.lng != null;
+
+  return `
+    <article class="destination-base-row">
+      <div class="destination-base-row__content">
+        <h4>${escapeHtml(base.name || "Untitled base")}</h4>
+        <p>${escapeHtml(base.location_name || "No mapped location")}${hasCoordinates ? "" : " · Needs pin"}</p>
+        <p class="muted">${escapeHtml(formatTimezoneLabel(base.local_timezone))}</p>
+      </div>
+      <button
+        class="icon-button"
+        data-edit-destination-base="${escapeHtml(base.id)}"
+        type="button"
+        title="Edit base"
+        aria-label="Edit ${escapeHtml(base.name || "base")}"
+      >
+        <i data-lucide="pencil" aria-hidden="true"></i>
+      </button>
+    </article>
+  `;
+}
+
+function renderDestinationBaseEditorModal(destinationsPage) {
+  const destination = getSelectedDestination(destinationsPage.selectedDestinationId);
+
+  if (!destination || !destinationsPage.destinationBaseEditorMode) {
+    return "";
+  }
+
+  const bases = destinationsPage.selectedDestinationBases || [];
+  const base = destinationsPage.destinationBaseEditorMode === "edit"
+    ? bases.find((entry) => entry.id === destinationsPage.editingDestinationBaseId)
+    : null;
+
+  if (destinationsPage.destinationBaseEditorMode === "edit" && !base) {
+    return "";
+  }
+
+  const modeLabel = base ? "Edit Base" : "Add Base";
+  const timezone = base?.local_timezone || DEFAULT_BASE_TIMEZONE;
+
+  return `
+    <div class="modal-shell" id="destination-base-editor-modal" aria-hidden="false">
+      <div class="modal-backdrop" data-close-destination-base-editor></div>
+      <section class="panel modal-card modal-card--editor destination-base-editor-modal">
+        <div class="modal-card__header">
+          <div>
+            <p class="eyebrow">Wishlist Base</p>
+            <h3>${escapeHtml(modeLabel)}</h3>
+          </div>
+          <button class="icon-button" data-close-destination-base-editor type="button" aria-label="Close base editor">x</button>
+        </div>
+        <form class="destination-base-editor-form" id="destination-base-editor-form" data-base-id="${escapeHtml(base?.id || "")}">
+          <div class="destination-detail-form__content">
+            <label class="field">
+              <span>Name</span>
+              <input name="baseName" type="text" maxlength="120" value="${escapeHtml(base?.name || "")}" placeholder="${escapeHtml(destination.title || "Base name")}" required />
+            </label>
+            ${renderLocationSearchField({
+              idPrefix: `destination-base-${base?.id || "new"}`,
+              label: "Mapped Location",
+              value: base?.location_name || "",
+              lat: base?.lat,
+              lng: base?.lng,
+              required: true,
+              hint: "Search and choose a place for this map pin.",
+            })}
+            <p class="field-hint">Timezone will be inferred from the selected location. Current: ${escapeHtml(formatTimezoneLabel(timezone))}</p>
+          </div>
+          <div class="modal-card__actions modal-card__actions--sticky">
+            ${
+              base ? `
+                <button class="button button--danger" id="delete-destination-base" type="button" ${destinationsPage.isDeletingDestinationBase ? "disabled" : ""}>
+                  ${destinationsPage.isDeletingDestinationBase ? "Deleting..." : "Delete Base"}
+                </button>
+              ` : "<span></span>"
+            }
+            <button class="button" type="submit" ${destinationsPage.isSavingDestinationBase ? "disabled" : ""}>
+              ${destinationsPage.isSavingDestinationBase ? "Saving..." : "Save Base"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function formatTimezoneLabel(timezone) {
+  const timezoneId = timezone || DEFAULT_BASE_TIMEZONE;
+  const option = CANONICAL_TIMEZONES.find(([value]) => value === timezoneId);
+  return option ? option[1] : timezoneId;
 }
 
 function renderDestinationPhotoField(destination) {

@@ -41,6 +41,17 @@ export function wireDestinationsPage() {
     });
   });
 
+  document.querySelectorAll("[data-destination-card-image]").forEach((image) => {
+    image.addEventListener("error", () => {
+      const fallbackUrl = image.getAttribute("data-full-src");
+
+      if (fallbackUrl && image.src !== fallbackUrl) {
+        image.src = fallbackUrl;
+        image.removeAttribute("data-full-src");
+      }
+    }, { once: true });
+  });
+
   wireCreateDestinationModal();
   wireDestinationDetailModal();
   wireBoardDemoteConfirmModal();

@@ -6,7 +6,7 @@ Project-specific instructions. Global coding standards and git discipline are in
 Personal travel planner and diary PWA. Used on phone while traveling, desktop for planning, and tablet for browsing. Multi-user: Planners have full CRUD, Travelers can add items and react. Public share links expose curated read-only trip views with no login required.
 
 ## Stack
-- App shell: vanilla HTML/CSS/JS with ES modules, one `index.html` entry point, no build step, and no npm dependencies outside the scoped `mcp-server/` exception
+- App shell: vanilla HTML/CSS/JS with ES modules, one `index.html` entry point, no build step, and no npm dependencies in `src/`. Backend-only dependencies are allowed in scoped exceptions: root Netlify Function dependencies and the isolated `mcp-server/` package.
 - Data backend: Supabase project `tqxvtsdghobustiatiqm` (`Passports`), separate from Homeboard/Habits
 - Deployment: Netlify injects environment variables through `netlify.toml`
 - Photo source: Unsplash location images require visible attribution wherever they render
@@ -89,7 +89,7 @@ Do not read them for context. Do not modify them.
 ## Architecture
 - Supabase-first. No offline writes — show error toast if Supabase unreachable on write.
 - localStorage is read-only cache only. Never write trip data to localStorage.
-- No frameworks, no bundlers. Plain vanilla JS with ES modules. One scoped exception: `mcp-server/` has its own `package.json` (the Passports MCP connector backend, needs `@modelcontextprotocol/sdk`) — fully isolated, nothing in `src/` imports from it. See `passports-mcp-server-spec.md`.
+- No frameworks, no bundlers. Plain vanilla JS with ES modules. Scoped backend exceptions: root `package.json` is for Netlify Function-only dependencies, and `mcp-server/` has its own `package.json` for the Passports MCP connector backend. Nothing in `src/` imports from either dependency surface.
 - Single-page app with client-side routing via router.js.
 - Services talk to Supabase. Features render UI. State holds what's in memory. Never skip layers.
 

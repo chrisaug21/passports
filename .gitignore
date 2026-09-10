@@ -9,3 +9,6 @@ supabase/.temp/
 
 # MCP server dependencies (mcp-server/ has its own package.json — see CLAUDE.md)
 mcp-server/node_modules
+
+# Root dependencies are only for Netlify Functions.
+node_modules

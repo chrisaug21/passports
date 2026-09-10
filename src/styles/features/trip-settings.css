@@ -16,6 +16,11 @@
   gap: 1rem;
 }
 
+.trip-settings-form__single-base-fields {
+  display: grid;
+  gap: 1rem;
+}
+
 .trip-settings-modal {
   width: min(560px, 100%);
 }
