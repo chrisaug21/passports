@@ -518,8 +518,33 @@
   gap: var(--space-1);
 }
 
-.map-popup__trip-label .map-filter__legend {
-  margin-top: 0.05rem;
+.map-popup__trip-label > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-popup__status-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-structure);
+}
+
+.map-popup__status-dot--destinations {
+  background: var(--color-action);
+}
+
+.map-popup__status-dot--planning {
+  background: var(--color-structure);
+}
+
+.map-popup__status-dot--active {
+  background: var(--color-item-meal);
+}
+
+.map-popup__status-dot--done {
+  background: var(--color-status-done);
 }
 
 .map-popup__trip-copy p,

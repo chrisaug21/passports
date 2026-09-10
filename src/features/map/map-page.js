@@ -467,8 +467,8 @@ function renderPopupTripCard(pin, options = {}) {
 function renderGroupedTripCardCopy(pin, options) {
   return `
     <p class="map-popup__trip-label">
-      <strong>Trip:</strong> ${escapeHtml(pin.title)}
-      <span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>
+      <span><strong>Trip:</strong> ${escapeHtml(pin.title)}</span>
+      <span class="map-popup__status-dot map-popup__status-dot--${escapeHtml(pin.status)}" aria-hidden="true"></span>
     </p>
     ${options.hideBaseName || !pin.baseName ? "" : `<p><strong>Base:</strong> ${escapeHtml(pin.baseName)}</p>`}
   `;
