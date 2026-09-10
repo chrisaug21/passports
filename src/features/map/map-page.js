@@ -424,12 +424,17 @@ function renderPinPopup(pin) {
 }
 
 function renderGroupedPinPopup(pinGroup) {
+  const groupTitle = getGroupedPinTitle(pinGroup);
+
   return `
     <article class="map-popup map-popup--group">
       <p class="eyebrow">${pinGroup.pins.length} Trips</p>
-      <h3>${escapeHtml(getGroupedPinTitle(pinGroup))}</h3>
+      <h3>${escapeHtml(groupTitle)}</h3>
       <div class="map-popup__list">
-        ${pinGroup.pins.map((pin) => renderPopupTripCard(pin, { isGrouped: true })).join("")}
+        ${pinGroup.pins.map((pin) => renderPopupTripCard(pin, {
+          isGrouped: true,
+          hideBaseName: shouldHideGroupedBaseName(pinGroup, groupTitle),
+        })).join("")}
       </div>
     </article>
   `;
@@ -438,7 +443,7 @@ function renderGroupedPinPopup(pinGroup) {
 function renderPopupTripCard(pin, options = {}) {
   const isGrouped = options.isGrouped === true;
   const primaryLabel = isGrouped ? pin.title : getSinglePinPlaceLabel(pin);
-  const secondaryLabel = isGrouped ? pin.baseName : pin.title;
+  const secondaryLabel = isGrouped && options.hideBaseName ? "" : isGrouped ? pin.baseName : pin.title;
 
   return `
     <article class="map-popup__trip-card">
@@ -649,6 +654,15 @@ function getGroupedPinTitle(pinGroup) {
   }
 
   return getSharedPinValue(pinGroup.pins, "placeLabel") || pinGroup.placeLabel || "Mapped place";
+}
+
+function shouldHideGroupedBaseName(pinGroup, groupTitle) {
+  if (!groupTitle) {
+    return false;
+  }
+
+  const sharedBaseName = getSharedPinValue(pinGroup.pins, "baseName");
+  return Boolean(sharedBaseName) && normalizeLabel(sharedBaseName) === normalizeLabel(groupTitle);
 }
 
 function getSinglePinPlaceLabel(pin) {
