@@ -442,18 +442,17 @@ function renderGroupedPinPopup(pinGroup) {
 
 function renderPopupTripCard(pin, options = {}) {
   const isGrouped = options.isGrouped === true;
-  const primaryLabel = isGrouped ? pin.title : getSinglePinPlaceLabel(pin);
-  const secondaryLabel = isGrouped && options.hideBaseName ? "" : isGrouped ? pin.baseName : pin.title;
+  const primaryLabel = getSinglePinPlaceLabel(pin);
+  const secondaryLabel = pin.title;
 
   return `
     <article class="map-popup__trip-card">
       ${renderPopupTripPhoto(pin)}
       <div class="map-popup__trip-copy">
-        <h4>
-          ${escapeHtml(primaryLabel)}
-          ${isGrouped ? `<span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>` : ""}
-        </h4>
-        ${secondaryLabel ? `<p><strong>${isGrouped ? "Base:" : "Trip:"}</strong> ${escapeHtml(secondaryLabel)}</p>` : ""}
+        ${isGrouped ? renderGroupedTripCardCopy(pin, options) : `
+          <h4>${escapeHtml(primaryLabel)}</h4>
+          ${secondaryLabel ? `<p><strong>Trip:</strong> ${escapeHtml(secondaryLabel)}</p>` : ""}
+        `}
         ${pin.dateLabel ? `<small>${escapeHtml(pin.dateLabel)}</small>` : ""}
       </div>
       ${pin.status === "destinations" ? "" : `
@@ -462,6 +461,16 @@ function renderPopupTripCard(pin, options = {}) {
         </button>
       `}
     </article>
+  `;
+}
+
+function renderGroupedTripCardCopy(pin, options) {
+  return `
+    <p class="map-popup__trip-label">
+      <strong>Trip:</strong> ${escapeHtml(pin.title)}
+      <span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>
+    </p>
+    ${options.hideBaseName || !pin.baseName ? "" : `<p><strong>Base:</strong> ${escapeHtml(pin.baseName)}</p>`}
   `;
 }
 

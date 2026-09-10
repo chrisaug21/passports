@@ -512,6 +512,16 @@
   margin-top: 0.1rem;
 }
 
+.map-popup__trip-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.map-popup__trip-label .map-filter__legend {
+  margin-top: 0.05rem;
+}
+
 .map-popup__trip-copy p,
 .map-popup__trip-copy small {
   display: block;
@@ -522,6 +532,10 @@
 .map-popup__trip-copy small {
   color: var(--color-text-muted);
   font-size: 0.78rem;
+}
+
+.map-popup__trip-copy p strong {
+  color: var(--color-text);
 }
 
 .map-popup__open {
