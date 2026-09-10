@@ -416,14 +416,9 @@ function renderPinPopup(pin) {
   }
 
   return `
-    <article class="map-popup">
+    <article class="map-popup map-popup--single">
       <p class="eyebrow">${escapeHtml(getStatusLabel(pin.status))}</p>
-      <h3>${escapeHtml(pin.title)}</h3>
-      ${pin.baseName ? `<p>${escapeHtml(pin.baseName)}</p>` : ""}
-      ${pin.dateLabel ? `<p class="muted">${escapeHtml(pin.dateLabel)}</p>` : ""}
-      <button class="button button--secondary" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
-        Open
-      </button>
+      ${renderPopupTripCard(pin)}
     </article>
   `;
 }
@@ -434,17 +429,40 @@ function renderGroupedPinPopup(pinGroup) {
       <p class="eyebrow">${pinGroup.pins.length} Trips</p>
       <h3>${escapeHtml(getGroupedPinTitle(pinGroup))}</h3>
       <div class="map-popup__list">
-        ${pinGroup.pins.map((pin) => `
-          <button class="map-popup__item" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
-            <span class="map-filter__legend map-filter__legend--${escapeHtml(pin.status)}" aria-hidden="true"></span>
-            <span>
-              <strong>${escapeHtml(pin.title)}</strong>
-              ${pin.dateLabel ? `<small>${escapeHtml(pin.dateLabel)}</small>` : ""}
-            </span>
-          </button>
-        `).join("")}
+        ${pinGroup.pins.map((pin) => renderPopupTripCard(pin)).join("")}
       </div>
     </article>
+  `;
+}
+
+function renderPopupTripCard(pin) {
+  return `
+    <article class="map-popup__trip-card">
+      ${renderPopupTripPhoto(pin)}
+      <div class="map-popup__trip-copy">
+        <h4>${escapeHtml(pin.title)}</h4>
+        ${pin.baseName ? `<p>${escapeHtml(pin.baseName)}</p>` : ""}
+        ${pin.dateLabel ? `<small>${escapeHtml(pin.dateLabel)}</small>` : ""}
+      </div>
+      <button class="button button--secondary map-popup__open" type="button" data-map-popup-open="${escapeHtml(pin.tripId)}">
+        Open
+      </button>
+    </article>
+  `;
+}
+
+function renderPopupTripPhoto(pin) {
+  if (!pin.coverPhotoUrl) {
+    return `<span class="map-popup__trip-photo map-popup__trip-photo--empty" aria-hidden="true"></span>`;
+  }
+
+  return `
+    <img
+      class="map-popup__trip-photo"
+      src="${escapeHtml(pin.coverPhotoUrl)}"
+      alt=""
+      loading="lazy"
+    />
   `;
 }
 
@@ -483,10 +501,11 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
         title: trip.title || "Untitled trip",
         baseName: tripBases.length > 1 ? base.name || base.location_name || "Untitled base" : "",
         baseLabel: base.name || "",
+        coverPhotoUrl: trip.hero_photo_url || trip.cover_photo_url || "",
         placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
         dateLabel: trip.status === "destinations"
-          ? formatDestinationTargetDate(trip)
+          ? formatMapDestinationDate(trip)
           : formatBaseDateSummary({ trip, base, days: daysByBaseId.get(base.id) || [] }),
         lat,
         lng,
@@ -502,11 +521,11 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
 
 function formatBaseDateSummary({ trip, days }) {
   if (!trip?.start_date) {
-    return formatTripDateSummary(trip);
+    return formatTripDateSummary(trip, { includeYear: true });
   }
 
   if (!Array.isArray(days) || days.length === 0) {
-    return formatTripDateSummary(trip, { includeYear: trip.status === "done" });
+    return formatTripDateSummary(trip, { includeYear: true });
   }
 
   const sortedDayNumbers = days
@@ -517,8 +536,48 @@ function formatBaseDateSummary({ trip, days }) {
   const firstDay = sortedDayNumbers[0];
   const lastDay = sortedDayNumbers[sortedDayNumbers.length - 1];
 
-  return formatShortDateRange(trip.start_date, firstDay, lastDay)
-    || formatTripDateSummary(trip, { includeYear: trip.status === "done" });
+  return formatMapDateRange(trip.start_date, firstDay, lastDay)
+    || formatTripDateSummary(trip, { includeYear: true });
+}
+
+function formatMapDestinationDate(trip) {
+  const dateLabel = formatDestinationTargetDate(trip);
+  return dateLabel === "Someday" ? "" : dateLabel;
+}
+
+function formatMapDateRange(startDate, startDayNumber, endDayNumber) {
+  const shortDateRange = formatShortDateRange(startDate, startDayNumber, endDayNumber);
+
+  if (!shortDateRange) {
+    return "";
+  }
+
+  const start = getDateByDayNumber(startDate, startDayNumber);
+  const end = getDateByDayNumber(startDate, endDayNumber);
+
+  if (!start || !end) {
+    return shortDateRange;
+  }
+
+  const year = end.getFullYear();
+  return `${shortDateRange}, ${year}`;
+}
+
+function getDateByDayNumber(startDate, dayNumber) {
+  const normalizedDayNumber = Number(dayNumber);
+
+  if (!startDate || !Number.isInteger(normalizedDayNumber) || normalizedDayNumber < 1) {
+    return null;
+  }
+
+  const date = new Date(`${startDate}T12:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setDate(date.getDate() + normalizedDayNumber - 1);
+  return date;
 }
 
 function groupBasesByTripId(bases) {
