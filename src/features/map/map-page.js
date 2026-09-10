@@ -6,6 +6,7 @@ import { tripStore } from "../../state/trip-store.js";
 import { listBasesForTrips } from "../../services/bases-service.js";
 import { listDaysForTrips } from "../../services/days-service.js";
 import { loadDashboard, setDashboardRenderer } from "../dashboard/dashboard-page.js";
+import { openDestinationCard } from "../destinations/destinations-wire.js";
 
 const MAP_FILTERS = [
   { id: "destinations", label: "Someday" },
@@ -100,9 +101,9 @@ export function wireMapPage() {
     });
   });
 
-  document.querySelectorAll("[data-map-open-trip]").forEach((button) => {
+  document.querySelectorAll("[data-map-repair-trip]").forEach((button) => {
     button.addEventListener("click", () => {
-      openTrip(button.getAttribute("data-map-open-trip"));
+      openRepairTarget(button.getAttribute("data-map-repair-trip"));
     });
   });
 
@@ -303,12 +304,22 @@ function renderMissingLocations(missingLocations) {
 }
 
 function renderMissingLocation(entry) {
+  const actionLabel = getMissingLocationActionLabel(entry);
+
   return `
-    <button class="map-missing-item" type="button" data-map-open-trip="${escapeHtml(entry.trip.id)}">
+    <button class="map-missing-item" type="button" data-map-repair-trip="${escapeHtml(entry.trip.id)}">
       <span>${escapeHtml(entry.trip.title || "Untitled trip")}</span>
-      <small>${escapeHtml(entry.base?.name || entry.base?.location_name || "Add a base location")}</small>
+      <small>${escapeHtml(`${entry.base?.name || entry.base?.location_name || "Add a base"} · ${actionLabel}`)}</small>
     </button>
   `;
+}
+
+function getMissingLocationActionLabel(entry) {
+  if (entry.trip.status === "destinations") {
+    return entry.base ? "Edit Wishlist base" : "Add Wishlist base";
+  }
+
+  return entry.base ? "Edit base location" : "Open trip settings";
 }
 
 function renderNoPinsState(missingLocations) {
@@ -780,6 +791,24 @@ function openTrip(tripId) {
   }
 
   navigate(`/app/trip/${trip.id}`);
+}
+
+function openRepairTarget(tripId) {
+  const trip = tripStore.getTrips().find((entry) => String(entry.id) === String(tripId));
+
+  if (!trip) {
+    return;
+  }
+
+  if (trip.status === "destinations") {
+    navigate("/app/destinations");
+    window.setTimeout(() => {
+      openDestinationCard(trip.id);
+    }, 0);
+    return;
+  }
+
+  openTrip(trip.id);
 }
 
 function getStatusLabel(status) {

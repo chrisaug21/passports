@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "@photostructure/tz-lookup": "^11.6.1"
+  }
+}

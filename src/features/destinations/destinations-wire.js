@@ -10,10 +10,10 @@ import {
   softDeleteTrip,
   updateDestination,
 } from "../../services/trips-service.js";
-import { createTripBase, listBasesForTrips, updateTripBase } from "../../services/bases-service.js";
+import { createTripBase, listBasesForTrips, softDeleteTripBase, updateTripBase } from "../../services/bases-service.js";
 import { fetchTripNotes } from "../../services/notes-service.js";
 import { DEFAULT_PHOTO_ASPECT_RATIO, openPhotoCropModal } from "../../lib/photo-upload.js";
-import { PHOTO_CONTEXTS, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
+import { PHOTO_CONTEXTS, getPhotoCardPublicUrl, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
 import { isValidDateInput } from "../../lib/derive.js";
 import { DEFAULT_BASE_TIMEZONE } from "../../config/constants.js";
 import { getLocationSelection, wireLocationSearch } from "../shared/location-search.js";
@@ -97,6 +97,10 @@ function closeDestinationDetail() {
     promotingDestinationId: null,
     isShowingDeleteDestinationConfirm: false,
     isDeletingDestination: false,
+    destinationBaseEditorMode: null,
+    editingDestinationBaseId: null,
+    isSavingDestinationBase: false,
+    isDeletingDestinationBase: false,
   });
   rerenderDestinations();
 }
@@ -207,6 +211,7 @@ export function wireCreateDestinationModal() {
         locationName: location.locationName,
         lat: location.lat,
         lng: location.lng,
+        localTimezone: location.timezone || DEFAULT_BASE_TIMEZONE,
       });
       const destinationWithPhoto = await uploadDestinationPhotoSafely({
         destination: newDestination,
@@ -243,12 +248,12 @@ export function wireDestinationDetailModal() {
     const destinationId = event.currentTarget.getAttribute("data-open-destination-notes");
 
     if (destinationId) {
-        appStore.updateDestinationsPage({
-          selectedDestinationId: null,
-          destinationDetailStatus: "idle",
-          selectedDestinationNotes: [],
-          selectedDestinationBases: [],
-        });
+      appStore.updateDestinationsPage({
+        selectedDestinationId: null,
+        destinationDetailStatus: "idle",
+        selectedDestinationNotes: [],
+        selectedDestinationBases: [],
+      });
       navigate(`/app/trip/${destinationId}/notes`);
     }
   });
@@ -259,7 +264,6 @@ export function wireDestinationDetailModal() {
   });
 
   wireDestinationPhotoField(form);
-  wireLocationSearch(form);
 
   document.querySelector("#open-delete-destination-confirm")?.addEventListener("click", () => {
     appStore.updateDestinationsPage({ isShowingDeleteDestinationConfirm: true });
@@ -280,6 +284,52 @@ export function wireDestinationDetailModal() {
     event.preventDefault();
     handlePromoteDestination(event.currentTarget);
   });
+
+  document.querySelector("#add-destination-base")?.addEventListener("click", () => {
+    appStore.updateDestinationsPage({
+      destinationBaseEditorMode: "add",
+      editingDestinationBaseId: null,
+    });
+    rerenderDestinations();
+  });
+
+  document.querySelectorAll("[data-edit-destination-base]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appStore.updateDestinationsPage({
+        destinationBaseEditorMode: "edit",
+        editingDestinationBaseId: button.getAttribute("data-edit-destination-base"),
+      });
+      rerenderDestinations();
+    });
+  });
+
+  wireDestinationBaseEditorModal();
+}
+
+function wireDestinationBaseEditorModal() {
+  const form = document.querySelector("#destination-base-editor-form");
+
+  document.querySelectorAll("[data-close-destination-base-editor]").forEach((button) => {
+    button.addEventListener("click", closeDestinationBaseEditor);
+  });
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handleSaveDestinationBase(form);
+  });
+
+  document.querySelector("#delete-destination-base")?.addEventListener("click", handleDeleteDestinationBase);
+  wireLocationSearch(form);
+}
+
+function closeDestinationBaseEditor() {
+  appStore.updateDestinationsPage({
+    destinationBaseEditorMode: null,
+    editingDestinationBaseId: null,
+    isSavingDestinationBase: false,
+    isDeletingDestinationBase: false,
+  });
+  rerenderDestinations();
 }
 
 function closeDeleteDestinationConfirm() {
@@ -349,15 +399,9 @@ async function handleSaveDestination(form) {
 
   const formData = new FormData(form);
   const values = getDestinationFormValues(formData);
-  const location = getLocationSelection(form);
 
   if (!values.title) {
     showToast("Add a destination title before saving.", "error");
-    return;
-  }
-
-  if (location.needsSearch) {
-    showToast("Choose a matching mapped location before saving.", "error");
     return;
   }
 
@@ -373,15 +417,6 @@ async function handleSaveDestination(form) {
       targetYear: values.targetYear,
       targetMonth: values.targetMonth,
     });
-    try {
-      await saveDestinationMapBase({
-        destination: updatedDestination,
-        location,
-      });
-    } catch (mapBaseError) {
-      await restoreDestinationValues(destination);
-      throw mapBaseError;
-    }
     const destinationWithPhoto = await uploadDestinationPhotoSafely({
       destination: updatedDestination,
       file: getSelectedPhotoFile(formData),
@@ -402,48 +437,89 @@ async function handleSaveDestination(form) {
   }
 }
 
-async function restoreDestinationValues(destination) {
-  await updateDestination({
-    tripId: destination.id,
-    title: destination.title || "",
-    description: destination.description || "",
-    targetYear: destination.target_year,
-    targetMonth: destination.target_month,
-  });
+async function handleSaveDestinationBase(form) {
+  const destination = getSelectedDestination(appStore.getState().destinationsPage.selectedDestinationId);
+  const { destinationBaseEditorMode, editingDestinationBaseId } = appStore.getState().destinationsPage;
+
+  if (!form || !destination?.id || !destinationBaseEditorMode) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const name = String(formData.get("baseName") || "").trim();
+  const location = getLocationSelection(form);
+
+  if (!name) {
+    showToast("Add a base name first.", "error");
+    return;
+  }
+
+  if (!location.locationName || !location.hasCoordinates || location.needsSearch) {
+    showToast("Search and choose a mapped location before saving.", "error");
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isSavingDestinationBase: true });
+  rerenderDestinations();
+
+  try {
+    if (destinationBaseEditorMode === "edit") {
+      await updateDestinationBase({
+        baseId: editingDestinationBaseId,
+        name,
+        location,
+      });
+    } else {
+      await createDestinationBase({
+        destinationId: destination.id,
+        name,
+        location,
+      });
+    }
+
+    closeDestinationBaseEditor();
+    showToast("Base saved.", "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isSavingDestinationBase: false });
+    showToast("Could not save that base right now.", "error");
+    rerenderDestinations();
+  }
 }
 
-async function saveDestinationMapBase({ destination, location }) {
-  if (!location.hasCoordinates) {
-    return;
-  }
-
+async function updateDestinationBase({ baseId, name, location }) {
   const bases = appStore.getState().destinationsPage.selectedDestinationBases || [];
-  const base = bases.find((entry) => entry.lat == null || entry.lng == null) || bases[0] || null;
+  const base = bases.find((entry) => entry.id === baseId);
 
-  if (base?.id) {
-    const updatedBase = await updateTripBase({
-      baseId: base.id,
-      name: base.name || destination.title || location.locationName,
-      locationName: location.locationName,
-      lat: location.lat,
-      lng: location.lng,
-      localTimezone: base.local_timezone || DEFAULT_BASE_TIMEZONE,
-    });
-
-    appStore.updateDestinationsPage({
-      selectedDestinationBases: bases.map((entry) => (entry.id === updatedBase.id ? updatedBase : entry)),
-    });
-    notifyMapDataChanged();
+  if (!base) {
     return;
   }
 
-  const createdBase = await createTripBase({
-    tripId: destination.id,
-    name: destination.title || location.locationName,
+  const updatedBase = await updateTripBase({
+    baseId: base.id,
+    name,
     locationName: location.locationName,
     lat: location.lat,
     lng: location.lng,
-    localTimezone: DEFAULT_BASE_TIMEZONE,
+    localTimezone: location.timezone || base.local_timezone || DEFAULT_BASE_TIMEZONE,
+  });
+
+  appStore.updateDestinationsPage({
+    selectedDestinationBases: bases.map((entry) => (entry.id === updatedBase.id ? updatedBase : entry)),
+  });
+  notifyMapDataChanged();
+}
+
+async function createDestinationBase({ destinationId, name, location }) {
+  const bases = appStore.getState().destinationsPage.selectedDestinationBases || [];
+
+  const createdBase = await createTripBase({
+    tripId: destinationId,
+    name,
+    locationName: location.locationName,
+    lat: location.lat,
+    lng: location.lng,
+    localTimezone: location.timezone || DEFAULT_BASE_TIMEZONE,
     sortOrder: bases.length,
   });
 
@@ -451,6 +527,35 @@ async function saveDestinationMapBase({ destination, location }) {
     selectedDestinationBases: [...bases, createdBase],
   });
   notifyMapDataChanged();
+}
+
+async function handleDeleteDestinationBase() {
+  const { editingDestinationBaseId } = appStore.getState().destinationsPage;
+
+  if (!editingDestinationBaseId) {
+    return;
+  }
+
+  appStore.updateDestinationsPage({ isDeletingDestinationBase: true });
+  rerenderDestinations();
+
+  try {
+    await softDeleteTripBase(editingDestinationBaseId);
+    const bases = appStore.getState().destinationsPage.selectedDestinationBases || [];
+    appStore.updateDestinationsPage({
+      selectedDestinationBases: bases.filter((base) => base.id !== editingDestinationBaseId),
+    });
+    notifyMapDataChanged();
+    closeDestinationBaseEditor();
+    showToast("Base deleted.", "success");
+  } catch (error) {
+    console.error(error);
+    appStore.updateDestinationsPage({ isDeletingDestinationBase: false });
+    showToast(error.message === "BASE_HAS_ASSIGNED_DAYS"
+      ? "This base has assigned days. Move those days before deleting it."
+      : "Could not delete that base right now.", "error");
+    rerenderDestinations();
+  }
 }
 
 function notifyMapDataChanged() {
@@ -543,6 +648,7 @@ async function uploadDestinationPhoto({ destination, file, userId }) {
   return {
     ...destination,
     hero_photo_url: photo.public_url,
+    hero_photo_card_url: getPhotoCardPublicUrl(photo.storage_path, photo.updated_at || photo.id),
     hero_photo: photo,
   };
 }

@@ -37,6 +37,7 @@ export function renderLocationSearchField({
       </div>
       <input name="locationLat" type="hidden" value="${hasCoordinates ? escapeHtml(String(lat)) : ""}" data-location-lat />
       <input name="locationLng" type="hidden" value="${hasCoordinates ? escapeHtml(String(lng)) : ""}" data-location-lng />
+      <input name="locationTimezone" type="hidden" value="" data-location-timezone />
       <input name="mappedLocationName" type="hidden" value="${hasCoordinates ? escapeHtml(value || "") : ""}" data-location-mapped-name />
       <p class="field-hint" data-location-status ${statusText ? "" : "hidden"}>${escapeHtml(statusText)}</p>
       <div class="location-search__results" data-location-results hidden></div>
@@ -54,6 +55,7 @@ export function wireLocationSearch(form) {
     const results = root.querySelector("[data-location-results]");
     const latInput = root.querySelector("[data-location-lat]");
     const lngInput = root.querySelector("[data-location-lng]");
+    const timezoneInput = root.querySelector("[data-location-timezone]");
     const mappedNameInput = root.querySelector("[data-location-mapped-name]");
     let requestToken = 0;
     const startSearch = () => {
@@ -63,13 +65,14 @@ export function wireLocationSearch(form) {
 
       requestToken += 1;
       root.dataset.locationRequestToken = String(requestToken);
-      runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput, requestToken });
+      runLocationSearch({ input, button, status, results, latInput, lngInput, timezoneInput, mappedNameInput, requestToken });
     };
 
     input?.addEventListener("input", () => {
       if (root.dataset.locationHasInitialCoordinates !== "true") {
         latInput.value = "";
         lngInput.value = "";
+        timezoneInput.value = "";
       }
 
       mappedNameInput.value = normalizeLocationName(input.value) === normalizeLocationName(root.dataset.locationInitialMappedName)
@@ -98,6 +101,7 @@ export function getLocationSelection(form) {
   const mappedLocationName = String(form?.querySelector("[name='mappedLocationName']")?.value || "").trim();
   const parsedLat = parseCoordinate(form?.querySelector("[name='locationLat']")?.value);
   const parsedLng = parseCoordinate(form?.querySelector("[name='locationLng']")?.value);
+  const timezone = String(form?.querySelector("[name='locationTimezone']")?.value || "").trim();
   const hasMatchingMappedName = normalizeLocationName(locationName) === normalizeLocationName(mappedLocationName);
   const hasStoredCoordinates = parsedLat != null && parsedLng != null;
   const hasCoordinates = hasStoredCoordinates && hasMatchingMappedName;
@@ -106,12 +110,25 @@ export function getLocationSelection(form) {
     locationName,
     lat: hasCoordinates ? parsedLat : null,
     lng: hasCoordinates ? parsedLng : null,
+    timezone: hasCoordinates ? timezone : "",
     hasCoordinates,
     needsSearch: Boolean(locationName && hasStoredCoordinates && !hasMatchingMappedName),
   };
 }
 
-async function runLocationSearch({ input, button, status, results, latInput, lngInput, mappedNameInput, requestToken }) {
+async function runLocationSearch(context) {
+  const {
+    input,
+    button,
+    status,
+    results,
+    latInput,
+    lngInput,
+    timezoneInput,
+    mappedNameInput,
+    requestToken,
+  } = context;
+
   if (button.disabled) {
     return;
   }
@@ -148,8 +165,10 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
         input.value = resultButton.getAttribute("data-location-label") || "";
         latInput.value = resultButton.getAttribute("data-location-lat") || "";
         lngInput.value = resultButton.getAttribute("data-location-lng") || "";
+        timezoneInput.value = resultButton.getAttribute("data-location-timezone") || "";
         mappedNameInput.value = input.value;
-        setStatus(status, `Mapped to ${input.value}.`);
+        applyInferredTimezone(resultButton.closest("form"), timezoneInput.value);
+        setStatus(status, getMappedStatusText(input.value, timezoneInput.value));
         results.hidden = true;
         results.replaceChildren();
       });
@@ -160,6 +179,23 @@ async function runLocationSearch({ input, button, status, results, latInput, lng
     showToast("Could not search locations right now.", "error");
   } finally {
     button.disabled = false;
+  }
+}
+
+function applyInferredTimezone(form, timezone) {
+  if (!form || !timezone) {
+    return;
+  }
+
+  const timezoneValueInput = form.querySelector("[name='localTimezone']");
+  const timezoneDisplayInput = form.querySelector("[data-timezone-display]");
+
+  if (timezoneValueInput) {
+    timezoneValueInput.value = timezone;
+  }
+
+  if (timezoneDisplayInput) {
+    timezoneDisplayInput.value = timezone;
   }
 }
 
@@ -184,8 +220,14 @@ function createLocationResultButton(location) {
   button.dataset.locationLabel = location.label;
   button.dataset.locationLat = String(location.lat);
   button.dataset.locationLng = String(location.lng);
+  button.dataset.locationTimezone = location.timezone || "";
   button.textContent = location.label;
   return button;
+}
+
+function getMappedStatusText(locationName, timezone) {
+  const baseText = `Mapped to ${locationName}.`;
+  return timezone ? `${baseText} Timezone: ${timezone}.` : baseText;
 }
 
 function parseCoordinate(value) {

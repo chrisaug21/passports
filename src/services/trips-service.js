@@ -1,7 +1,12 @@
 import { DEFAULT_BASE_TIMEZONE } from "../config/constants.js";
 import { getSupabase } from "../lib/supabase.js";
 import { deriveTripStatus } from "../lib/derive.js";
-import { duplicatePrimaryPhotosForNewTrip, getPhotoPublicUrl } from "./photos-service.js";
+import {
+  duplicatePrimaryPhotosForNewTrip,
+  getPhotoCardPublicUrl,
+  getPhotoPreviewPublicUrl,
+  getPhotoPublicUrl,
+} from "./photos-service.js";
 import { duplicateOverviewBlocksForNewTrip } from "./overview-service.js";
 import { TRIP_ITEM_SELECT } from "./items-service.js";
 
@@ -104,10 +109,14 @@ async function attachPrimaryTripHeroPhotos(trips) {
   return trips.map((trip) => {
     const photo = photosByTripId.get(trip.id) || null;
     const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+    const cardUrl = photo ? getPhotoCardPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+    const previewUrl = photo ? getPhotoPreviewPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
 
     return {
       ...trip,
       hero_photo_url: publicUrl,
+      hero_photo_card_url: cardUrl,
+      hero_photo_preview_url: previewUrl,
       hero_photo: photo ? { ...photo, public_url: publicUrl } : null,
     };
   });
@@ -295,6 +304,7 @@ export async function createDestination({
   locationName,
   lat,
   lng,
+  localTimezone = DEFAULT_BASE_TIMEZONE,
 }) {
   const trips = await listTripsForCurrentUser(ownerId);
   const wishlistTrips = trips.filter((trip) => trip.status === "destinations" && !trip.target_year);
@@ -320,7 +330,7 @@ export async function createDestination({
       location_name: locationName || title,
       lat,
       lng,
-      local_timezone: DEFAULT_BASE_TIMEZONE,
+      local_timezone: localTimezone || DEFAULT_BASE_TIMEZONE,
       sort_order: 0,
       created_at: now,
       updated_at: now,

@@ -20,9 +20,11 @@ export function getSupportedTimezones() {
 }
 
 export function renderTimezonePicker(inputId, selectedTimezone) {
-  const normalizedTimezone = getSupportedTimezones().includes(selectedTimezone) ? selectedTimezone : DEFAULT_BASE_TIMEZONE;
+  const normalizedTimezone = getSupportedTimezones().includes(selectedTimezone) || isValidIanaTimezone(selectedTimezone)
+    ? selectedTimezone
+    : DEFAULT_BASE_TIMEZONE;
   const displayLabel = getTimezoneSelectedLabel(normalizedTimezone);
-  const options = getTimezonePickerOptions();
+  const options = getTimezonePickerOptions(normalizedTimezone);
 
   return `
     <span class="timezone-picker">
@@ -158,8 +160,12 @@ function getTimezoneOptionLabel(timezone) {
   return `${getTimezoneSelectedLabel(timezone)}${offset ? ` · ${offset}` : ""}`;
 }
 
-function getTimezonePickerOptions() {
-  return getSupportedTimezones().map((timezone) => {
+function getTimezonePickerOptions(selectedTimezone = "") {
+  const timezones = getSupportedTimezones().includes(selectedTimezone) || !isValidIanaTimezone(selectedTimezone)
+    ? getSupportedTimezones()
+    : [selectedTimezone, ...getSupportedTimezones()];
+
+  return timezones.map((timezone) => {
     const selectedLabel = getTimezoneSelectedLabel(timezone);
     const abbreviation = selectedLabel.match(/\(([^)]+)\)$/)?.[1] || "";
     const cityAliases = timezone
@@ -183,6 +189,10 @@ function getTimezoneFromPickerValue(value) {
     return "";
   }
 
+  if (isValidIanaTimezone(normalizedValue)) {
+    return normalizedValue;
+  }
+
   const exactTimezone = getSupportedTimezones().find((timezone) => timezone === normalizedValue);
   if (exactTimezone) {
     return exactTimezone;
@@ -195,4 +205,17 @@ function getTimezoneFromPickerValue(value) {
 
     return [label, optionLabel, abbreviation, timezone].includes(normalizedValue);
   }) || "";
+}
+
+function isValidIanaTimezone(timezone) {
+  if (!timezone) {
+    return false;
+  }
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    return Boolean(formatter.resolvedOptions().timeZone);
+  } catch (_error) {
+    return false;
+  }
 }

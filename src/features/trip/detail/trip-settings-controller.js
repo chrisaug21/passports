@@ -304,13 +304,21 @@ function renderTripSettingsPhotoField(trip) {
 }
 
 function renderSingleBaseLocationField(base) {
-  return renderLocationSearchField({
-    idPrefix: `trip-settings-base-${base.id}`,
-    label: "Map Location",
-    value: base.location_name || base.name || "",
-    lat: base.lat,
-    lng: base.lng,
-  });
+  return `
+    <div class="trip-settings-form__single-base-fields">
+      <label class="field">
+        <span>Base Name</span>
+        <input name="singleBaseName" type="text" maxlength="120" value="${escapeHtml(base.name || "")}" required />
+      </label>
+      ${renderLocationSearchField({
+        idPrefix: `trip-settings-base-${base.id}`,
+        label: "Map Location",
+        value: base.location_name || base.name || "",
+        lat: base.lat,
+        lng: base.lng,
+      })}
+    </div>
+  `;
 }
 
 export function renderTripSettingsSummary(_trip) {
@@ -416,7 +424,7 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
 
   try {
     const updatedTrip = await updateTripSettings(settings);
-    await saveSingleBaseMapLocation(settings.singleBaseMapLocation);
+    await saveSingleBaseDetails(settings.singleBaseDetails);
     tripStore.updateCurrentTrip(updatedTrip);
     tripDetailState.pendingTripSettingsDraft = null;
     tripDetailState.tripLengthConfirmState = null;
@@ -437,24 +445,27 @@ async function saveTripSettings(settings, getTripItemErrorMessage, loadTripDetai
   }
 }
 
-async function saveSingleBaseMapLocation(locationDraft) {
-  if (!locationDraft?.baseId || !locationDraft.location?.hasCoordinates) {
+async function saveSingleBaseDetails(baseDraft) {
+  if (!baseDraft?.baseId) {
     return;
   }
 
-  const base = tripStore.getCurrentBases().find((entry) => entry.id === locationDraft.baseId);
+  const base = tripStore.getCurrentBases().find((entry) => entry.id === baseDraft.baseId);
 
   if (!base) {
     return;
   }
 
+  const location = baseDraft.location || {};
+  const hasLocationUpdate = location.hasCoordinates;
+
   await updateTripBase({
     baseId: base.id,
-    name: base.name || locationDraft.location.locationName,
-    locationName: locationDraft.location.locationName,
-    lat: locationDraft.location.lat,
-    lng: locationDraft.location.lng,
-    localTimezone: base.local_timezone || DEFAULT_BASE_TIMEZONE,
+    name: baseDraft.name || base.name || location.locationName,
+    locationName: hasLocationUpdate ? location.locationName : base.location_name,
+    lat: hasLocationUpdate ? location.lat : undefined,
+    lng: hasLocationUpdate ? location.lng : undefined,
+    localTimezone: location.timezone || base.local_timezone || DEFAULT_BASE_TIMEZONE,
   });
   notifyMapDataChanged();
 }
@@ -523,14 +534,21 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
 
       if (singleBase) {
         const location = getLocationSelection(event.currentTarget);
+        const baseName = String(formData.get("singleBaseName") || "").trim();
 
         if (location.needsSearch) {
           showToast("Choose a matching mapped location before saving.", "error");
           return;
         }
 
-        nextSettings.singleBaseMapLocation = {
+        if (!baseName) {
+          showToast("Add a base name first.", "error");
+          return;
+        }
+
+        nextSettings.singleBaseDetails = {
           baseId: singleBase.id,
+          name: baseName,
           location,
         };
       }
