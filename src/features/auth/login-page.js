@@ -79,6 +79,9 @@ export function renderLoginPage() {
           </div>
         </div>
       </section>
+      <footer class="auth-built-by">
+        Built by <a href="https://chrisaug.com" target="_blank" rel="noopener">Chris Augustine</a>
+      </footer>
     </section>
   `;
 }

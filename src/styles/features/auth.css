@@ -181,6 +181,24 @@
   background: var(--color-surface-muted);
 }
 
+.auth-built-by {
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  padding: 0.4rem 0 0.6rem;
+}
+
+.auth-built-by a {
+  color: var(--color-action);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-built-by a:hover,
+.auth-built-by a:focus-visible {
+  text-decoration: underline;
+}
+
 @media (min-width: 900px) {
   .auth-marketing__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
