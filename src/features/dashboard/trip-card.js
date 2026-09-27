@@ -38,6 +38,22 @@ export function renderTripCard(trip, options = {}) {
   `;
 }
 
+// The image `src` prefers a resized preview URL, with the full-size photo as
+// `data-full-src`. If the preview fails to load (e.g. image transforms are
+// unavailable), swap in the full-size photo instead of leaving it blank.
+export function wireTripCardImageFallback() {
+  document.querySelectorAll("[data-trip-card-image]").forEach((image) => {
+    image.addEventListener("error", () => {
+      const fallbackUrl = image.getAttribute("data-full-src");
+
+      if (fallbackUrl && image.src !== fallbackUrl) {
+        image.src = fallbackUrl;
+        image.removeAttribute("data-full-src");
+      }
+    }, { once: true });
+  });
+}
+
 function sanitizeCoverUrl(value) {
   if (!value) {
     return "";

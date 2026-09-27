@@ -2,7 +2,7 @@ import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import { createTripWithDefaults, listTripsForCurrentUser } from "../../services/trips-service.js";
 import { sessionStore } from "../../state/session-store.js";
-import { renderTripCard } from "./trip-card.js";
+import { renderTripCard, wireTripCardImageFallback } from "./trip-card.js";
 import { renderCreateTripModal, wireCreateTripModal } from "./create-trip-modal.js";
 import { showToast } from "../shared/toast.js";
 import { navigate } from "../../app/router.js";
@@ -127,16 +127,7 @@ export function wireDashboardPage() {
       }
     });
   });
-  document.querySelectorAll("[data-trip-card-image]").forEach((image) => {
-    image.addEventListener("error", () => {
-      const fallbackUrl = image.getAttribute("data-full-src");
-
-      if (fallbackUrl && image.src !== fallbackUrl) {
-        image.src = fallbackUrl;
-        image.removeAttribute("data-full-src");
-      }
-    }, { once: true });
-  });
+  wireTripCardImageFallback();
   wireCreateTripModal({
     onSubmit: async (formValues) => {
       const { session } = sessionStore.getState();

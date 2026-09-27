@@ -1,6 +1,6 @@
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
-import { renderTripCard } from "../dashboard/trip-card.js";
+import { renderTripCard, wireTripCardImageFallback } from "../dashboard/trip-card.js";
 import { loadDashboard, setDashboardRenderer, sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { navigate, renderRoute } from "../../app/router.js";
 
@@ -69,6 +69,8 @@ export function wireArchivePage() {
   document.querySelector("#retry-archive-load")?.addEventListener("click", () => {
     loadDashboard();
   });
+
+  wireTripCardImageFallback();
 
   document.querySelectorAll("[data-trip-card]").forEach((card) => {
     const tripId = card.getAttribute("data-trip-id");
