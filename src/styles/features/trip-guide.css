@@ -473,6 +473,15 @@
   display: block;
 }
 
+.guide-overview__photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--photo-banner-ratio);
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: var(--trip-header-media-gradient);
+}
+
 .guide-overview__block {
   display: grid;
   gap: var(--space-1);

@@ -4,6 +4,7 @@ import {
 } from "../../../lib/format.js";
 import { getMapsAppPreference } from "../../../lib/preferences.js";
 import { TRANSPORT_MODES } from "../../../config/constants.js";
+import { getPhotoObjectPosition } from "../../../services/photos-service.js";
 
 export function escapeHtml(value) {
   return String(value)
@@ -252,9 +253,11 @@ export function getBaseHeroPhotoUrl(base) {
   return sanitizeCoverUrl(base?.hero_photo_url);
 }
 
-export function renderHeroPhotoImage(photoUrl) {
+export function renderHeroPhotoImage(photoUrl, photo = null) {
   const safePhotoUrl = sanitizeCoverUrl(photoUrl);
-  return safePhotoUrl ? `<img class="photo-hero__image" src="${escapeHtml(safePhotoUrl)}" alt="" />` : "";
+  return safePhotoUrl
+    ? `<img class="photo-hero__image" src="${escapeHtml(safePhotoUrl)}" alt="" style="object-position: ${getPhotoObjectPosition(photo)}" />`
+    : "";
 }
 
 export function sanitizeCoverUrl(value) {

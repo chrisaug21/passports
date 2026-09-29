@@ -1,4 +1,8 @@
 :root {
+  /* Shared shape for wide cover-photo banners (desktop planning header and
+     base sections, base overview Photo tab). Close to the itinerary hero's
+     desktop proportions, but fixed so it doesn't shift with window height. */
+  --photo-banner-ratio: 2.2 / 1;
   --color-bg: #f4f7fa;
   --color-surface: rgba(255, 255, 255, 0.8);
   --color-surface-strong: #ffffff;

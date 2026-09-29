@@ -2,6 +2,7 @@ import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
 import { sortTripsByStartDate } from "../dashboard/dashboard-page.js";
 import { formatDestinationTargetDate, formatTripDateSummary } from "../../lib/format.js";
+import { getPhotoObjectPosition } from "../../services/photos-service.js";
 import { isTripStartingSoon } from "../../lib/derive.js";
 import { CANONICAL_TIMEZONES, DEFAULT_BASE_TIMEZONE } from "../../config/constants.js";
 import { renderLocationSearchField } from "../shared/location-search.js";
@@ -280,6 +281,7 @@ function renderDestinationCard(trip) {
           <img
             src="${escapeHtml(safeCoverUrl)}"
             ${trip.hero_photo_card_url && trip.hero_photo_url ? `data-full-src="${escapeHtml(trip.hero_photo_url)}"` : ""}
+            style="object-position: ${getPhotoObjectPosition(trip.hero_photo)}"
             alt=""
             loading="lazy"
             decoding="async"

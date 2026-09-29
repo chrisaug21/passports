@@ -5,6 +5,7 @@ import { rerenderTripDetail } from "./trip-detail-state.js";
 import {
   DEFAULT_PHOTO_ASPECT_RATIO,
   openPhotoCropModal,
+  openFocalPointModal,
   openPhotoCropModalFromUrl,
   selectImageFile,
 } from "../../../lib/photo-upload.js";
@@ -12,6 +13,7 @@ import {
   PHOTO_CONTEXTS,
   recropExistingPrimaryPhoto,
   replaceExistingPrimaryPhoto,
+  updatePhotoFocalPoint,
 } from "../../../services/photos-service.js";
 import { showToast } from "../../shared/toast.js";
 
@@ -88,13 +90,20 @@ async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
       return;
     }
 
+    const isAdjusting = Boolean(existingPhoto) && mode !== "replace";
+    const focalPoint = await pickFocalPoint(croppedPhoto, isAdjusting ? existingPhoto : null);
+
+    if (!focalPoint) {
+      return;
+    }
+
     appStore.updateTripDetail({
       isSavingTrip: context === PHOTO_CONTEXTS.tripHero,
       isSavingBase: context === PHOTO_CONTEXTS.baseHero,
     });
     rerenderTripDetail();
 
-    const photo = existingPhoto && mode !== "replace"
+    const savedPhoto = isAdjusting
       ? await recropExistingPrimaryPhoto({
         photoId: existingPhoto.id,
         storagePath: existingPhoto.storage_path,
@@ -107,6 +116,11 @@ async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
         context,
         photo: croppedPhoto,
       });
+    const photo = await updatePhotoFocalPoint({
+      photoId: savedPhoto.id,
+      focalX: focalPoint.focalX,
+      focalY: focalPoint.focalY,
+    });
 
     appStore.updateTripDetail({
       isSavingTrip: false,
@@ -136,6 +150,19 @@ async function selectAndCropNewPhoto() {
   }
 
   return openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
+}
+
+async function pickFocalPoint(croppedPhoto, existingPhoto) {
+  const previewUrl = URL.createObjectURL(croppedPhoto.full);
+
+  try {
+    return await openFocalPointModal(previewUrl, {
+      focalX: existingPhoto?.focal_x ?? 50,
+      focalY: existingPhoto?.focal_y ?? 50,
+    });
+  } finally {
+    URL.revokeObjectURL(previewUrl);
+  }
 }
 
 function getExistingPhoto({ baseId, context }) {

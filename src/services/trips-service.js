@@ -92,7 +92,7 @@ async function attachPrimaryTripHeroPhotos(trips) {
 
   const { data, error } = await getSupabase()
     .from("trip_photos")
-    .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
+    .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at, focal_x, focal_y")
     .in("trip_id", tripIds)
     .eq("is_primary", true)
     .is("base_id", null)
@@ -560,7 +560,7 @@ export async function fetchTripDetailBundle(tripId) {
       .order("sort_order", { ascending: true }),
     supabase
       .from("trip_photos")
-      .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at")
+      .select("id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at, focal_x, focal_y")
       .eq("trip_id", tripId)
       .eq("is_primary", true)
       .is("day_id", null)

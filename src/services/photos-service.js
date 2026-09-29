@@ -6,7 +6,43 @@ export const PHOTO_CONTEXTS = {
   baseHero: "base-hero",
 };
 
-const PHOTO_SELECT = "id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at";
+const PHOTO_SELECT = "id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at, focal_x, focal_y";
+
+// The focal point is the spot on the photo (0-100 from the left/top) that
+// stays in view when the photo is shown in a shorter or narrower frame than
+// the stored 3:2 image. Every "object-fit: cover" display uses it via
+// object-position, so one saved point covers wide banners and tall thumbnails.
+export const DEFAULT_FOCAL_POINT = 50;
+
+export function getPhotoObjectPosition(photo) {
+  const x = clampFocal(photo?.focal_x);
+  const y = clampFocal(photo?.focal_y);
+  return `${x}% ${y}%`;
+}
+
+function clampFocal(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, Math.round(number * 10) / 10)) : DEFAULT_FOCAL_POINT;
+}
+
+export async function updatePhotoFocalPoint({ photoId, focalX, focalY }) {
+  if (!photoId) {
+    throw new Error("Missing photo details.");
+  }
+
+  const { data, error } = await getSupabase()
+    .from("trip_photos")
+    .update({ focal_x: clampFocal(focalX), focal_y: clampFocal(focalY) })
+    .eq("id", photoId)
+    .select(PHOTO_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return withPublicUrl(data);
+}
 
 // A photo is stored as 3 separate files sharing one base path, since
 // Supabase's on-the-fly image resizing (getPublicUrl's `transform` option)
@@ -172,7 +208,7 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
 
   const { data: sourcePhotos, error } = await supabase
     .from("trip_photos")
-    .select("base_id, storage_path, source, unsplash_id, unsplash_url, credit_name, credit_url, sort_order")
+    .select("base_id, storage_path, source, unsplash_id, unsplash_url, credit_name, credit_url, sort_order, focal_x, focal_y")
     .eq("trip_id", sourceTripId)
     .eq("is_primary", true)
     .is("day_id", null)
@@ -233,6 +269,8 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
         credit_url: photo.credit_url,
         is_primary: true,
         sort_order: photo.sort_order,
+        focal_x: photo.focal_x,
+        focal_y: photo.focal_y,
       });
 
       if (insertError) {

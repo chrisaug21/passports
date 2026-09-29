@@ -94,7 +94,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers, overv
         row.kind === "base" && !isSingleBaseTrip
           ? `
             <div class="days-base-section__hero photo-hero" ${!baseHeroPhotoUrl ? `data-base-hero-upload-area="${escapeHtml(row.base.id)}"` : ""}>
-              ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl) : `<span class="photo-hero__empty-label">Add photo</span>`}
+              ${baseHeroPhotoUrl ? renderHeroPhotoImage(baseHeroPhotoUrl, row.base.hero_photo) : `<span class="photo-hero__empty-label">Add photo</span>`}
               ${
                 showBasePhotoAction
                   ? `
