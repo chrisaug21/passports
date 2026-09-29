@@ -1,6 +1,6 @@
 # Passports MCP Server — Spec
 
-**Status:** Phases 0–2 are shipped and merged to `main`: OAuth connector plumbing, read-only tools (`list_trips`/`get_trip`/`get_trip_journal`), and the additive-write tool `create_trip_item` with rate limiting and an audit log. Phase 3 (editing existing items) is fully scoped below and about to be built on `ca/mcp-phase-3-edit-items`. Phase 4 (soft delete) is outlined below but not yet detailed or started.
+**Status:** Phases 0–3 are shipped and merged to `main`: OAuth connector plumbing, read-only tools (`list_trips`/`get_trip`/`get_trip_journal`), the additive-write tool `create_trip_item` with rate limiting and an audit log, and Phase 3's propose/confirm edit tools (`propose_update_trip_item`/`confirm_update_trip_item`). Phase 4 (soft delete) is deliberately deferred — outlined below, but not started until a real need for it shows up.
 
 **Audience:** A fresh Claude Code session with no memory of how this was scoped. Read this whole document before writing any code.
 
@@ -139,7 +139,7 @@ A second item was added to that dropdown, below "Profile," labeled **"Settings"*
 
 ## Phased roadmap
 
-Ship in this order, one phase at a time, with real usage in between before moving to the next. Phases 0–2 are shipped (see Status above); Phase 3 is next.
+Ship in this order, one phase at a time, with real usage in between before moving to the next. Phases 0–3 are shipped (see Status above); Phase 4 is deliberately on hold.
 
 ### Phase 0 — Authentication & connector setup
 

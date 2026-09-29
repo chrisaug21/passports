@@ -1,7 +1,7 @@
 # Passports — Iteration Spec v1.0
 **Project:** passports.chrisaug.com
-**Status:** Active backlog — burn down over upcoming sessions
-**Last updated:** April 2026
+**Status:** Active backlog — burn down over upcoming sessions. Trimmed 2026-09-28: removed items confirmed already shipped (Logo/Favicon, free-text item location, the Todo List and Packing List — both absorbed into the Prep Checklist feature — the old Destinations/Plans/Stamps nav+ideation writeup, now superseded by `passports-destinations-spec.md`, and the 7-day "Upcoming" status badge, shipped instead as the "Starting soon" badge). What's left below is still open.
+**Last updated:** 2026-09-28
 
 ---
 
@@ -40,33 +40,11 @@ When a trip has exactly one base, the base is automatically named after the trip
 
 **Behavior:** In the trip settings save flow, if `trip.base_count === 1`, update the base name to match the new trip title in the same operation.
 
----
-
-### 2. Upcoming Status — Client-Derived Display
-**Status:** Not built  
-**LOE:** XS  
-**DB changes:** None
-
-`upcoming` is not a DB status value — it is a derived display state. When `status = 'planning'` and `start_date` is within 7 days of today, display the status badge as "Upcoming" instead of "Planning" everywhere in the UI. No DB writes, no migration. Pure client-side derivation on load.
-
-**Purpose:** Builds anticipation for users as a trip approaches.
+Note: trip settings now has a manual `singleBaseName` field the user can edit directly, which isn't the same fix — it means remembering to update it, not automatic sync. Confirm this item is still wanted before building.
 
 ---
 
-### 3. Logo + Favicon
-**Status:** Pending asset from Chris  
-**LOE:** XS (once SVG is provided)  
-**DB changes:** None
-
-Chris will provide a final SVG logo for the top nav wordmark. Favicon derives from the logo mark.
-
-- Replace the current text "Passports" wordmark in the top nav with the SVG logo
-- Add `favicon.ico` and PNG sizes to `<head>` in `index.html`
-- Ensure logo renders correctly on both light background (dashboard) and dark background (Guide View hero)
-
----
-
-### 4. Invite Codes for Signup Gating
+### 2. Invite Codes for Signup Gating
 **Status:** Not built  
 **LOE:** S  
 **DB changes:** New `invite_codes` table
@@ -93,28 +71,7 @@ CREATE TABLE invite_codes (
 
 ---
 
-### 5. Location Field on Items (Free Text)
-**Status:** Not built  
-**LOE:** S  
-**DB changes:** `trip_items.location_name` text nullable, `trip_items.location_url` text nullable
-
-Adds a dedicated location field to any trip item. Phase 1 is free text. Google Maps integration is Phase 2 (see item 14).
-
-**Schema additions:**
-```sql
-ALTER TABLE trip_items ADD COLUMN location_name text;
-ALTER TABLE trip_items ADD COLUMN location_url text;
-```
-
-**Behavior:**
-- Location field appears in the item edit form for all item types
-- `location_url` is optional — a manually pasted Google Maps or website URL
-- In Guide View item cards: show location name with a `MapPin` icon. If `location_url` is set, make it tappable — opens in Google Maps app on mobile, Maps website on desktop
-- In planning views: show location name on item cards where space allows
-
----
-
-### 6. Public Dashboard Per User
+### 3. Public Dashboard Per User
 **Status:** Not built  
 **LOE:** S  
 **DB changes:** `user_profiles.username` text unique nullable
@@ -140,51 +97,7 @@ ALTER TABLE user_profiles ADD COLUMN username text UNIQUE;
 
 ---
 
-### 7. Destinations / Plans / Stamps — Top Nav + Ideation Feature
-**Status:** Not built  
-**LOE:** L  
-**DB changes:** `destinations` status already applied to trips constraint
-
-This is the biggest feature in this spec. It redesigns the dashboard into a three-section app with a persistent top nav.
-
-#### Navigation Structure
-
-**Desktop:** Persistent top nav bar with three text links: Destinations · Plans · Stamps  
-**Mobile:** Bottom tab bar with three icon tabs (icons TBD — suggest Globe, Map, Stamp/Badge)  
-**Active state:** Underline on desktop, filled icon on mobile  
-**Persistence:** Nav appears on all views including trip detail. Does not disappear in context.
-
-#### Destinations Section
-Trips with `status = 'destinations'`. The vision board / bucket list.
-
-- **Card design:** Lighter than Plans cards — destination photo (Unsplash by location name), place name, one-liner description, idea count badge. No dates.
-- **New trip flow:** "Add a destination" — just needs a title/place name to start. No dates required.
-- **Drill-down:** Opens a stripped-down trip view — Master List only (no Days view, no base structure required). Just a flat list of ideas dropped in.
-- **Graduate to Plans:** A "Start planning this" action promotes `status` from `destinations` to `planning`.
-
-#### Plans Section
-Trips with `status IN ('planning', 'active')`. Current dashboard, essentially as-is.
-
-#### Stamps Section
-Trips with `status = 'done'`. Memento-first presentation.
-
-- Cards emphasize the hero photo over metadata
-- Each card links directly to Guide View (Journal tab if journal exists, Itinerary tab otherwise)
-- Visually distinct from Plans — warmer, more editorial
-
-#### "Save Undone Items for Next Time" (Destinations feature)
-Appears in Journal View when a trip is Done.
-
-- Button: "Save undone items for next time"
-- Selects all items where `status != 'done'` and `deleted_at IS NULL`
-- Creates a new trip in `destinations` status with the same title (e.g. "Newport — Next Time"), no dates
-- Copies selected items into the new trip's unassigned pool (new `trip_items` rows, same content, `day_id = null`, `base_id = null`, `status = 'idea'`)
-- Optional: user can deselect individual items before confirming
-- After creation: navigates to the new Destination entry
-
----
-
-### 8. Meal Slot Auto-Sorting in Day View
+### 4. Meal Slot Auto-Sorting in Day View
 **Status:** Not built  
 **LOE:** S  
 **DB changes:** None
@@ -203,59 +116,7 @@ When a meal item is assigned or moved to a day, auto-position it based on meal s
 
 ---
 
-### 9. Todo List
-**Status:** Not built  
-**LOE:** M  
-**DB changes:** `trip_todos` table (already in original spec)
-
-**Schema:**
-```sql
-CREATE TABLE trip_todos (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-  item_id uuid REFERENCES trip_items(id) ON DELETE SET NULL,
-  title text NOT NULL,
-  due_phase text NOT NULL CHECK (due_phase = ANY (ARRAY['before_trip','during_trip','after_trip'])),
-  is_complete boolean NOT NULL DEFAULT false,
-  notes text,
-  sort_order integer NOT NULL DEFAULT 0,
-  created_by uuid NOT NULL REFERENCES auth.users(id),
-  deleted_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-**UI:** Tab or section on trip detail. Before / During / After phase tabs. Check off, add, reorder, optionally link to an item.
-
----
-
-### 10. Packing List
-**Status:** Not built  
-**LOE:** M  
-**DB changes:** `trip_packing_items` table (already in original spec)
-
-**Schema:**
-```sql
-CREATE TABLE trip_packing_items (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-  title text NOT NULL,
-  category text NOT NULL CHECK (category = ANY (ARRAY['clothing','toiletries','documents','gear','other'])),
-  is_packed boolean NOT NULL DEFAULT false,
-  sort_order integer NOT NULL DEFAULT 0,
-  created_by uuid NOT NULL REFERENCES auth.users(id),
-  deleted_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-**UI:** Tab or section on trip detail. Grouped by category. Check off as you pack.
-
----
-
-### 11. Email Flows (Member Added + Invite New User)
+### 5. Email Flows (Member Added + Invite New User)
 **Status:** Not built  
 **LOE:** M  
 **DB changes:** None  
@@ -276,7 +137,7 @@ Two email flows triggered by membership actions:
 
 ---
 
-### 12. Tidbits
+### 6. Tidbits
 **Status:** Not built  
 **LOE:** M  
 **DB changes:** New `trip_tidbits` table
@@ -312,7 +173,7 @@ CREATE TABLE trip_tidbits (
 
 ---
 
-### 13. WYSIWYG Journal Notes (Tiptap)
+### 7. WYSIWYG Journal Notes (Tiptap)
 **Status:** Not built (plain textarea currently)  
 **LOE:** M  
 **DB changes:** None — `journal_entries.notes` already stores text; will store HTML after this
@@ -326,7 +187,7 @@ Replace the plain textarea in Journal Mode with Tiptap editor.
 
 ---
 
-### 14. Day Photo Galleries — Journal Phase 2
+### 8. Day Photo Galleries — Journal Phase 2
 **Status:** Not built  
 **LOE:** L  
 **DB changes:** New `day_photos` table + storage bucket `day-photos`
@@ -356,7 +217,7 @@ CREATE TABLE day_photos (
 
 ---
 
-### 15. Wistia Video Embeds
+### 9. Wistia Video Embeds
 **Status:** Not built (deferred from original spec)  
 **LOE:** M  
 **DB changes:** `wistia_media_id` on `journal_entries`, `trip_days`
@@ -378,11 +239,13 @@ ALTER TABLE trip_days ADD COLUMN wistia_media_id text;
 
 ---
 
-### 16. Google Maps Integration for Location Field
-**Status:** Not built (free text in item 5 comes first)  
+### 10. Google Maps Integration for Location Field
+**Status:** Not built  
 **LOE:** M  
-**DB changes:** None (columns added in item 5)  
+**DB changes:** None  
 **Dependencies:** Google Places API key (free tier ~$200/month credit, effectively free at current scale)
+
+Note: the underlying need (a location on an item, tappable into Maps) already shipped a simpler way — items have a free-text `address` field that builds a maps search link at render time (`"<item title>, <address>"`, opening Apple or Google Maps per the user's `preferred_maps_app` setting), no Places API or stored URL needed. This item is specifically about upgrading that to live Places autocomplete — worth re-confirming it's still wanted before building, given the simpler version already works.
 
 Upgrades the free-text location field to a Places autocomplete search.
 
@@ -395,7 +258,7 @@ Upgrades the free-text location field to a Places autocomplete search.
 
 ---
 
-### 17. Reactions
+### 11. Reactions
 **Status:** Not built (in original spec)  
 **LOE:** M  
 **DB changes:** `trip_reactions` table (already in original spec)
@@ -406,7 +269,7 @@ Lower priority — mainly relevant when you have active Traveler-role users.
 
 ---
 
-### 18. Traveler Role Enforcement
+### 12. Traveler Role Enforcement
 **Status:** Partially built (role exists in DB, not enforced in UI)  
 **LOE:** M  
 **DB changes:** None
