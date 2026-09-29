@@ -198,6 +198,9 @@ function wireNavClicks() {
 function scrollOrJumpToTarget(targetId) {
   if (!targetId) return;
 
+  // Draw any still-grey days first so the target's position can't shift mid-scroll.
+  hydrateAllLazyDays();
+
   if (isMobileLayout()) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
       item.classList.toggle("is-active", item.dataset.navId === targetId);
@@ -212,9 +215,21 @@ function scrollOrJumpToTarget(targetId) {
 
     const top = section.getBoundingClientRect().top + window.scrollY - stickyOffset;
     window.scrollTo({ top, behavior: "smooth" });
+    correctScrollDrift(section, stickyOffset);
   } else {
     scrollToTarget(targetId);
   }
+}
+
+// Photos load in as the smooth scroll passes them and can nudge the target
+// down a little. Once the scroll has settled, snap to the right spot if it drifted.
+function correctScrollDrift(section, offset) {
+  window.setTimeout(() => {
+    const drift = section.getBoundingClientRect().top - offset;
+    if (Math.abs(drift) > 8) {
+      window.scrollTo({ top: window.scrollY + drift, behavior: "smooth" });
+    }
+  }, 900);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +267,7 @@ function scrollToTarget(targetId) {
   const OFFSET = 80;
   const top = section.getBoundingClientRect().top + window.scrollY - OFFSET;
   window.scrollTo({ top, behavior: "smooth" });
+  correctScrollDrift(section, OFFSET);
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +318,34 @@ function updateActiveSection() {
 // Lazy day loading
 // ---------------------------------------------------------------------------
 
+// Fills one grey placeholder with its full day content. Shared by the
+// scroll-triggered observer and by hydrateAllLazyDays (used before a nav jump).
+function hydrateItineraryPlaceholder(placeholder, state) {
+  const dayNumber = parseInt(placeholder.dataset.lazyDay, 10);
+  const day = state.days.find((d) => d.day_number === dayNumber);
+  const section = placeholder.closest(".guide-day-section");
+  if (!day || !section) return;
+
+  const allVisible = filterItemsForViewer(state.items, state.viewerRole, "itinerary");
+  const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
+  const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
+
+  const dayItems = allVisible.filter((i) => i.day_id === day.id && !bandItemIds.has(i.id));
+  const sorted = sortGuideItems(dayItems);
+  const dayBands = allBands.filter(
+    (b) => b.checkInDayNumber === dayNumber || b.checkOutDayNumber === dayNumber
+  );
+
+  section.innerHTML = renderFullDayContent(
+    day,
+    sorted,
+    state.viewerRole,
+    dayBands,
+    state.bases,
+    state.trip.start_date
+  );
+}
+
 function setupLazyDays(state) {
   const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-day]");
   if (placeholders.length === 0) return;
@@ -312,33 +356,8 @@ function setupLazyDays(state) {
         if (!entry.isIntersecting) return;
 
         const placeholder = entry.target;
-        const dayNumber = parseInt(placeholder.dataset.lazyDay, 10);
-        const day = state.days.find((d) => d.day_number === dayNumber);
-        if (!day) return;
-
         observer.unobserve(placeholder);
-
-        const section = placeholder.closest(".guide-day-section");
-        if (!section) return;
-
-        const allVisible = filterItemsForViewer(state.items, state.viewerRole, "itinerary");
-        const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
-        const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
-
-        const dayItems = allVisible.filter((i) => i.day_id === day.id && !bandItemIds.has(i.id));
-        const sorted = sortGuideItems(dayItems);
-        const dayBands = allBands.filter(
-          (b) => b.checkInDayNumber === dayNumber || b.checkOutDayNumber === dayNumber
-        );
-
-        section.innerHTML = renderFullDayContent(
-          day,
-          sorted,
-          state.viewerRole,
-          dayBands,
-          state.bases,
-          state.trip.start_date
-        );
+        hydrateItineraryPlaceholder(placeholder, state);
         window.lucide?.createIcons?.();
       });
     },
@@ -347,6 +366,24 @@ function setupLazyDays(state) {
 
   placeholders.forEach((el) => observer.observe(el));
   cleanupFns.push(() => observer.disconnect());
+}
+
+// Draws every day that is still a grey placeholder (itinerary or journal).
+// Called right before a day-nav jump: if days above the target were still
+// unrendered they'd grow as they filled in, pushing the target down and
+// leaving the jump short.
+function hydrateAllLazyDays() {
+  if (!_guideState) return;
+
+  const itineraryPlaceholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-day]");
+  itineraryPlaceholders.forEach((placeholder) => hydrateItineraryPlaceholder(placeholder, _guideState));
+
+  const journalPlaceholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-journal-day]");
+  journalPlaceholders.forEach((placeholder) => hydrateJournalPlaceholder(placeholder));
+
+  if (itineraryPlaceholders.length === 0 && journalPlaceholders.length === 0) return;
+  window.lucide?.createIcons?.();
+  if (journalPlaceholders.length > 0) wireJournalMode(_guideState, _journalState);
 }
 
 // ---------------------------------------------------------------------------
@@ -1121,6 +1158,15 @@ function setupMobileDayNavStickyState() {
   });
 }
 
+function hydrateJournalPlaceholder(placeholder) {
+  const dayNumber = parseInt(placeholder.dataset.lazyJournalDay, 10);
+  const day = _guideState.days.find((d) => d.day_number === dayNumber);
+  const section = placeholder.closest(".guide-day-section");
+  if (!day || !section) return;
+
+  section.innerHTML = renderJournalDaySection(day, _guideState, _journalState);
+}
+
 function setupLazyJournalDays() {
   const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-journal-day]");
   if (placeholders.length === 0) return;
@@ -1131,16 +1177,8 @@ function setupLazyJournalDays() {
         if (!entry.isIntersecting) return;
 
         const placeholder = entry.target;
-        const dayNumber = parseInt(placeholder.dataset.lazyJournalDay, 10);
-        const day = _guideState.days.find((d) => d.day_number === dayNumber);
-        if (!day) return;
-
         observer.unobserve(placeholder);
-
-        const section = placeholder.closest(".guide-day-section");
-        if (!section) return;
-
-        section.innerHTML = renderJournalDaySection(day, _guideState, _journalState);
+        hydrateJournalPlaceholder(placeholder);
         window.lucide?.createIcons?.();
         wireJournalMode(_guideState, _journalState);
       });

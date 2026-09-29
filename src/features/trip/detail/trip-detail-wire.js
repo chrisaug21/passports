@@ -72,11 +72,23 @@ function wireMasterListInlineOutsideClick(handlers) {
   }, 0);
 }
 
+// Scrolls so the day card sits just below the sticky pill row.
+function scrollToPlanningDay(dayNumber) {
+  const card = document.getElementById(`plan-day-${dayNumber}`);
+  if (!card) return;
+  const navHeight = document.querySelector(".days-jump-nav")?.getBoundingClientRect().height || 0;
+  const top = card.getBoundingClientRect().top + window.scrollY - navHeight - 12;
+  window.scrollTo({ top, behavior: "smooth" });
+}
+
 export function wireTripDetailPageEvents(handlers) {
   bindClick("#trip-back-to-dashboard", handlers.onBackToDashboard);
   bindClick("#retry-trip-load", handlers.onRetryTripLoad);
   bindAll("[data-view-mode]", "click", (button) => {
     handlers.onViewModeChange?.(button.getAttribute("data-view-mode"));
+  });
+  bindAll("[data-jump-to-day]", "click", (button) => {
+    scrollToPlanningDay(button.getAttribute("data-jump-to-day"));
   });
   bindClick("#toggle-trip-settings", handlers.onToggleTripSettings);
   // The hero action button sits inside a container that's *also* a fallback

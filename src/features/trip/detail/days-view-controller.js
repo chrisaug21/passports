@@ -22,6 +22,7 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, over
 
   return `
     <section class="days-view">
+      ${renderDaysJumpNav(days)}
       ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers, overviewBlocks)).join("")}
 
       <section class="panel days-view__pool">
@@ -38,6 +39,27 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, over
         }
       </section>
     </section>
+  `;
+}
+
+// Sticky row of "Day N" pills that scroll to that day's card. Every day is
+// already on the page in Planning view (no lazy loading), so a plain scroll works.
+function renderDaysJumpNav(days) {
+  if (days.length < 2) return "";
+  const trip = tripStore.getCurrentTrip();
+
+  return `
+    <nav class="days-jump-nav" aria-label="Jump to day">
+      ${days.map((day) => {
+        const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
+        return `
+          <button class="days-jump-nav__item" type="button" data-jump-to-day="${day.day_number}" aria-label="Go to Day ${day.day_number}">
+            <span>Day ${day.day_number}</span>
+            ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span>` : ""}
+          </button>
+        `;
+      }).join("")}
+    </nav>
   `;
 }
 
@@ -107,7 +129,7 @@ export function renderDayCard(day, items, helpers) {
   const title = String(day.title || "").trim();
 
   return `
-    <article class="day-card">
+    <article class="day-card" id="plan-day-${day.day_number}">
       <div class="day-card__header">
         <div class="day-card__header-main">
           <p class="eyebrow">Day ${day.day_number}${dateLabel ? ` · ${escapeHtml(dateLabel)}` : ""}</p>

@@ -329,3 +329,56 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Sticky day-jump pills (Planning > Days View) */
+.days-jump-nav {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.6rem 0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: none;
+}
+
+.days-jump-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.days-jump-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  min-height: var(--touch-target);
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-strong);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.days-jump-nav__item:hover,
+.days-jump-nav__item:focus-visible {
+  background: var(--color-structure-soft);
+  color: var(--color-structure);
+  border-color: var(--color-structure-tint);
+}
+
+.days-jump-nav__date {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 767px) {
+  .days-jump-nav__date {
+    display: none;
+  }
+}
