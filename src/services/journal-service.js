@@ -117,9 +117,12 @@ export async function uploadJournalPhoto({ tripId, userId, itemId, blob }) {
   const publicUrl = urlData?.publicUrl || "";
   const now = new Date().toISOString();
 
+  // The table allows one row per (user, item) — including soft-deleted ones —
+  // so upsert onto that row (reviving it if it was deleted, or overwriting it
+  // on a replace) rather than inserting a second row that would be rejected.
   const { data, error: insertError } = await getSupabase()
     .from("journal_item_photos")
-    .insert({
+    .upsert({
       id: crypto.randomUUID(),
       trip_id: tripId,
       user_id: userId,
@@ -128,7 +131,8 @@ export async function uploadJournalPhoto({ tripId, userId, itemId, blob }) {
       public_url: publicUrl,
       created_at: now,
       updated_at: now,
-    })
+      deleted_at: null,
+    }, { onConflict: "user_id,item_id" })
     .select(JOURNAL_PHOTO_SELECT)
     .single();
 
