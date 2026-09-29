@@ -209,6 +209,7 @@ function scrollOrJumpToTarget(targetId) {
       item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
 
+    centerActiveNavItem(targetId);
     syncMobileDayNavOffset();
     const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight() + 16;
     const section = document.getElementById(targetId);
@@ -222,6 +223,19 @@ function scrollOrJumpToTarget(targetId) {
   } else {
     scrollToTarget(targetId);
   }
+}
+
+// Horizontally scrolls the mobile pill bar so the active pill sits in the middle
+// of it (e.g. so the auto-jump to Today on an active trip also brings Today's pill into view).
+function centerActiveNavItem(targetId) {
+  const nav = document.querySelector(".guide-day-nav");
+  const item = [...(nav?.querySelectorAll(".guide-nav-item") || [])].find((el) => el.dataset.navId === targetId);
+  if (!nav || !item) return;
+
+  const navRect = nav.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  const delta = itemRect.left - navRect.left - (navRect.width - itemRect.width) / 2;
+  nav.scrollTo({ left: nav.scrollLeft + delta, behavior: "smooth" });
 }
 
 // Photos load in as the smooth scroll passes them and can nudge the target
@@ -409,7 +423,8 @@ function hydrateItineraryPlaceholder(placeholder, state) {
     state.viewerRole,
     dayBands,
     state.bases,
-    state.trip.start_date
+    state.trip.start_date,
+    dayNumber === getTodayDayNumber(state.trip)
   );
 }
 
@@ -663,7 +678,7 @@ function renderItineraryModeContent() {
 
       if (index === 0) {
         return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
-          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date)}
+          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date, day.day_number === _todayDayNumber)}
         </section>`;
       }
       return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">

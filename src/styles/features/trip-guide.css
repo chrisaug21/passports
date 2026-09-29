@@ -289,10 +289,6 @@
   font-weight: 600;
 }
 
-.guide-nav-item.is-today .guide-nav-item__label::after {
-  content: " ·";
-}
-
 .guide-nav-item.is-today .guide-nav-item__date::before {
   content: "Today";
   color: var(--color-action);
@@ -560,6 +556,7 @@
   color: var(--color-structure);
 }
 
+.guide-day-header__today,
 .guide-day-header__dow,
 .guide-day-header__date,
 .guide-day-header__base {
@@ -568,6 +565,17 @@
   color: var(--color-text-muted);
 }
 
+.guide-day-header__today {
+  color: var(--color-action);
+  font-weight: 700;
+}
+
+.guide-day-header__today::before {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.guide-day-header__today::before,
 .guide-day-header__dow::before,
 .guide-day-header__date::before,
 .guide-day-header__base::before {
@@ -1006,10 +1014,6 @@
     border-radius: var(--radius-pill);
     font-size: 0.82rem;
     justify-content: flex-start;
-  }
-
-  .guide-nav-item.is-today .guide-nav-item__label::after {
-    content: none;
   }
 
   .guide-nav-item__date {

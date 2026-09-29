@@ -416,14 +416,16 @@
 /* Edge fades on horizontally scrolling pill rows (see features/shared/scroll-fade.js).
    Sticky pseudo-elements sit over the row's ends and only show when there is
    more content to scroll to. The row must be a flex container with a solid
-   background and 0.5rem vertical padding. */
+   background and 0.5rem vertical padding. The fades' own margin boxes must
+   stay zero-width or larger: a negative box (e.g. extra margin to cancel the
+   row's gap) makes sticky positioning fail to pin them to the edges. */
 .scroll-fade::before,
 .scroll-fade::after {
   content: "";
   position: sticky;
-  flex: 0 0 auto;
+  flex: 0 0 32px;
   align-self: stretch;
-  width: 28px;
+  width: 32px;
   margin-block: -0.5rem;
   pointer-events: none;
   opacity: 0;
@@ -433,14 +435,14 @@
 
 .scroll-fade::before {
   left: 0;
-  margin-right: calc(-28px - 0.5rem);
-  background: linear-gradient(to right, var(--color-surface-strong), transparent);
+  margin-right: -32px;
+  background: linear-gradient(to right, var(--color-surface-strong) 15%, transparent);
 }
 
 .scroll-fade::after {
   right: 0;
-  margin-left: calc(-28px - 0.5rem);
-  background: linear-gradient(to left, var(--color-surface-strong), transparent);
+  margin-left: -32px;
+  background: linear-gradient(to left, var(--color-surface-strong) 15%, transparent);
 }
 
 .scroll-fade.has-more-left::before,
