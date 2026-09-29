@@ -4,6 +4,8 @@ import {
   formatStatusLabel,
   formatTimeLabel,
   getTripDateByDayNumber,
+  formatDayDateCompact,
+  formatDayDateMobile,
 } from "../../../lib/format.js";
 import {
   OVERVIEW_CATEGORIES,
@@ -381,7 +383,7 @@ export function getOverviewNavEntries(days, bases, overviewBlocks) {
   const visibleBlocks = filterOverviewBlocksForViewer(overviewBlocks);
 
   if (visibleBlocks.some((block) => !block.base_id)) {
-    entries.push({ beforeDayNumber: null, id: "guide-trip-overview", label: "Trip Overview" });
+    entries.push({ beforeDayNumber: null, id: "guide-trip-overview", label: "Trip Overview", shortLabel: "Overview" });
   }
 
   const transitionDayNumbers = getBaseTransitionDayNumbers(days);
@@ -397,6 +399,7 @@ export function getOverviewNavEntries(days, bases, overviewBlocks) {
         beforeDayNumber: day.day_number,
         id: `guide-base-overview-${day.base_id}`,
         label: `${baseName} Overview`,
+        shortLabel: baseName,
       });
     });
 
@@ -412,6 +415,7 @@ export function renderOverviewNavItem(entry) {
       aria-label="Go to ${escapeHtml(entry.label)}"
     >
       <span class="guide-nav-item__label">${escapeHtml(entry.label)}</span>
+      <span class="guide-nav-item__label-short">${escapeHtml(entry.shortLabel || entry.label)}</span>
     </button>
   `;
 }
@@ -420,7 +424,7 @@ export function renderOverviewNavItem(entry) {
 // Day header
 // ---------------------------------------------------------------------------
 
-function renderDayHeader(day, base, startDate) {
+function renderDayHeader(day, base, startDate, isToday = false) {
   const dateLabel = startDate ? formatNavDayDate(startDate, day.day_number) : "";
   const baseName = base?.name || base?.location_name || "";
 
@@ -436,6 +440,7 @@ function renderDayHeader(day, base, startDate) {
     <div class="guide-day-header">
       <div class="guide-day-header__eyebrow">
         <span class="guide-day-header__number">Day ${day.day_number}</span>
+        ${isToday ? `<span class="guide-day-header__today">Today</span>` : ""}
         ${dowLabel ? `<span class="guide-day-header__dow">${escapeHtml(dowLabel)}</span>` : ""}
         ${dateLabel ? `<span class="guide-day-header__date">${escapeHtml(dateLabel)}</span>` : ""}
         ${baseName ? `<span class="guide-day-header__base">${escapeHtml(baseName)}</span>` : ""}
@@ -449,14 +454,14 @@ function renderDayHeader(day, base, startDate) {
 // Full day content (exported so guide-wire.js can use it for lazy loading)
 // ---------------------------------------------------------------------------
 
-export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate) {
+export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isToday = false) {
   const base = bases.find((b) => b.id === day.base_id) || null;
   const checkInBands = dayLodgingBands.filter((b) => b.checkInDayNumber === day.day_number);
   const checkOutBands = dayLodgingBands.filter((b) => b.checkOutDayNumber === day.day_number);
   const hasContent = sortedItems.length > 0 || checkInBands.length > 0 || checkOutBands.length > 0;
 
   return `
-    ${renderDayHeader(day, base, startDate)}
+    ${renderDayHeader(day, base, startDate, isToday)}
     <div class="guide-day-items">
       ${checkOutBands.map((b) => renderLodgingBand(b.lodging, "check-out")).join("")}
       ${checkInBands.map((b) => renderLodgingBand(b.lodging, "check-in")).join("")}
@@ -470,7 +475,7 @@ export function renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBan
 // Day section (lazy placeholder or full)
 // ---------------------------------------------------------------------------
 
-function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isLazy) {
+function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isLazy, isToday = false) {
   if (isLazy) {
     return `
       <section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
@@ -481,7 +486,7 @@ function renderDaySection(day, sortedItems, viewerRole, dayLodgingBands, bases, 
 
   return `
     <section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
-      ${renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate)}
+      ${renderFullDayContent(day, sortedItems, viewerRole, dayLodgingBands, bases, startDate, isToday)}
     </section>
   `;
 }
@@ -510,7 +515,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries
           aria-label="Go to Day ${day.day_number}"
         >
           <span class="guide-nav-item__label">Day ${day.day_number}</span>
-          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(dateLabel)}</span>` : ""}
+          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(formatDayDateCompact(trip.start_date, day.day_number))}</span><span class="guide-nav-item__date-mobile">${escapeHtml(formatDayDateMobile(trip.start_date, day.day_number))}</span>` : ""}
         </button>
       `;
     })
@@ -518,7 +523,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries
 
   const items = `${tripEntry ? renderOverviewNavItem(tripEntry) : ""}${dayItems}`;
 
-  return `<nav class="guide-day-nav" aria-label="Day navigation">${items}</nav>`;
+  return `<nav class="guide-day-nav" aria-label="Day navigation"><div class="guide-day-nav__track">${items}</div></nav>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -653,7 +658,7 @@ export function renderGuideView(state) {
         ? renderOverviewSection(day.base_id, overviewBlocks, `${baseName} Overview`, `guide-base-overview-${day.base_id}`)
         : "";
 
-      return baseOverviewHtml + renderDaySection(day, sorted, viewerRole, dayBands, bases, trip.start_date, isLazy);
+      return baseOverviewHtml + renderDaySection(day, sorted, viewerRole, dayBands, bases, trip.start_date, isLazy, day.day_number === todayDayNumber);
     })
     .join("");
 

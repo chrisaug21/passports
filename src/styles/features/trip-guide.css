@@ -289,10 +289,6 @@
   font-weight: 600;
 }
 
-.guide-nav-item.is-today .guide-nav-item__label::after {
-  content: " ·";
-}
-
 .guide-nav-item.is-today .guide-nav-item__date::before {
   content: "Today";
   color: var(--color-action);
@@ -313,6 +309,75 @@
 .guide-nav-item.is-active .guide-nav-item__date {
   color: var(--color-structure);
   opacity: 0.75;
+}
+
+/* Short label/date variants are only for the horizontal pill navs (mobile bar
+   and desktop pinned bar), where horizontal room is tight. */
+.guide-nav-item__label-short,
+.guide-nav-item__date-mobile {
+  display: none;
+}
+
+/* On desktop the track is invisible to layout, so the left-hand list is laid
+   out by .guide-day-nav exactly as before (and it never needs edge fades). */
+@media (min-width: 841px) {
+  .guide-day-nav__track {
+    display: contents;
+  }
+}
+
+/* Desktop pinned bar (hidden until the left-hand list scrolls away) */
+.guide-pinned-nav {
+  display: none;
+}
+
+@media (min-width: 841px) {
+  .guide-pinned-nav.is-visible {
+    display: block;
+    position: fixed;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1120px, calc(100% - 1.5rem));
+    box-sizing: border-box;
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-soft);
+    z-index: 30;
+  }
+
+  .guide-pinned-nav__track {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+    border-radius: inherit;
+    scrollbar-width: none;
+  }
+
+  .guide-pinned-nav__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .guide-pinned-nav .guide-nav-item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.85rem;
+  }
+
+  .guide-pinned-nav .guide-nav-item--overview .guide-nav-item__label {
+    display: none;
+  }
+
+  .guide-pinned-nav .guide-nav-item__label-short {
+    display: inline;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -496,6 +561,7 @@
   color: var(--color-structure);
 }
 
+.guide-day-header__today,
 .guide-day-header__dow,
 .guide-day-header__date,
 .guide-day-header__base {
@@ -504,6 +570,17 @@
   color: var(--color-text-muted);
 }
 
+.guide-day-header__today {
+  color: var(--color-action);
+  font-weight: 700;
+}
+
+.guide-day-header__today::before {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.guide-day-header__today::before,
 .guide-day-header__dow::before,
 .guide-day-header__date::before,
 .guide-day-header__base::before {
@@ -896,7 +973,7 @@
   .guide-body {
     grid-template-columns: 1fr;
     gap: 0;
-    margin-top: 0;
+    margin-top: 1rem;
   }
 
   /* min-width: 0 stops the nav shell's un-scrolled content (the horizontally-
@@ -908,25 +985,34 @@
      — wider than the viewport until you scroll past that point. */
   .guide-day-nav-shell {
     min-width: 0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
 
   .guide-day-nav {
-    display: flex;
-    flex-direction: row;
+    display: block;
     width: 100%;
     box-sizing: border-box;
     max-height: none;
+    overflow: visible;
+    padding: 0;
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .guide-day-nav__track {
+    display: flex;
+    flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0.75rem 1rem;
-    background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
+    padding: 0.5rem 1rem;
+    border-radius: inherit;
     scrollbar-width: none;
     gap: 0.5rem;
   }
 
-  .guide-day-nav::-webkit-scrollbar {
+  .guide-day-nav__track::-webkit-scrollbar {
     display: none;
   }
 
@@ -942,12 +1028,28 @@
     justify-content: flex-start;
   }
 
-  .guide-nav-item.is-today .guide-nav-item__label::after {
-    content: none;
-  }
-
   .guide-nav-item__date {
     display: none;
+  }
+
+  .guide-nav-item__date-mobile {
+    display: inline;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-text-subtle);
+  }
+
+  .guide-nav-item.is-active .guide-nav-item__date-mobile {
+    color: var(--color-structure);
+    opacity: 0.75;
+  }
+
+  .guide-nav-item--overview .guide-nav-item__label {
+    display: none;
+  }
+
+  .guide-nav-item__label-short {
+    display: inline;
   }
 
   .guide-loading__body {
@@ -968,38 +1070,23 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 840px) {
   .guide-day-nav-shell {
     min-height: var(--guide-day-nav-shell-height, auto);
   }
 
   .guide-day-nav.is-sticky-active {
     position: fixed;
-    top: var(--guide-day-nav-top-offset, 0px);
+    top: calc(var(--guide-day-nav-top-offset, 0px) + 0.5rem);
     left: var(--guide-day-nav-left, 0px);
     width: var(--guide-day-nav-width, 100%);
-    padding-inline: 0.75rem;
     box-sizing: border-box;
-    background: transparent;
     z-index: 30;
-  }
-
-  .guide-day-nav.is-sticky-active::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc((100vw - 100%) / -2);
-    width: 100vw;
-    background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.06);
-    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.04);
-    z-index: -1;
   }
 }
 
 @media (max-width: 639px) {
-  .guide-day-nav {
+  .guide-day-nav__track {
     padding-inline: 0.75rem;
   }
 

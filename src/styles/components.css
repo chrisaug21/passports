@@ -412,3 +412,33 @@
     margin-top: auto;
   }
 }
+
+/* Edge fades on horizontally scrolling pill rows (see features/shared/scroll-fade.js).
+   The scrolling "track" is masked, so the pills themselves dissolve into the
+   frame around it, including its rounded ends. The frame (border, background,
+   shadow) must be a separate parent: a mask on the frame would fade those too. */
+@property --fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent 100%);
+  transition: --fade-left 150ms ease, --fade-right 150ms ease;
+}
+
+.scroll-fade.has-more-left {
+  --fade-left: 40px;
+}
+
+.scroll-fade.has-more-right {
+  --fade-right: 40px;
+}

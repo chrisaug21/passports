@@ -2,6 +2,8 @@ import {
   formatTimeLabel,
   formatItemTypeLabel,
   getTripDateByDayNumber,
+  formatDayDateCompact,
+  formatDayDateMobile,
 } from "../../../lib/format.js";
 import {
   escapeHtml,
@@ -12,7 +14,7 @@ import {
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
-import { filterItemsForViewer, renderOverviewNavItem, sortGuideItems } from "./guide-view.js";
+import { filterItemsForViewer, getTodayDayNumber, renderOverviewNavItem, sortGuideItems } from "./guide-view.js";
 
 const JOURNAL_PROFILE_PROMPT_DISMISSED_KEY = "journal-profile-prompt-dismissed";
 
@@ -498,6 +500,7 @@ export function renderJournalDaySection(day, state, journalState) {
     <div class="guide-day-header">
       <div class="guide-day-header__eyebrow">
         <span class="guide-day-header__number">Day ${day.day_number}</span>
+        ${day.day_number === getTodayDayNumber(trip) ? `<span class="guide-day-header__today">Today</span>` : ""}
         ${dowLabel ? `<span class="guide-day-header__dow">${escapeHtml(dowLabel)}</span>` : ""}
         ${dateLabel ? `<span class="guide-day-header__date">${escapeHtml(dateLabel)}</span>` : ""}
         ${baseName ? `<span class="guide-day-header__base">${escapeHtml(baseName)}</span>` : ""}
@@ -562,7 +565,7 @@ export function renderJournalDayNav(days, trip, todayDayNumber, overviewNavEntri
           aria-label="Go to Day ${day.day_number}"
         >
           <span class="guide-nav-item__label">Day ${day.day_number}</span>
-          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(dateLabel)}</span>` : ""}
+          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(formatDayDateCompact(trip.start_date, day.day_number))}</span><span class="guide-nav-item__date-mobile">${escapeHtml(formatDayDateMobile(trip.start_date, day.day_number))}</span>` : ""}
         </button>
       `;
     })

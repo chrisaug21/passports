@@ -1,3 +1,4 @@
+import { attachScrollFade } from "../../shared/scroll-fade.js";
 import { navigate } from "../../../app/router.js";
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
@@ -39,7 +40,8 @@ import {
 import { showToast } from "../../shared/toast.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
-const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 768;
+// Matches isMobileLayout(): the horizontal pill nav is used (and sticks) at <= 840px.
+const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 841;
 const JOURNAL_AUTO_REFRESH_MS = 60000;
 
 let cleanupFns = [];
@@ -75,6 +77,7 @@ export function teardownGuideView() {
   cleanupFns = [];
   isUserScrolling = false;
   clearTimeout(touchEndTimer);
+  releaseJumpHold?.();
   teardownJournalMode();
   stopJournalAutoRefresh();
   appStore.resetTripDetail();
@@ -117,6 +120,7 @@ export function wireGuideView(state) {
   setupScrollTracking();
   setupDayNavStickyOffsetTracking();
   setupMobileDayNavStickyState();
+  setupDesktopPinnedNav();
   setupLazyDays(state);
   setupGuideFocusRefresh();
 
@@ -193,28 +197,91 @@ function wireNavClicks() {
   });
 }
 
-// Desktop: smooth-scroll to offset position; scroll-spy updates active state.
-// Mobile: set active pill immediately then scrollIntoView — no scroll-spy.
+// Where the page should be scrolled to so the target sits just below the sticky nav.
+function getJumpScrollTop(targetId) {
+  const section = document.getElementById(targetId);
+  if (!section) return null;
+
+  const offset = isMobileLayout()
+    ? getGuideDayNavOffset() + getGuideDayNavHeight() + 16
+    : 96;
+  return section.getBoundingClientRect().top + window.scrollY - offset;
+}
+
+// Desktop: scroll-spy updates the active pill as the page scrolls.
+// Mobile: there's no scroll-spy, so set the active pill immediately.
 function scrollOrJumpToTarget(targetId) {
   if (!targetId) return;
+
+  // Draw any still-grey days first so the target's position can't shift mid-scroll.
+  hydrateAllLazyDays();
 
   if (isMobileLayout()) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
       item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
-
+    centerActiveNavItem(targetId);
     syncMobileDayNavOffset();
-    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight();
-    const section = document.getElementById(targetId);
-    if (!section) {
-      return;
-    }
-
-    const top = section.getBoundingClientRect().top + window.scrollY - stickyOffset;
-    window.scrollTo({ top, behavior: "smooth" });
-  } else {
-    scrollToTarget(targetId);
+  } else if (isUserScrolling) {
+    return;
   }
+
+  const top = getJumpScrollTop(targetId);
+  if (top === null) return;
+
+  window.scrollTo({ top, behavior: "smooth" });
+  holdJumpTarget(targetId);
+}
+
+// After a jump, content above the target can still change height (photos
+// loading in, fonts settling, icons swapping in), which pushes the target away
+// from where the scroll was aimed — e.g. the automatic jump to Today when the
+// page first opens. For a few seconds, re-aim whenever the page's height
+// changes, and stop as soon as the user takes over scrolling.
+let releaseJumpHold = null;
+
+function holdJumpTarget(targetId) {
+  releaseJumpHold?.();
+  if (typeof ResizeObserver !== "function") return;
+
+  const realign = () => {
+    const top = getJumpScrollTop(targetId);
+    if (top !== null && Math.abs(top - window.scrollY) > 4) {
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+  };
+
+  const observer = new ResizeObserver(realign);
+  observer.observe(document.body);
+
+  const userEvents = ["wheel", "touchstart", "keydown", "mousedown"];
+  const release = () => {
+    observer.disconnect();
+    window.clearTimeout(timer);
+    userEvents.forEach((eventName) => window.removeEventListener(eventName, release));
+    releaseJumpHold = null;
+  };
+  const timer = window.setTimeout(release, 5000);
+  userEvents.forEach((eventName) => window.addEventListener(eventName, release, { passive: true }));
+  releaseJumpHold = release;
+}
+
+// Horizontally scrolls a pill row so the given pill sits in the middle of it.
+function centerItemInTrack(track, item) {
+  if (!track || !item) return;
+
+  const trackRect = track.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  const delta = itemRect.left - trackRect.left - (trackRect.width - itemRect.width) / 2;
+  track.scrollTo({ left: track.scrollLeft + delta, behavior: "smooth" });
+}
+
+// Mobile: bring the jumped-to pill into view (this is also what makes the
+// automatic jump to Today on an active trip bring Today's pill into view).
+function centerActiveNavItem(targetId) {
+  const track = document.querySelector(".guide-day-nav__track");
+  const item = [...(track?.querySelectorAll(".guide-nav-item") || [])].find((el) => el.dataset.navId === targetId);
+  centerItemInTrack(track, item);
 }
 
 // ---------------------------------------------------------------------------
@@ -243,15 +310,6 @@ function setupTouchScrollTracking() {
     document.removeEventListener("touchend", handleTouchEnd);
     clearTimeout(touchEndTimer);
   });
-}
-
-function scrollToTarget(targetId) {
-  if (isUserScrolling) return;
-  const section = document.getElementById(targetId);
-  if (!section) return;
-  const OFFSET = 80;
-  const top = section.getBoundingClientRect().top + window.scrollY - OFFSET;
-  window.scrollTo({ top, behavior: "smooth" });
 }
 
 // ---------------------------------------------------------------------------
@@ -296,11 +354,130 @@ function updateActiveSection() {
   document.querySelectorAll(".guide-nav-item").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.navId === activeId);
   });
+  followActiveInPinnedNav?.();
+}
+
+// ---------------------------------------------------------------------------
+// Desktop pinned nav — once the left-hand day list has scrolled off the top of
+// the screen, a fixed rounded row of the same buttons takes over so days stay
+// one click away. Mobile has its own sticky bar (see setupMobileDayNavStickyState).
+// ---------------------------------------------------------------------------
+
+// Set by setupDesktopPinnedNav; lets scroll-spy tell the pinned bar the active day changed.
+let followActiveInPinnedNav = null;
+
+function setupDesktopPinnedNav() {
+  const shell = document.querySelector(".guide-day-nav-shell");
+  const navTrack = shell?.querySelector(".guide-day-nav__track");
+  if (!shell || !navTrack) return;
+
+  const pinned = document.createElement("nav");
+  pinned.className = "guide-pinned-nav";
+  pinned.setAttribute("aria-label", "Day navigation");
+  const pinnedTrack = document.createElement("div");
+  pinnedTrack.className = "guide-pinned-nav__track";
+  pinned.appendChild(pinnedTrack);
+  shell.appendChild(pinned);
+  cleanupFns.push(attachScrollFade(pinnedTrack));
+  cleanupFns.push(attachScrollFade(navTrack));
+
+  // Buttons are recreated by innerHTML, so click handling is delegated here.
+  pinned.addEventListener("click", (event) => {
+    const button = event.target.closest(".guide-nav-item[data-nav-id]");
+    if (button) scrollOrJumpToTarget(button.dataset.navId);
+  });
+
+  let lastMarkup = "";
+  let lastActiveId = null;
+  let rafId = null;
+
+  // Keep the active day's pill in view within the pinned row.
+  const followActive = () => {
+    if (!pinned.classList.contains("is-visible")) {
+      lastActiveId = null;
+      return;
+    }
+    const active = pinnedTrack.querySelector(".guide-nav-item.is-active");
+    const activeId = active?.dataset.navId || null;
+    if (!active || activeId === lastActiveId) return;
+    lastActiveId = activeId;
+    centerItemInTrack(pinnedTrack, active);
+  };
+  followActiveInPinnedNav = followActive;
+
+  const update = () => {
+    rafId = null;
+
+    // The itinerary/journal tabs swap the nav's contents; mirror whatever it has now.
+    // is-active flips on scroll and is synced separately, so ignore it when comparing.
+    const markup = navTrack.innerHTML.replace(/\s*\bis-active\b/g, "");
+    if (markup !== lastMarkup) {
+      lastMarkup = markup;
+      // Clone the nav's existing buttons rather than re-parsing markup.
+      pinnedTrack.replaceChildren(...[...navTrack.children].map((child) => child.cloneNode(true)));
+      lastActiveId = null;
+      const activeId = navTrack.querySelector(".guide-nav-item.is-active")?.dataset.navId;
+      pinnedTrack.querySelectorAll(".guide-nav-item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.navId === activeId);
+      });
+    }
+
+    const lastItem = navTrack.querySelector(".guide-nav-item:last-child");
+    const listIsOffscreen = !!lastItem && lastItem.getBoundingClientRect().bottom <= 0;
+    pinned.classList.toggle("is-visible", !isMobileLayout() && listIsOffscreen);
+    followActive();
+  };
+
+  const queueUpdate = () => {
+    if (rafId) return;
+    rafId = requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", queueUpdate, { passive: true });
+  window.addEventListener("resize", queueUpdate);
+  queueUpdate();
+
+  cleanupFns.push(() => {
+    window.removeEventListener("scroll", queueUpdate);
+    window.removeEventListener("resize", queueUpdate);
+    if (rafId) cancelAnimationFrame(rafId);
+    followActiveInPinnedNav = null;
+    pinned.remove();
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Lazy day loading
 // ---------------------------------------------------------------------------
+
+// Fills one grey placeholder with its full day content. Shared by the
+// scroll-triggered observer and by hydrateAllLazyDays (used before a nav jump).
+function hydrateItineraryPlaceholder(placeholder, state) {
+  const dayNumber = parseInt(placeholder.dataset.lazyDay, 10);
+  const day = state.days.find((d) => d.day_number === dayNumber);
+  const section = placeholder.closest(".guide-day-section");
+  if (!day || !section) return;
+
+  const allVisible = filterItemsForViewer(state.items, state.viewerRole, "itinerary");
+  const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
+  const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
+
+  const dayItems = allVisible.filter((i) => i.day_id === day.id && !bandItemIds.has(i.id));
+  const sorted = sortGuideItems(dayItems);
+  const dayBands = allBands.filter(
+    (b) => b.checkInDayNumber === dayNumber || b.checkOutDayNumber === dayNumber
+  );
+
+  section.innerHTML = renderFullDayContent(
+    day,
+    sorted,
+    state.viewerRole,
+    dayBands,
+    state.bases,
+    state.trip.start_date,
+    dayNumber === getTodayDayNumber(state.trip)
+  );
+}
 
 function setupLazyDays(state) {
   const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-day]");
@@ -312,33 +489,8 @@ function setupLazyDays(state) {
         if (!entry.isIntersecting) return;
 
         const placeholder = entry.target;
-        const dayNumber = parseInt(placeholder.dataset.lazyDay, 10);
-        const day = state.days.find((d) => d.day_number === dayNumber);
-        if (!day) return;
-
         observer.unobserve(placeholder);
-
-        const section = placeholder.closest(".guide-day-section");
-        if (!section) return;
-
-        const allVisible = filterItemsForViewer(state.items, state.viewerRole, "itinerary");
-        const allBands = getLodgingBands(allVisible, state.bases, state.days, state.trip.start_date);
-        const bandItemIds = new Set(allBands.map((b) => b.lodging.id));
-
-        const dayItems = allVisible.filter((i) => i.day_id === day.id && !bandItemIds.has(i.id));
-        const sorted = sortGuideItems(dayItems);
-        const dayBands = allBands.filter(
-          (b) => b.checkInDayNumber === dayNumber || b.checkOutDayNumber === dayNumber
-        );
-
-        section.innerHTML = renderFullDayContent(
-          day,
-          sorted,
-          state.viewerRole,
-          dayBands,
-          state.bases,
-          state.trip.start_date
-        );
+        hydrateItineraryPlaceholder(placeholder, state);
         window.lucide?.createIcons?.();
       });
     },
@@ -347,6 +499,24 @@ function setupLazyDays(state) {
 
   placeholders.forEach((el) => observer.observe(el));
   cleanupFns.push(() => observer.disconnect());
+}
+
+// Draws every day that is still a grey placeholder (itinerary or journal).
+// Called right before a day-nav jump: if days above the target were still
+// unrendered they'd grow as they filled in, pushing the target down and
+// leaving the jump short.
+function hydrateAllLazyDays() {
+  if (!_guideState) return;
+
+  const itineraryPlaceholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-day]");
+  itineraryPlaceholders.forEach((placeholder) => hydrateItineraryPlaceholder(placeholder, _guideState));
+
+  const journalPlaceholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-journal-day]");
+  journalPlaceholders.forEach((placeholder) => hydrateJournalPlaceholder(placeholder));
+
+  if (itineraryPlaceholders.length === 0 && journalPlaceholders.length === 0) return;
+  window.lucide?.createIcons?.();
+  if (journalPlaceholders.length > 0) wireJournalMode(_guideState, _journalState);
 }
 
 // ---------------------------------------------------------------------------
@@ -505,7 +675,7 @@ function renderJournalModeContent() {
   syncTripDetailModalState();
   renderGuideHeroControls();
   // Replace only the nav items, not the <nav> element itself
-  nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
+  nav.querySelector(".guide-day-nav__track").innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
   content.innerHTML = `
     ${renderJournalContent(_guideState, _journalState)}
     ${renderJournalItemEditorOverlays()}
@@ -533,7 +703,7 @@ function renderItineraryModeContent() {
   const overviewNavEntries = getOverviewNavEntries(days, bases, overviewBlocks || []);
 
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
-  nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
+  nav.querySelector(".guide-day-nav__track").innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
 
   const visibleItems = filterItemsForViewer(items, viewerRole, "itinerary");
   const isMember = viewerRole !== "public";
@@ -559,7 +729,7 @@ function renderItineraryModeContent() {
 
       if (index === 0) {
         return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
-          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date)}
+          ${renderFullDayContent(day, sorted, viewerRole, dayBands, bases, trip.start_date, day.day_number === _todayDayNumber)}
         </section>`;
       }
       return `${baseOverviewHtml}<section class="guide-day-section guide-nav-anchor" id="guide-day-${day.day_number}" data-day-number="${day.day_number}" aria-label="Day ${day.day_number}">
@@ -1090,7 +1260,7 @@ function updateMobileDayNavStickyState() {
   syncMobileDayNavOffset();
   const topOffset = getGuideDayNavOffset();
   const rect = navShell.getBoundingClientRect();
-  const isStickyActive = rect.top <= topOffset;
+  const isStickyActive = rect.top <= topOffset + 8;
   nav.classList.toggle("is-sticky-active", isStickyActive);
 }
 
@@ -1121,6 +1291,15 @@ function setupMobileDayNavStickyState() {
   });
 }
 
+function hydrateJournalPlaceholder(placeholder) {
+  const dayNumber = parseInt(placeholder.dataset.lazyJournalDay, 10);
+  const day = _guideState.days.find((d) => d.day_number === dayNumber);
+  const section = placeholder.closest(".guide-day-section");
+  if (!day || !section) return;
+
+  section.innerHTML = renderJournalDaySection(day, _guideState, _journalState);
+}
+
 function setupLazyJournalDays() {
   const placeholders = document.querySelectorAll(".guide-day-placeholder[data-lazy-journal-day]");
   if (placeholders.length === 0) return;
@@ -1131,16 +1310,8 @@ function setupLazyJournalDays() {
         if (!entry.isIntersecting) return;
 
         const placeholder = entry.target;
-        const dayNumber = parseInt(placeholder.dataset.lazyJournalDay, 10);
-        const day = _guideState.days.find((d) => d.day_number === dayNumber);
-        if (!day) return;
-
         observer.unobserve(placeholder);
-
-        const section = placeholder.closest(".guide-day-section");
-        if (!section) return;
-
-        section.innerHTML = renderJournalDaySection(day, _guideState, _journalState);
+        hydrateJournalPlaceholder(placeholder);
         window.lucide?.createIcons?.();
         wireJournalMode(_guideState, _journalState);
       });

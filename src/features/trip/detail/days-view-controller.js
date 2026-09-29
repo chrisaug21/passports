@@ -1,6 +1,6 @@
 import { tripStore } from "../../../state/trip-store.js";
 import { updateTripDayTitle } from "../../../services/days-service.js";
-import { formatDayDateLabel } from "../../../lib/format.js";
+import { formatDayDateLabel, formatDayDateCompact, formatDayDateMobile } from "../../../lib/format.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -41,6 +41,44 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, over
   `;
 }
 
+// Sticky row of pills that scroll to the trip overview, each base (multi-base
+// trips only) and each day card. Every day is already on the page in Planning
+// view (no lazy loading), so a plain scroll works. Rendered by trip-detail-view
+// directly under the stat tiles.
+export function renderDaysJumpNav(bases, days) {
+  if (days.length < 2) return "";
+  const trip = tripStore.getCurrentTrip();
+  const rows = buildAllocationRows(bases, days).filter((row) => row.kind === "base" && row.dayCount > 0);
+  const showBases = rows.length > 1;
+
+  const dayPill = (day) => {
+    const dateLabel = trip?.start_date ? formatDayDateCompact(trip.start_date, day.day_number) : "";
+    return `
+      <button class="days-jump-nav__item" type="button" data-jump-to="plan-day-${day.day_number}" aria-label="Go to Day ${day.day_number}">
+        <span>Day ${day.day_number}</span>
+        ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span><span class="days-jump-nav__date-mobile">${escapeHtml(formatDayDateMobile(trip.start_date, day.day_number))}</span>` : ""}
+      </button>
+    `;
+  };
+
+  const items = rows.map((row) => {
+    const basePill = showBases
+      ? `<button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-base-${escapeHtml(row.base.id)}" aria-label="Go to ${escapeHtml(row.label)}">${escapeHtml(row.label)}</button>`
+      : "";
+    const rowDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
+    return basePill + rowDays.map(dayPill).join("");
+  }).join("");
+
+  return `
+    <nav class="days-jump-nav" aria-label="Jump to section or day">
+      <div class="days-jump-nav__track">
+        <button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-trip-overview" aria-label="Go to Trip Overview">Overview</button>
+        ${items}
+      </div>
+    </nav>
+  `;
+}
+
 export function renderBaseDaysSection(row, days, items, rowCount, helpers, overviewBlocks = []) {
   const baseDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
   const isSingleBaseTrip = tripStore.getCurrentBases().length === 1;
@@ -51,7 +89,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers, overv
   const showBasePhotoAction = row.kind === "base" && !isSingleBaseTrip;
 
   return `
-    <section class="panel days-base-section">
+    <section class="panel days-base-section" id="plan-base-${row.kind === "base" ? escapeHtml(row.base.id) : "unassigned"}">
       ${
         row.kind === "base" && !isSingleBaseTrip
           ? `
@@ -107,7 +145,7 @@ export function renderDayCard(day, items, helpers) {
   const title = String(day.title || "").trim();
 
   return `
-    <article class="day-card">
+    <article class="day-card" id="plan-day-${day.day_number}">
       <div class="day-card__header">
         <div class="day-card__header-main">
           <p class="eyebrow">Day ${day.day_number}${dateLabel ? ` · ${escapeHtml(dateLabel)}` : ""}</p>
