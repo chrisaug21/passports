@@ -332,6 +332,9 @@
 
 /* Sticky day-jump pills (Planning > Days View) */
 .days-jump-nav {
+  /* A grid item sizes to its content by default, so without this the full
+     width of every pill would stretch the whole page column. */
+  min-width: 0;
   position: sticky;
   top: 0.5rem;
   /* Must stay below the mobile bottom nav (z-index 20) so it slides under it. */
@@ -343,6 +346,7 @@
 }
 
 .days-jump-nav__track {
+  min-width: 0;
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
