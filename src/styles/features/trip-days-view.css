@@ -333,15 +333,24 @@
 /* Sticky day-jump pills (Planning > Days View) */
 .days-jump-nav {
   position: sticky;
-  top: 0;
+  top: 0.5rem;
   z-index: 25;
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding: 0.6rem 0;
-  background: var(--color-bg);
-  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem 1rem;
+  background: var(--color-surface-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-soft);
   scrollbar-width: none;
+}
+
+/* .app-shell's overflow-x: hidden makes it a scroll container, which stops
+   position: sticky from working for anything inside it. clip guards against
+   sideways overflow the same way without creating a scroll container. */
+.app-shell:has(.days-jump-nav) {
+  overflow-x: clip;
 }
 
 .days-jump-nav::-webkit-scrollbar {
