@@ -77,6 +77,7 @@ export function teardownGuideView() {
   cleanupFns = [];
   isUserScrolling = false;
   clearTimeout(touchEndTimer);
+  releaseJumpHold?.();
   teardownJournalMode();
   stopJournalAutoRefresh();
   appStore.resetTripDetail();
@@ -196,8 +197,19 @@ function wireNavClicks() {
   });
 }
 
-// Desktop: smooth-scroll to offset position; scroll-spy updates active state.
-// Mobile: set active pill immediately then scrollIntoView — no scroll-spy.
+// Where the page should be scrolled to so the target sits just below the sticky nav.
+function getJumpScrollTop(targetId) {
+  const section = document.getElementById(targetId);
+  if (!section) return null;
+
+  const offset = isMobileLayout()
+    ? getGuideDayNavOffset() + getGuideDayNavHeight() + 16
+    : 96;
+  return section.getBoundingClientRect().top + window.scrollY - offset;
+}
+
+// Desktop: scroll-spy updates the active pill as the page scrolls.
+// Mobile: there's no scroll-spy, so set the active pill immediately.
 function scrollOrJumpToTarget(targetId) {
   if (!targetId) return;
 
@@ -208,45 +220,68 @@ function scrollOrJumpToTarget(targetId) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
       item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
-
     centerActiveNavItem(targetId);
     syncMobileDayNavOffset();
-    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight() + 16;
-    const section = document.getElementById(targetId);
-    if (!section) {
-      return;
-    }
-
-    const top = section.getBoundingClientRect().top + window.scrollY - stickyOffset;
-    window.scrollTo({ top, behavior: "smooth" });
-    correctScrollDrift(section, stickyOffset);
-  } else {
-    scrollToTarget(targetId);
+  } else if (isUserScrolling) {
+    return;
   }
+
+  const top = getJumpScrollTop(targetId);
+  if (top === null) return;
+
+  window.scrollTo({ top, behavior: "smooth" });
+  holdJumpTarget(targetId);
 }
 
-// Horizontally scrolls the mobile pill bar so the active pill sits in the middle
-// of it (e.g. so the auto-jump to Today on an active trip also brings Today's pill into view).
-function centerActiveNavItem(targetId) {
-  const nav = document.querySelector(".guide-day-nav");
-  const item = [...(nav?.querySelectorAll(".guide-nav-item") || [])].find((el) => el.dataset.navId === targetId);
-  if (!nav || !item) return;
+// After a jump, content above the target can still change height (photos
+// loading in, fonts settling, icons swapping in), which pushes the target away
+// from where the scroll was aimed — e.g. the automatic jump to Today when the
+// page first opens. For a few seconds, re-aim whenever the page's height
+// changes, and stop as soon as the user takes over scrolling.
+let releaseJumpHold = null;
 
-  const navRect = nav.getBoundingClientRect();
-  const itemRect = item.getBoundingClientRect();
-  const delta = itemRect.left - navRect.left - (navRect.width - itemRect.width) / 2;
-  nav.scrollTo({ left: nav.scrollLeft + delta, behavior: "smooth" });
-}
+function holdJumpTarget(targetId) {
+  releaseJumpHold?.();
+  if (typeof ResizeObserver !== "function") return;
 
-// Photos load in as the smooth scroll passes them and can nudge the target
-// down a little. Once the scroll has settled, snap to the right spot if it drifted.
-function correctScrollDrift(section, offset) {
-  window.setTimeout(() => {
-    const drift = section.getBoundingClientRect().top - offset;
-    if (Math.abs(drift) > 8) {
-      window.scrollTo({ top: window.scrollY + drift, behavior: "smooth" });
+  const realign = () => {
+    const top = getJumpScrollTop(targetId);
+    if (top !== null && Math.abs(top - window.scrollY) > 4) {
+      window.scrollTo({ top, behavior: "smooth" });
     }
-  }, 900);
+  };
+
+  const observer = new ResizeObserver(realign);
+  observer.observe(document.body);
+
+  const userEvents = ["wheel", "touchstart", "keydown", "mousedown"];
+  const release = () => {
+    observer.disconnect();
+    window.clearTimeout(timer);
+    userEvents.forEach((eventName) => window.removeEventListener(eventName, release));
+    releaseJumpHold = null;
+  };
+  const timer = window.setTimeout(release, 5000);
+  userEvents.forEach((eventName) => window.addEventListener(eventName, release, { passive: true }));
+  releaseJumpHold = release;
+}
+
+// Horizontally scrolls a pill row so the given pill sits in the middle of it.
+function centerItemInTrack(track, item) {
+  if (!track || !item) return;
+
+  const trackRect = track.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  const delta = itemRect.left - trackRect.left - (trackRect.width - itemRect.width) / 2;
+  track.scrollTo({ left: track.scrollLeft + delta, behavior: "smooth" });
+}
+
+// Mobile: bring the jumped-to pill into view (this is also what makes the
+// automatic jump to Today on an active trip bring Today's pill into view).
+function centerActiveNavItem(targetId) {
+  const track = document.querySelector(".guide-day-nav__track");
+  const item = [...(track?.querySelectorAll(".guide-nav-item") || [])].find((el) => el.dataset.navId === targetId);
+  centerItemInTrack(track, item);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,16 +310,6 @@ function setupTouchScrollTracking() {
     document.removeEventListener("touchend", handleTouchEnd);
     clearTimeout(touchEndTimer);
   });
-}
-
-function scrollToTarget(targetId) {
-  if (isUserScrolling) return;
-  const section = document.getElementById(targetId);
-  if (!section) return;
-  const OFFSET = 96;
-  const top = section.getBoundingClientRect().top + window.scrollY - OFFSET;
-  window.scrollTo({ top, behavior: "smooth" });
-  correctScrollDrift(section, OFFSET);
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +354,7 @@ function updateActiveSection() {
   document.querySelectorAll(".guide-nav-item").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.navId === activeId);
   });
+  followActiveInPinnedNav?.();
 }
 
 // ---------------------------------------------------------------------------
@@ -337,17 +363,23 @@ function updateActiveSection() {
 // one click away. Mobile has its own sticky bar (see setupMobileDayNavStickyState).
 // ---------------------------------------------------------------------------
 
+// Set by setupDesktopPinnedNav; lets scroll-spy tell the pinned bar the active day changed.
+let followActiveInPinnedNav = null;
+
 function setupDesktopPinnedNav() {
   const shell = document.querySelector(".guide-day-nav-shell");
-  const nav = shell?.querySelector(".guide-day-nav");
-  if (!shell || !nav) return;
+  const navTrack = shell?.querySelector(".guide-day-nav__track");
+  if (!shell || !navTrack) return;
 
   const pinned = document.createElement("nav");
   pinned.className = "guide-pinned-nav";
   pinned.setAttribute("aria-label", "Day navigation");
+  const pinnedTrack = document.createElement("div");
+  pinnedTrack.className = "guide-pinned-nav__track";
+  pinned.appendChild(pinnedTrack);
   shell.appendChild(pinned);
-  cleanupFns.push(attachScrollFade(pinned));
-  cleanupFns.push(attachScrollFade(nav));
+  cleanupFns.push(attachScrollFade(pinnedTrack));
+  cleanupFns.push(attachScrollFade(navTrack));
 
   // Buttons are recreated by innerHTML, so click handling is delegated here.
   pinned.addEventListener("click", (event) => {
@@ -356,26 +388,43 @@ function setupDesktopPinnedNav() {
   });
 
   let lastMarkup = "";
+  let lastActiveId = null;
   let rafId = null;
+
+  // Keep the active day's pill in view within the pinned row.
+  const followActive = () => {
+    if (!pinned.classList.contains("is-visible")) {
+      lastActiveId = null;
+      return;
+    }
+    const active = pinnedTrack.querySelector(".guide-nav-item.is-active");
+    const activeId = active?.dataset.navId || null;
+    if (!active || activeId === lastActiveId) return;
+    lastActiveId = activeId;
+    centerItemInTrack(pinnedTrack, active);
+  };
+  followActiveInPinnedNav = followActive;
 
   const update = () => {
     rafId = null;
 
     // The itinerary/journal tabs swap the nav's contents; mirror whatever it has now.
     // is-active flips on scroll and is synced separately, so ignore it when comparing.
-    const markup = nav.innerHTML.replace(/\s*\bis-active\b/g, "");
+    const markup = navTrack.innerHTML.replace(/\s*\bis-active\b/g, "");
     if (markup !== lastMarkup) {
       lastMarkup = markup;
-      pinned.innerHTML = markup;
-      const activeId = nav.querySelector(".guide-nav-item.is-active")?.dataset.navId;
-      pinned.querySelectorAll(".guide-nav-item").forEach((item) => {
+      pinnedTrack.innerHTML = markup;
+      lastActiveId = null;
+      const activeId = navTrack.querySelector(".guide-nav-item.is-active")?.dataset.navId;
+      pinnedTrack.querySelectorAll(".guide-nav-item").forEach((item) => {
         item.classList.toggle("is-active", item.dataset.navId === activeId);
       });
     }
 
-    const lastItem = nav.querySelector(".guide-nav-item:last-child");
+    const lastItem = navTrack.querySelector(".guide-nav-item:last-child");
     const listIsOffscreen = !!lastItem && lastItem.getBoundingClientRect().bottom <= 0;
     pinned.classList.toggle("is-visible", !isMobileLayout() && listIsOffscreen);
+    followActive();
   };
 
   const queueUpdate = () => {
@@ -391,6 +440,7 @@ function setupDesktopPinnedNav() {
     window.removeEventListener("scroll", queueUpdate);
     window.removeEventListener("resize", queueUpdate);
     if (rafId) cancelAnimationFrame(rafId);
+    followActiveInPinnedNav = null;
     pinned.remove();
   });
 }
@@ -624,7 +674,7 @@ function renderJournalModeContent() {
   syncTripDetailModalState();
   renderGuideHeroControls();
   // Replace only the nav items, not the <nav> element itself
-  nav.innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
+  nav.querySelector(".guide-day-nav__track").innerHTML = renderJournalDayNav(_guideState.days, _guideState.trip, _todayDayNumber);
   content.innerHTML = `
     ${renderJournalContent(_guideState, _journalState)}
     ${renderJournalItemEditorOverlays()}
@@ -652,7 +702,7 @@ function renderItineraryModeContent() {
   const overviewNavEntries = getOverviewNavEntries(days, bases, overviewBlocks || []);
 
   // Build nav items only (not the <nav> wrapper — we set innerHTML of the existing nav)
-  nav.innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
+  nav.querySelector(".guide-day-nav__track").innerHTML = renderJournalDayNav(days, trip, _todayDayNumber, overviewNavEntries);
 
   const visibleItems = filterItemsForViewer(items, viewerRole, "itinerary");
   const isMember = viewerRole !== "public";

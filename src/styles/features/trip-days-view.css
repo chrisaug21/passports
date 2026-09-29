@@ -336,14 +336,18 @@
   top: 0.5rem;
   /* Must stay below the mobile bottom nav (z-index 20) so it slides under it. */
   z-index: 15;
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding: 0.5rem 1rem;
   background: var(--color-surface-strong);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-soft);
+}
+
+.days-jump-nav__track {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem 1rem;
+  border-radius: inherit;
   scrollbar-width: none;
 }
 
@@ -354,7 +358,7 @@
   overflow-x: clip;
 }
 
-.days-jump-nav::-webkit-scrollbar {
+.days-jump-nav__track::-webkit-scrollbar {
   display: none;
 }
 

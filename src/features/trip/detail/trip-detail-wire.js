@@ -83,7 +83,7 @@ function scrollToPlanningTarget(targetId) {
 }
 
 export function wireTripDetailPageEvents(handlers) {
-  attachScrollFade(document.querySelector(".days-jump-nav"));
+  attachScrollFade(document.querySelector(".days-jump-nav__track"));
   bindClick("#trip-back-to-dashboard", handlers.onBackToDashboard);
   bindClick("#retry-trip-load", handlers.onRetryTripLoad);
   bindAll("[data-view-mode]", "click", (button) => {

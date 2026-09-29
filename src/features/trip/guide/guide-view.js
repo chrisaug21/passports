@@ -523,7 +523,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries
 
   const items = `${tripEntry ? renderOverviewNavItem(tripEntry) : ""}${dayItems}`;
 
-  return `<nav class="guide-day-nav" aria-label="Day navigation">${items}</nav>`;
+  return `<nav class="guide-day-nav" aria-label="Day navigation"><div class="guide-day-nav__track">${items}</div></nav>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -71,8 +71,10 @@ export function renderDaysJumpNav(bases, days) {
 
   return `
     <nav class="days-jump-nav" aria-label="Jump to section or day">
-      <button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-trip-overview" aria-label="Go to Trip Overview">Overview</button>
-      ${items}
+      <div class="days-jump-nav__track">
+        <button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-trip-overview" aria-label="Go to Trip Overview">Overview</button>
+        ${items}
+      </div>
     </nav>
   `;
 }

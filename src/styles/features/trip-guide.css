@@ -318,11 +318,11 @@
   display: none;
 }
 
-/* The left-hand list is vertical on desktop, so it doesn't use the edge fades. */
+/* On desktop the track is invisible to layout, so the left-hand list is laid
+   out by .guide-day-nav exactly as before (and it never needs edge fades). */
 @media (min-width: 841px) {
-  .guide-day-nav.scroll-fade::before,
-  .guide-day-nav.scroll-fade::after {
-    display: none;
+  .guide-day-nav__track {
+    display: contents;
   }
 }
 
@@ -333,25 +333,30 @@
 
 @media (min-width: 841px) {
   .guide-pinned-nav.is-visible {
-    display: flex;
+    display: block;
     position: fixed;
     top: 0.5rem;
     left: 50%;
     transform: translateX(-50%);
     width: min(1120px, calc(100% - 1.5rem));
     box-sizing: border-box;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding: 0.5rem 1rem;
     background: var(--color-surface-strong);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-panel);
     box-shadow: var(--shadow-soft);
-    scrollbar-width: none;
     z-index: 30;
   }
 
-  .guide-pinned-nav::-webkit-scrollbar {
+  .guide-pinned-nav__track {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+    border-radius: inherit;
+    scrollbar-width: none;
+  }
+
+  .guide-pinned-nav__track::-webkit-scrollbar {
     display: none;
   }
 
@@ -984,23 +989,30 @@
   }
 
   .guide-day-nav {
-    display: flex;
-    flex-direction: row;
+    display: block;
     width: 100%;
     box-sizing: border-box;
     max-height: none;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.5rem 1rem;
+    overflow: visible;
+    padding: 0;
     background: var(--color-surface-strong);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-panel);
     box-shadow: var(--shadow-soft);
+  }
+
+  .guide-day-nav__track {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5rem 1rem;
+    border-radius: inherit;
     scrollbar-width: none;
     gap: 0.5rem;
   }
 
-  .guide-day-nav::-webkit-scrollbar {
+  .guide-day-nav__track::-webkit-scrollbar {
     display: none;
   }
 
@@ -1074,7 +1086,7 @@
 }
 
 @media (max-width: 639px) {
-  .guide-day-nav {
+  .guide-day-nav__track {
     padding-inline: 0.75rem;
   }
 
