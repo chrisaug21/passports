@@ -3,6 +3,7 @@ import {
   formatItemTypeLabel,
   getTripDateByDayNumber,
   formatDayDateCompact,
+  formatDayDateMobile,
 } from "../../../lib/format.js";
 import {
   escapeHtml,
@@ -563,7 +564,7 @@ export function renderJournalDayNav(days, trip, todayDayNumber, overviewNavEntri
           aria-label="Go to Day ${day.day_number}"
         >
           <span class="guide-nav-item__label">Day ${day.day_number}</span>
-          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(dateLabel)}</span><span class="guide-nav-item__date-short">${escapeHtml(formatDayDateCompact(trip.start_date, day.day_number))}</span>` : ""}
+          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(formatDayDateCompact(trip.start_date, day.day_number))}</span><span class="guide-nav-item__date-mobile">${escapeHtml(formatDayDateMobile(trip.start_date, day.day_number))}</span>` : ""}
         </button>
       `;
     })

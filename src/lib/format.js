@@ -188,6 +188,17 @@ export function formatDayDateCompact(startDate, dayNumber) {
   return `${parts.weekday} ${parts.month} ${parts.day}`;
 }
 
+// Tightest form for phone-width nav pills: "Oct 15 Th" (M Tu W Th F Sa Su).
+const MOBILE_WEEKDAY_LABELS = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
+
+export function formatDayDateMobile(startDate, dayNumber) {
+  const date = getTripDateByDayNumber(startDate, dayNumber);
+  if (!date) return "";
+
+  const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+  return `${monthDay} ${MOBILE_WEEKDAY_LABELS[date.getDay()]}`;
+}
+
 export function formatShortDateRange(startDate, startDayNumber, endDayNumber) {
   const start = getTripDateByDayNumber(startDate, startDayNumber);
   const end = getTripDateByDayNumber(startDate, endDayNumber);

@@ -1,3 +1,4 @@
+import { attachScrollFade } from "../../shared/scroll-fade.js";
 import { navigate } from "../../../app/router.js";
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
@@ -331,6 +332,8 @@ function setupDesktopPinnedNav() {
   pinned.className = "guide-pinned-nav";
   pinned.setAttribute("aria-label", "Day navigation");
   shell.appendChild(pinned);
+  cleanupFns.push(attachScrollFade(pinned));
+  cleanupFns.push(attachScrollFade(nav));
 
   // Buttons are recreated by innerHTML, so click handling is delegated here.
   pinned.addEventListener("click", (event) => {

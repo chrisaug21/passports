@@ -412,3 +412,38 @@
     margin-top: auto;
   }
 }
+
+/* Edge fades on horizontally scrolling pill rows (see features/shared/scroll-fade.js).
+   Sticky pseudo-elements sit over the row's ends and only show when there is
+   more content to scroll to. The row must be a flex container with a solid
+   background and 0.5rem vertical padding. */
+.scroll-fade::before,
+.scroll-fade::after {
+  content: "";
+  position: sticky;
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 28px;
+  margin-block: -0.5rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  z-index: 2;
+}
+
+.scroll-fade::before {
+  left: 0;
+  margin-right: calc(-28px - 0.5rem);
+  background: linear-gradient(to right, var(--color-surface-strong), transparent);
+}
+
+.scroll-fade::after {
+  right: 0;
+  margin-left: calc(-28px - 0.5rem);
+  background: linear-gradient(to left, var(--color-surface-strong), transparent);
+}
+
+.scroll-fade.has-more-left::before,
+.scroll-fade.has-more-right::after {
+  opacity: 1;
+}

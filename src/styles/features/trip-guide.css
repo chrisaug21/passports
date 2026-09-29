@@ -318,8 +318,16 @@
 /* Short label/date variants are only for the horizontal pill navs (mobile bar
    and desktop pinned bar), where horizontal room is tight. */
 .guide-nav-item__label-short,
-.guide-nav-item__date-short {
+.guide-nav-item__date-mobile {
   display: none;
+}
+
+/* The left-hand list is vertical on desktop, so it doesn't use the edge fades. */
+@media (min-width: 841px) {
+  .guide-day-nav.scroll-fade::before,
+  .guide-day-nav.scroll-fade::after {
+    display: none;
+  }
 }
 
 /* Desktop pinned bar (hidden until the left-hand list scrolls away) */
@@ -362,32 +370,12 @@
     font-size: 0.85rem;
   }
 
-  .guide-pinned-nav .guide-nav-item--overview .guide-nav-item__label,
-  .guide-pinned-nav .guide-nav-item__date {
+  .guide-pinned-nav .guide-nav-item--overview .guide-nav-item__label {
     display: none;
   }
 
-  .guide-pinned-nav .guide-nav-item__label-short,
-  .guide-pinned-nav .guide-nav-item__date-short {
+  .guide-pinned-nav .guide-nav-item__label-short {
     display: inline;
-  }
-
-  .guide-pinned-nav .guide-nav-item__date-short {
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: var(--color-text-subtle);
-  }
-
-  .guide-pinned-nav .guide-nav-item.is-active .guide-nav-item__date-short {
-    color: var(--color-structure);
-    opacity: 0.75;
-  }
-
-  .guide-pinned-nav .guide-nav-item.is-today .guide-nav-item__date-short::before {
-    content: "Today";
-    color: var(--color-action);
-    font-weight: 700;
-    margin-right: 0.3em;
   }
 }
 
@@ -972,7 +960,7 @@
   .guide-body {
     grid-template-columns: 1fr;
     gap: 0;
-    margin-top: 0;
+    margin-top: 1rem;
   }
 
   /* min-width: 0 stops the nav shell's un-scrolled content (the horizontally-
@@ -984,7 +972,7 @@
      — wider than the viewport until you scroll past that point. */
   .guide-day-nav-shell {
     min-width: 0;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
 
   .guide-day-nav {
@@ -1026,6 +1014,18 @@
 
   .guide-nav-item__date {
     display: none;
+  }
+
+  .guide-nav-item__date-mobile {
+    display: inline;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-text-subtle);
+  }
+
+  .guide-nav-item.is-active .guide-nav-item__date-mobile {
+    color: var(--color-structure);
+    opacity: 0.75;
   }
 
   .guide-nav-item--overview .guide-nav-item__label {

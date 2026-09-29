@@ -1,6 +1,6 @@
 import { tripStore } from "../../../state/trip-store.js";
 import { updateTripDayTitle } from "../../../services/days-service.js";
-import { formatDayDateLabel, formatDayDateCompact } from "../../../lib/format.js";
+import { formatDayDateLabel, formatDayDateCompact, formatDayDateMobile } from "../../../lib/format.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -56,7 +56,7 @@ export function renderDaysJumpNav(bases, days) {
     return `
       <button class="days-jump-nav__item" type="button" data-jump-to="plan-day-${day.day_number}" aria-label="Go to Day ${day.day_number}">
         <span>Day ${day.day_number}</span>
-        ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span>` : ""}
+        ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span><span class="days-jump-nav__date-mobile">${escapeHtml(formatDayDateMobile(trip.start_date, day.day_number))}</span>` : ""}
       </button>
     `;
   };

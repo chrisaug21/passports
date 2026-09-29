@@ -334,7 +334,8 @@
 .days-jump-nav {
   position: sticky;
   top: 0.5rem;
-  z-index: 25;
+  /* Must stay below the mobile bottom nav (z-index 20) so it slides under it. */
+  z-index: 15;
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
@@ -391,8 +392,18 @@
   opacity: 0.75;
 }
 
+.days-jump-nav__date-mobile {
+  display: none;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
 @media (max-width: 767px) {
   .days-jump-nav__date {
     display: none;
+  }
+
+  .days-jump-nav__date-mobile {
+    display: inline;
   }
 }

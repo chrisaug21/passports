@@ -1,4 +1,5 @@
 import { wireLocationSearch } from "../../shared/location-search.js";
+import { attachScrollFade } from "../../shared/scroll-fade.js";
 
 function bindClick(selector, handler) {
   if (!handler) {
@@ -82,6 +83,7 @@ function scrollToPlanningTarget(targetId) {
 }
 
 export function wireTripDetailPageEvents(handlers) {
+  attachScrollFade(document.querySelector(".days-jump-nav"));
   bindClick("#trip-back-to-dashboard", handlers.onBackToDashboard);
   bindClick("#retry-trip-load", handlers.onRetryTripLoad);
   bindAll("[data-view-mode]", "click", (button) => {
