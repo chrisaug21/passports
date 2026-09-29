@@ -1,6 +1,6 @@
 import { tripStore } from "../../../state/trip-store.js";
 import { updateTripDayTitle } from "../../../services/days-service.js";
-import { formatDayDateLabel } from "../../../lib/format.js";
+import { formatDayDateLabel, formatDayDateCompact } from "../../../lib/format.js";
 import { showToast } from "../../shared/toast.js";
 import {
   tripDetailState,
@@ -22,7 +22,6 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, over
 
   return `
     <section class="days-view">
-      ${renderDaysJumpNav(days)}
       ${groupedRows.map((row) => renderBaseDaysSection(row, days, assignedItems, groupedRows.length, helpers, overviewBlocks)).join("")}
 
       <section class="panel days-view__pool">
@@ -42,23 +41,38 @@ export function renderDaysView(bases, days, assignedItems, unassignedItems, over
   `;
 }
 
-// Sticky row of "Day N" pills that scroll to that day's card. Every day is
-// already on the page in Planning view (no lazy loading), so a plain scroll works.
-function renderDaysJumpNav(days) {
+// Sticky row of pills that scroll to the trip overview, each base (multi-base
+// trips only) and each day card. Every day is already on the page in Planning
+// view (no lazy loading), so a plain scroll works. Rendered by trip-detail-view
+// directly under the stat tiles.
+export function renderDaysJumpNav(bases, days) {
   if (days.length < 2) return "";
   const trip = tripStore.getCurrentTrip();
+  const rows = buildAllocationRows(bases, days).filter((row) => row.kind === "base" && row.dayCount > 0);
+  const showBases = rows.length > 1;
+
+  const dayPill = (day) => {
+    const dateLabel = trip?.start_date ? formatDayDateCompact(trip.start_date, day.day_number) : "";
+    return `
+      <button class="days-jump-nav__item" type="button" data-jump-to="plan-day-${day.day_number}" aria-label="Go to Day ${day.day_number}">
+        <span>Day ${day.day_number}</span>
+        ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span>` : ""}
+      </button>
+    `;
+  };
+
+  const items = rows.map((row) => {
+    const basePill = showBases
+      ? `<button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-base-${escapeHtml(row.base.id)}" aria-label="Go to ${escapeHtml(row.label)}">${escapeHtml(row.label)}</button>`
+      : "";
+    const rowDays = days.filter((day) => day.day_number >= row.startDay && day.day_number <= row.endDay);
+    return basePill + rowDays.map(dayPill).join("");
+  }).join("");
 
   return `
-    <nav class="days-jump-nav" aria-label="Jump to day">
-      ${days.map((day) => {
-        const dateLabel = trip?.start_date ? formatDayDateLabel(trip.start_date, day.day_number) : "";
-        return `
-          <button class="days-jump-nav__item" type="button" data-jump-to-day="${day.day_number}" aria-label="Go to Day ${day.day_number}">
-            <span>Day ${day.day_number}</span>
-            ${dateLabel ? `<span class="days-jump-nav__date">${escapeHtml(dateLabel)}</span>` : ""}
-          </button>
-        `;
-      }).join("")}
+    <nav class="days-jump-nav" aria-label="Jump to section or day">
+      <button class="days-jump-nav__item days-jump-nav__item--section" type="button" data-jump-to="plan-trip-overview" aria-label="Go to Trip Overview">Overview</button>
+      ${items}
     </nav>
   `;
 }
@@ -73,7 +87,7 @@ export function renderBaseDaysSection(row, days, items, rowCount, helpers, overv
   const showBasePhotoAction = row.kind === "base" && !isSingleBaseTrip;
 
   return `
-    <section class="panel days-base-section">
+    <section class="panel days-base-section" id="plan-base-${row.kind === "base" ? escapeHtml(row.base.id) : "unassigned"}">
       ${
         row.kind === "base" && !isSingleBaseTrip
           ? `

@@ -37,7 +37,7 @@ import {
   renderTripLengthConfirmModal,
 } from "./base-allocation-controller.js";
 import { renderTimezoneOptionsDatalist } from "./timezone-picker.js";
-import { renderDaysView } from "./days-view-controller.js";
+import { renderDaysView, renderDaysJumpNav } from "./days-view-controller.js";
 import {
   getInterleavedDayItems,
   getSortedUnassignedItems,
@@ -175,7 +175,9 @@ export function renderTripDetailPageView() {
         `).join("")}
       </section>
 
-      <section class="panel trip-overview-panel">
+      ${tripDetail.viewMode === "master-list" ? "" : renderDaysJumpNav(bases, days)}
+
+      <section class="panel trip-overview-panel" id="plan-trip-overview">
         ${renderOverviewScopeSection(null, overviewBlocks)}
       </section>
 

@@ -315,6 +315,82 @@
   opacity: 0.75;
 }
 
+/* Short label/date variants are only for the horizontal pill navs (mobile bar
+   and desktop pinned bar), where horizontal room is tight. */
+.guide-nav-item__label-short,
+.guide-nav-item__date-short {
+  display: none;
+}
+
+/* Desktop pinned bar (hidden until the left-hand list scrolls away) */
+.guide-pinned-nav {
+  display: none;
+}
+
+@media (min-width: 841px) {
+  .guide-pinned-nav.is-visible {
+    display: flex;
+    position: fixed;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1120px, calc(100% - 1.5rem));
+    box-sizing: border-box;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-soft);
+    scrollbar-width: none;
+    z-index: 30;
+  }
+
+  .guide-pinned-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .guide-pinned-nav .guide-nav-item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.85rem;
+  }
+
+  .guide-pinned-nav .guide-nav-item--overview .guide-nav-item__label,
+  .guide-pinned-nav .guide-nav-item__date {
+    display: none;
+  }
+
+  .guide-pinned-nav .guide-nav-item__label-short,
+  .guide-pinned-nav .guide-nav-item__date-short {
+    display: inline;
+  }
+
+  .guide-pinned-nav .guide-nav-item__date-short {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-text-subtle);
+  }
+
+  .guide-pinned-nav .guide-nav-item.is-active .guide-nav-item__date-short {
+    color: var(--color-structure);
+    opacity: 0.75;
+  }
+
+  .guide-pinned-nav .guide-nav-item.is-today .guide-nav-item__date-short::before {
+    content: "Today";
+    color: var(--color-action);
+    font-weight: 700;
+    margin-right: 0.3em;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Day sections
    --------------------------------------------------------------------------- */
@@ -919,9 +995,11 @@
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0.75rem 1rem;
-    background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.08);
+    padding: 0.5rem 1rem;
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-soft);
     scrollbar-width: none;
     gap: 0.5rem;
   }
@@ -950,6 +1028,14 @@
     display: none;
   }
 
+  .guide-nav-item--overview .guide-nav-item__label {
+    display: none;
+  }
+
+  .guide-nav-item__label-short {
+    display: inline;
+  }
+
   .guide-loading__body {
     grid-template-columns: 1fr;
   }
@@ -968,33 +1054,18 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 840px) {
   .guide-day-nav-shell {
     min-height: var(--guide-day-nav-shell-height, auto);
   }
 
   .guide-day-nav.is-sticky-active {
     position: fixed;
-    top: var(--guide-day-nav-top-offset, 0px);
+    top: calc(var(--guide-day-nav-top-offset, 0px) + 0.5rem);
     left: var(--guide-day-nav-left, 0px);
     width: var(--guide-day-nav-width, 100%);
-    padding-inline: 0.75rem;
     box-sizing: border-box;
-    background: transparent;
     z-index: 30;
-  }
-
-  .guide-day-nav.is-sticky-active::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc((100vw - 100%) / -2);
-    width: 100vw;
-    background: var(--color-bg);
-    border-bottom: 1px solid rgba(26, 35, 50, 0.06);
-    box-shadow: 0 4px 12px rgba(27, 43, 66, 0.04);
-    z-index: -1;
   }
 }
 

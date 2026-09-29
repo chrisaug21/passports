@@ -177,6 +177,17 @@ export function formatDayDateLabel(startDate, dayNumber) {
   }).format(date);
 }
 
+// Compact form for space-tight nav pills: "Wed Oct 14".
+export function formatDayDateCompact(startDate, dayNumber) {
+  const date = getTripDateByDayNumber(startDate, dayNumber);
+  if (!date) return "";
+
+  const parts = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" })
+    .formatToParts(date)
+    .reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+  return `${parts.weekday} ${parts.month} ${parts.day}`;
+}
+
 export function formatShortDateRange(startDate, startDayNumber, endDayNumber) {
   const start = getTripDateByDayNumber(startDate, startDayNumber);
   const end = getTripDateByDayNumber(startDate, endDayNumber);

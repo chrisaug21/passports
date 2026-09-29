@@ -39,7 +39,8 @@ import {
 import { showToast } from "../../shared/toast.js";
 
 const GUIDE_ACTIVE_MODE_KEY = "guide-active-mode";
-const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 768;
+// Matches isMobileLayout(): the horizontal pill nav is used (and sticks) at <= 840px.
+const GUIDE_MOBILE_STICKY_BREAKPOINT_PX = 841;
 const JOURNAL_AUTO_REFRESH_MS = 60000;
 
 let cleanupFns = [];
@@ -117,6 +118,7 @@ export function wireGuideView(state) {
   setupScrollTracking();
   setupDayNavStickyOffsetTracking();
   setupMobileDayNavStickyState();
+  setupDesktopPinnedNav();
   setupLazyDays(state);
   setupGuideFocusRefresh();
 
@@ -207,7 +209,7 @@ function scrollOrJumpToTarget(targetId) {
     });
 
     syncMobileDayNavOffset();
-    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight();
+    const stickyOffset = getGuideDayNavOffset() + getGuideDayNavHeight() + 16;
     const section = document.getElementById(targetId);
     if (!section) {
       return;
@@ -264,7 +266,7 @@ function scrollToTarget(targetId) {
   if (isUserScrolling) return;
   const section = document.getElementById(targetId);
   if (!section) return;
-  const OFFSET = 80;
+  const OFFSET = 96;
   const top = section.getBoundingClientRect().top + window.scrollY - OFFSET;
   window.scrollTo({ top, behavior: "smooth" });
   correctScrollDrift(section, OFFSET);
@@ -311,6 +313,68 @@ function updateActiveSection() {
 
   document.querySelectorAll(".guide-nav-item").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.navId === activeId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Desktop pinned nav — once the left-hand day list has scrolled off the top of
+// the screen, a fixed rounded row of the same buttons takes over so days stay
+// one click away. Mobile has its own sticky bar (see setupMobileDayNavStickyState).
+// ---------------------------------------------------------------------------
+
+function setupDesktopPinnedNav() {
+  const shell = document.querySelector(".guide-day-nav-shell");
+  const nav = shell?.querySelector(".guide-day-nav");
+  if (!shell || !nav) return;
+
+  const pinned = document.createElement("nav");
+  pinned.className = "guide-pinned-nav";
+  pinned.setAttribute("aria-label", "Day navigation");
+  shell.appendChild(pinned);
+
+  // Buttons are recreated by innerHTML, so click handling is delegated here.
+  pinned.addEventListener("click", (event) => {
+    const button = event.target.closest(".guide-nav-item[data-nav-id]");
+    if (button) scrollOrJumpToTarget(button.dataset.navId);
+  });
+
+  let lastMarkup = "";
+  let rafId = null;
+
+  const update = () => {
+    rafId = null;
+
+    // The itinerary/journal tabs swap the nav's contents; mirror whatever it has now.
+    // is-active flips on scroll and is synced separately, so ignore it when comparing.
+    const markup = nav.innerHTML.replace(/\s*\bis-active\b/g, "");
+    if (markup !== lastMarkup) {
+      lastMarkup = markup;
+      pinned.innerHTML = markup;
+      const activeId = nav.querySelector(".guide-nav-item.is-active")?.dataset.navId;
+      pinned.querySelectorAll(".guide-nav-item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.navId === activeId);
+      });
+    }
+
+    const lastItem = nav.querySelector(".guide-nav-item:last-child");
+    const listIsOffscreen = !!lastItem && lastItem.getBoundingClientRect().bottom <= 0;
+    pinned.classList.toggle("is-visible", !isMobileLayout() && listIsOffscreen);
+  };
+
+  const queueUpdate = () => {
+    if (rafId) return;
+    rafId = requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", queueUpdate, { passive: true });
+  window.addEventListener("resize", queueUpdate);
+  queueUpdate();
+
+  cleanupFns.push(() => {
+    window.removeEventListener("scroll", queueUpdate);
+    window.removeEventListener("resize", queueUpdate);
+    if (rafId) cancelAnimationFrame(rafId);
+    pinned.remove();
   });
 }
 
@@ -1127,7 +1191,7 @@ function updateMobileDayNavStickyState() {
   syncMobileDayNavOffset();
   const topOffset = getGuideDayNavOffset();
   const rect = navShell.getBoundingClientRect();
-  const isStickyActive = rect.top <= topOffset;
+  const isStickyActive = rect.top <= topOffset + 8;
   nav.classList.toggle("is-sticky-active", isStickyActive);
 }
 

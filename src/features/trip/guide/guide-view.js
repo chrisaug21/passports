@@ -4,6 +4,7 @@ import {
   formatStatusLabel,
   formatTimeLabel,
   getTripDateByDayNumber,
+  formatDayDateCompact,
 } from "../../../lib/format.js";
 import {
   OVERVIEW_CATEGORIES,
@@ -381,7 +382,7 @@ export function getOverviewNavEntries(days, bases, overviewBlocks) {
   const visibleBlocks = filterOverviewBlocksForViewer(overviewBlocks);
 
   if (visibleBlocks.some((block) => !block.base_id)) {
-    entries.push({ beforeDayNumber: null, id: "guide-trip-overview", label: "Trip Overview" });
+    entries.push({ beforeDayNumber: null, id: "guide-trip-overview", label: "Trip Overview", shortLabel: "Overview" });
   }
 
   const transitionDayNumbers = getBaseTransitionDayNumbers(days);
@@ -397,6 +398,7 @@ export function getOverviewNavEntries(days, bases, overviewBlocks) {
         beforeDayNumber: day.day_number,
         id: `guide-base-overview-${day.base_id}`,
         label: `${baseName} Overview`,
+        shortLabel: baseName,
       });
     });
 
@@ -412,6 +414,7 @@ export function renderOverviewNavItem(entry) {
       aria-label="Go to ${escapeHtml(entry.label)}"
     >
       <span class="guide-nav-item__label">${escapeHtml(entry.label)}</span>
+      <span class="guide-nav-item__label-short">${escapeHtml(entry.shortLabel || entry.label)}</span>
     </button>
   `;
 }
@@ -510,7 +513,7 @@ export function renderGuideDayNav(days, trip, todayDayNumber, overviewNavEntries
           aria-label="Go to Day ${day.day_number}"
         >
           <span class="guide-nav-item__label">Day ${day.day_number}</span>
-          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(dateLabel)}</span>` : ""}
+          ${dateLabel ? `<span class="guide-nav-item__date">${escapeHtml(dateLabel)}</span><span class="guide-nav-item__date-short">${escapeHtml(formatDayDateCompact(trip.start_date, day.day_number))}</span>` : ""}
         </button>
       `;
     })
