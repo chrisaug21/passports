@@ -1,7 +1,16 @@
 export const DEFAULT_PHOTO_ASPECT_RATIO = 3 / 2;
-const CROPPED_OUTPUT_WIDTH = 1200;
-const CROPPED_OUTPUT_HEIGHT = 800;
-const JPEG_QUALITY = 0.85;
+
+// Three sizes are cropped from the same selection and uploaded together:
+// full-size for the trip's own page, and two smaller ones (matching
+// getPhotoPreviewPublicUrl/getPhotoCardPublicUrl in photos-service.js) so
+// list views don't have to load full-size photos. Generated client-side
+// rather than via Supabase's on-the-fly image transform, which requires a
+// paid plan.
+const PHOTO_VARIANT_SIZES = {
+  full: { width: 1200, height: 800, quality: 0.85 },
+  preview: { width: 720, height: 480, quality: 0.72 },
+  card: { width: 360, height: 240, quality: 0.7 },
+};
 
 const SELECT_IMAGE_FALLBACK_TIMEOUT_MS = 120000;
 
@@ -224,17 +233,19 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
 
     modal.querySelector("[data-photo-crop-confirm]")?.addEventListener("click", async () => {
       try {
-        const canvas = cropper?.getCroppedCanvas({
-          width: CROPPED_OUTPUT_WIDTH,
-          height: CROPPED_OUTPUT_HEIGHT,
-          fillColor: "#ffffff",
-        });
+        const variantEntries = await Promise.all(
+          Object.entries(PHOTO_VARIANT_SIZES).map(async ([variant, { width, height, quality }]) => {
+            const canvas = cropper?.getCroppedCanvas({ width, height, fillColor: "#ffffff" });
 
-        if (!canvas) {
-          throw new Error("Could not crop that image.");
-        }
+            if (!canvas) {
+              throw new Error("Could not crop that image.");
+            }
 
-        finish(await canvasToJpegBlob(canvas));
+            return [variant, await canvasToJpegBlob(canvas, quality)];
+          })
+        );
+
+        finish(Object.fromEntries(variantEntries));
       } catch (error) {
         fail(error);
       }
@@ -270,7 +281,7 @@ function renderCropModal() {
   return modal;
 }
 
-function canvasToJpegBlob(canvas) {
+function canvasToJpegBlob(canvas, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -279,6 +290,6 @@ function canvasToJpegBlob(canvas) {
       }
 
       resolve(blob);
-    }, "image/jpeg", JPEG_QUALITY);
+    }, "image/jpeg", quality);
   });
 }

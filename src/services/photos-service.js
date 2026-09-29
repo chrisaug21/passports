@@ -8,21 +8,33 @@ export const PHOTO_CONTEXTS = {
 
 const PHOTO_SELECT = "id, trip_id, base_id, storage_path, is_primary, sort_order, updated_at";
 
+// A photo is stored as 3 separate files sharing one base path, since
+// Supabase's on-the-fly image resizing (getPublicUrl's `transform` option)
+// requires a paid plan. "full" keeps the base path as-is (unchanged from
+// before this scheme existed); "preview" and "card" are suffixed variants
+// generated client-side at upload time (see src/lib/photo-upload.js) and
+// read back out by getPhotoPreviewPublicUrl/getPhotoCardPublicUrl below.
+const PHOTO_VARIANT_SUFFIXES = {
+  full: "",
+  preview: "-720x480",
+  card: "-360x240",
+};
+
 export async function saveUploadedPrimaryPhoto({
   userId,
   tripId,
   baseId = null,
   context,
-  blob,
+  photo,
 }) {
-  if (!userId || !tripId || !context || !blob) {
+  if (!userId || !tripId || !context || !photo?.full) {
     throw new Error("Missing photo upload details.");
   }
 
   const existingPhoto = await getPrimaryPhotoForSlot({ tripId, baseId });
 
   const storagePath = `${userId}/${tripId}/${context}/${Date.now()}.jpg`;
-  await uploadPhotoBlob({ storagePath, blob, upsert: false });
+  await uploadPhotoVariants({ storagePath, photo, upsert: false });
 
   // Remove the old DB row before inserting the new one — the trip_photos
   // unique constraint (one row per trip/base slot) blocks INSERT while the
@@ -33,7 +45,7 @@ export async function saveUploadedPrimaryPhoto({
       .delete()
       .eq("id", existingPhoto.id);
     if (deleteError) {
-      await removeStorageFile(storagePath).catch(() => {});
+      await removePhotoVariants(storagePath).catch(() => {});
       throw deleteError;
     }
   }
@@ -42,13 +54,13 @@ export async function saveUploadedPrimaryPhoto({
   try {
     newPhoto = await insertPrimaryPhotoRecord({ tripId, baseId, storagePath });
   } catch (error) {
-    await removeStorageFile(storagePath).catch(() => {});
+    await removePhotoVariants(storagePath).catch(() => {});
     throw error;
   }
 
-  // Old storage file deleted only after DB update succeeds — best-effort cleanup.
+  // Old storage files deleted only after DB update succeeds — best-effort cleanup.
   if (existingPhoto) {
-    await removeStorageFile(existingPhoto.storage_path).catch((err) => {
+    await removePhotoVariants(existingPhoto.storage_path).catch((err) => {
       console.warn("Failed to remove old photo from storage:", err);
     });
   }
@@ -61,27 +73,23 @@ export async function replaceExistingPrimaryPhoto({
   tripId,
   baseId = null,
   context,
-  blob,
+  photo,
 }) {
   return saveUploadedPrimaryPhoto({
     userId,
     tripId,
     baseId,
     context,
-    blob,
+    photo,
   });
 }
 
-export async function recropExistingPrimaryPhoto({ photoId, storagePath, blob }) {
-  if (!photoId || !storagePath || !blob) {
+export async function recropExistingPrimaryPhoto({ photoId, storagePath, photo }) {
+  if (!photoId || !storagePath || !photo?.full) {
     throw new Error("Missing photo update details.");
   }
 
-  await uploadPhotoBlob({
-    storagePath,
-    blob,
-    upsert: true,
-  });
+  await uploadPhotoVariants({ storagePath, photo, upsert: true });
 
   const { data, error } = await getSupabase()
     .from("trip_photos")
@@ -107,7 +115,7 @@ export async function removePrimaryPhotoForSlot({ tripId, baseId = null }) {
     return null;
   }
 
-  await removeStorageFile(existingPhoto.storage_path);
+  await removePhotoVariants(existingPhoto.storage_path);
 
   const { error } = await getSupabase()
     .from("trip_photos")
@@ -183,12 +191,18 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
         const context = photo.base_id ? PHOTO_CONTEXTS.baseHero : PHOTO_CONTEXTS.tripHero;
         newStoragePath = `${ownerId}/${newTripId}/${context}/${crypto.randomUUID()}.jpg`;
 
-        const { error: copyError } = await supabase.storage
-          .from(PHOTO_BUCKET)
-          .copy(photo.storage_path, newStoragePath);
+        const copyResults = await Promise.all(
+          Object.keys(PHOTO_VARIANT_SUFFIXES).map((variant) =>
+            supabase.storage
+              .from(PHOTO_BUCKET)
+              .copy(getVariantStoragePath(photo.storage_path, variant), getVariantStoragePath(newStoragePath, variant))
+          )
+        );
 
-        if (copyError) {
-          throw copyError;
+        const failedCopy = copyResults.find((result) => result.error);
+
+        if (failedCopy) {
+          throw failedCopy.error;
         }
       }
 
@@ -217,7 +231,7 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
   }
 }
 
-export function getPhotoPublicUrl(storagePath, cacheKey = "", options = {}) {
+export function getPhotoPublicUrl(storagePath, cacheKey = "") {
   if (!storagePath) {
     return "";
   }
@@ -225,7 +239,7 @@ export function getPhotoPublicUrl(storagePath, cacheKey = "", options = {}) {
   const { data } = getSupabase()
     .storage
     .from(PHOTO_BUCKET)
-    .getPublicUrl(storagePath, options);
+    .getPublicUrl(storagePath);
 
   if (!data?.publicUrl) {
     return "";
@@ -239,25 +253,32 @@ export function getPhotoPublicUrl(storagePath, cacheKey = "", options = {}) {
 }
 
 export function getPhotoCardPublicUrl(storagePath, cacheKey = "") {
-  return getPhotoPublicUrl(storagePath, cacheKey, {
-    transform: {
-      width: 360,
-      height: 240,
-      resize: "cover",
-      quality: 70,
-    },
-  });
+  if (!storagePath) {
+    return "";
+  }
+
+  return getPhotoPublicUrl(getVariantStoragePath(storagePath, "card"), cacheKey);
 }
 
 export function getPhotoPreviewPublicUrl(storagePath, cacheKey = "") {
-  return getPhotoPublicUrl(storagePath, cacheKey, {
-    transform: {
-      width: 720,
-      height: 480,
-      resize: "cover",
-      quality: 72,
-    },
-  });
+  if (!storagePath) {
+    return "";
+  }
+
+  return getPhotoPublicUrl(getVariantStoragePath(storagePath, "preview"), cacheKey);
+}
+
+// Derives a variant's file path from the full-size photo's storage_path
+// (the only path trip_photos actually stores) by inserting a size suffix
+// before the extension — e.g. ".../1234.jpg" -> ".../1234-360x240.jpg".
+function getVariantStoragePath(storagePath, variant) {
+  const suffix = PHOTO_VARIANT_SUFFIXES[variant];
+
+  if (!suffix) {
+    return storagePath;
+  }
+
+  return storagePath.replace(/(\.[^./]+)$/, `${suffix}$1`);
 }
 
 async function insertPrimaryPhotoRecord({ tripId, baseId, storagePath }) {
@@ -289,29 +310,37 @@ async function insertPrimaryPhotoRecord({ tripId, baseId, storagePath }) {
   return withPublicUrl(data);
 }
 
-async function uploadPhotoBlob({ storagePath, blob, upsert }) {
-  const { error } = await getSupabase()
-    .storage
-    .from(PHOTO_BUCKET)
-    .upload(storagePath, blob, {
-      contentType: "image/jpeg",
-      upsert,
-    });
+async function uploadPhotoVariants({ storagePath, photo, upsert }) {
+  const results = await Promise.all(
+    Object.keys(PHOTO_VARIANT_SUFFIXES).map((variant) =>
+      getSupabase()
+        .storage
+        .from(PHOTO_BUCKET)
+        .upload(getVariantStoragePath(storagePath, variant), photo[variant], {
+          contentType: "image/jpeg",
+          upsert,
+        })
+    )
+  );
 
-  if (error) {
-    throw error;
+  const failed = results.find((result) => result.error);
+
+  if (failed) {
+    throw failed.error;
   }
 }
 
-async function removeStorageFile(storagePath) {
+async function removePhotoVariants(storagePath) {
   if (!storagePath) {
     return;
   }
 
+  const paths = Object.keys(PHOTO_VARIANT_SUFFIXES).map((variant) => getVariantStoragePath(storagePath, variant));
+
   const { error } = await getSupabase()
     .storage
     .from(PHOTO_BUCKET)
-    .remove([storagePath]);
+    .remove(paths);
 
   if (error) {
     throw error;
@@ -323,8 +352,12 @@ function withPublicUrl(photo) {
     return null;
   }
 
+  const cacheKey = photo.updated_at || photo.id;
+
   return {
     ...photo,
-    public_url: getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id),
+    public_url: getPhotoPublicUrl(photo.storage_path, cacheKey),
+    preview_url: getPhotoPreviewPublicUrl(photo.storage_path, cacheKey),
+    card_url: getPhotoCardPublicUrl(photo.storage_path, cacheKey),
   };
 }

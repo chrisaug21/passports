@@ -626,22 +626,32 @@ export async function fetchTripDetailBundle(tripId) {
       .filter((photo) => photo.base_id)
       .map((photo) => [photo.base_id, photo])
   );
-  const tripHeroPublicUrl = tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroPhoto.updated_at || tripHeroPhoto.id) : "";
+  const tripHeroCacheKey = tripHeroPhoto ? (tripHeroPhoto.updated_at || tripHeroPhoto.id) : "";
+  const tripHeroPublicUrl = tripHeroPhoto ? getPhotoPublicUrl(tripHeroPhoto.storage_path, tripHeroCacheKey) : "";
+  const tripHeroPreviewUrl = tripHeroPhoto ? getPhotoPreviewPublicUrl(tripHeroPhoto.storage_path, tripHeroCacheKey) : "";
+  const tripHeroCardUrl = tripHeroPhoto ? getPhotoCardPublicUrl(tripHeroPhoto.storage_path, tripHeroCacheKey) : "";
   const [reconciledTrip] = await reconcileTripStatuses([tripResult.data]);
 
   return {
     trip: {
       ...reconciledTrip,
       hero_photo_url: tripHeroPublicUrl,
+      hero_photo_preview_url: tripHeroPreviewUrl,
+      hero_photo_card_url: tripHeroCardUrl,
       hero_photo: tripHeroPhoto ? { ...tripHeroPhoto, public_url: tripHeroPublicUrl } : null,
     },
     bases: (basesResult.data || []).map((base) => {
       const photo = baseHeroPhotoByBaseId.get(base.id) || null;
-      const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, photo.updated_at || photo.id) : "";
+      const cacheKey = photo ? (photo.updated_at || photo.id) : "";
+      const publicUrl = photo ? getPhotoPublicUrl(photo.storage_path, cacheKey) : "";
+      const previewUrl = photo ? getPhotoPreviewPublicUrl(photo.storage_path, cacheKey) : "";
+      const cardUrl = photo ? getPhotoCardPublicUrl(photo.storage_path, cacheKey) : "";
 
       return {
         ...base,
         hero_photo_url: publicUrl,
+        hero_photo_preview_url: previewUrl,
+        hero_photo_card_url: cardUrl,
         hero_photo: photo ? { ...photo, public_url: publicUrl } : null,
       };
     }),

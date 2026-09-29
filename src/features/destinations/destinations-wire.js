@@ -13,7 +13,7 @@ import {
 import { createTripBase, listBasesForTrips, softDeleteTripBase, updateTripBase } from "../../services/bases-service.js";
 import { fetchTripNotes } from "../../services/notes-service.js";
 import { DEFAULT_PHOTO_ASPECT_RATIO, openPhotoCropModal } from "../../lib/photo-upload.js";
-import { PHOTO_CONTEXTS, getPhotoCardPublicUrl, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
+import { PHOTO_CONTEXTS, saveUploadedPrimaryPhoto } from "../../services/photos-service.js";
 import { isValidDateInput } from "../../lib/derive.js";
 import { DEFAULT_BASE_TIMEZONE } from "../../config/constants.js";
 import { getLocationSelection, wireLocationSearch } from "../shared/location-search.js";
@@ -632,9 +632,9 @@ async function uploadDestinationPhotoSafely({ destination, file, userId, onPhoto
 }
 
 async function uploadDestinationPhoto({ destination, file, userId }) {
-  const croppedBlob = await openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
+  const croppedPhoto = await openPhotoCropModal(file, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO });
 
-  if (!croppedBlob) {
+  if (!croppedPhoto) {
     return destination;
   }
 
@@ -642,13 +642,14 @@ async function uploadDestinationPhoto({ destination, file, userId }) {
     userId,
     tripId: destination.id,
     context: PHOTO_CONTEXTS.tripHero,
-    blob: croppedBlob,
+    photo: croppedPhoto,
   });
 
   return {
     ...destination,
     hero_photo_url: photo.public_url,
-    hero_photo_card_url: getPhotoCardPublicUrl(photo.storage_path, photo.updated_at || photo.id),
+    hero_photo_preview_url: photo.preview_url,
+    hero_photo_card_url: photo.card_url,
     hero_photo: photo,
   };
 }
