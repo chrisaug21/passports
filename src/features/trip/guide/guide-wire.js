@@ -413,7 +413,8 @@ function setupDesktopPinnedNav() {
     const markup = navTrack.innerHTML.replace(/\s*\bis-active\b/g, "");
     if (markup !== lastMarkup) {
       lastMarkup = markup;
-      pinnedTrack.innerHTML = markup;
+      // Clone the nav's existing buttons rather than re-parsing markup.
+      pinnedTrack.replaceChildren(...[...navTrack.children].map((child) => child.cloneNode(true)));
       lastActiveId = null;
       const activeId = navTrack.querySelector(".guide-nav-item.is-active")?.dataset.navId;
       pinnedTrack.querySelectorAll(".guide-nav-item").forEach((item) => {
