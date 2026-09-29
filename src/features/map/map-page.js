@@ -360,6 +360,21 @@ function initializeMap() {
     maxZoom: 18,
   }).addTo(map);
 
+  // Popup HTML only exists once a pin is clicked, so wire the image fallback
+  // (card-size -> full-size) each time a popup opens.
+  map.on("popupopen", (event) => {
+    event.popup.getElement()?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
+      image.addEventListener("error", () => {
+        const fallbackUrl = image.getAttribute("data-full-src");
+
+        if (fallbackUrl && image.src !== fallbackUrl) {
+          image.src = fallbackUrl;
+          image.removeAttribute("data-full-src");
+        }
+      }, { once: true });
+    });
+  });
+
   const markerLayer = window.L.markerClusterGroup
     ? window.L.markerClusterGroup({ showCoverageOnHover: false })
     : window.L.layerGroup();
@@ -505,6 +520,8 @@ function renderPopupTripPhoto(pin) {
     <img
       class="map-popup__trip-photo"
       src="${escapeHtml(pin.coverPhotoUrl)}"
+      ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
+      data-map-popup-photo
       alt=""
       loading="lazy"
     />
@@ -547,7 +564,11 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
         baseName: tripBases.length > 1 ? base.name || base.location_name || "Untitled base" : "",
         baseLabel: base.name || "",
         displayPlaceName: base.name || base.location_name || trip.title || "Untitled place",
-        coverPhotoUrl: trip.hero_photo_url || trip.cover_photo_url || "",
+        // The popup thumbnail is tiny, so prefer the small card-size image
+        // and keep the full-size photo as a fallback (older photos that
+        // haven't been backfilled don't have a card-size file yet).
+        coverPhotoUrl: trip.hero_photo_card_url || trip.hero_photo_url || trip.cover_photo_url || "",
+        coverPhotoFullUrl: trip.hero_photo_card_url && trip.hero_photo_url ? trip.hero_photo_url : "",
         placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
         dateLabel: trip.status === "destinations"
