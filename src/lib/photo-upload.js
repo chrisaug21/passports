@@ -1,7 +1,18 @@
+import { ensureBrowserDecodableImage } from "./heic-convert.js";
+
 export const DEFAULT_PHOTO_ASPECT_RATIO = 3 / 2;
-const CROPPED_OUTPUT_WIDTH = 1200;
-const CROPPED_OUTPUT_HEIGHT = 800;
-const JPEG_QUALITY = 0.85;
+
+// Three sizes are cropped from the same selection and uploaded together:
+// full-size for the trip's own page, and two smaller ones (matching
+// getPhotoPreviewPublicUrl/getPhotoCardPublicUrl in photos-service.js) so
+// list views don't have to load full-size photos. Generated client-side
+// rather than via Supabase's on-the-fly image transform, which requires a
+// paid plan.
+const PHOTO_VARIANT_SIZES = {
+  full: { width: 1200, height: 800, quality: 0.85 },
+  preview: { width: 720, height: 480, quality: 0.72 },
+  card: { width: 360, height: 240, quality: 0.7 },
+};
 
 const SELECT_IMAGE_FALLBACK_TIMEOUT_MS = 120000;
 
@@ -68,13 +79,20 @@ export function selectImageFile() {
 }
 
 export async function openPhotoCropModal(file, { aspectRatio = DEFAULT_PHOTO_ASPECT_RATIO } = {}) {
-  const imageUrl = URL.createObjectURL(file);
+  let imageUrl = "";
 
   return openCropperModal({
-    imageUrl,
+    // Runs after the modal is already on screen, so a HEIC file that needs a
+    // slow conversion shows a "preparing" state instead of a dead click.
+    prepareImageUrl: async () => {
+      imageUrl = URL.createObjectURL(await ensureBrowserDecodableImage(file));
+      return imageUrl;
+    },
     aspectRatio,
     cleanup: () => {
-      URL.revokeObjectURL(imageUrl);
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+      }
     },
   });
 }
@@ -86,13 +104,15 @@ export function openPhotoCropModalFromUrl(imageUrl, { aspectRatio = DEFAULT_PHOT
   });
 }
 
-function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
+function openCropperModal({ imageUrl = "", prepareImageUrl = null, aspectRatio, cleanup = () => {} }) {
   return new Promise((resolve, reject) => {
     const CropperClass = window.Cropper;
     const modal = renderCropModal();
     const image = modal.querySelector("[data-photo-crop-image]");
     const stage = modal.querySelector("[data-photo-crop-stage]");
     const zoomInput = modal.querySelector("[data-photo-crop-zoom]");
+    const statusElement = modal.querySelector("[data-photo-crop-status]");
+    const confirmButton = modal.querySelector("[data-photo-crop-confirm]");
     const hadModalOpen = document.body.classList.contains("modal-open");
     let cropper = null;
     let minZoom = 0.01;
@@ -152,8 +172,13 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
       isSyncingZoom = false;
     };
 
+    const showStatus = (message, { isError = false } = {}) => {
+      statusElement.textContent = message;
+      statusElement.classList.toggle("photo-crop-modal__status--error", isError);
+      statusElement.hidden = false;
+    };
+
     image.crossOrigin = "anonymous";
-    image.src = imageUrl;
     document.body.append(modal);
     document.body.classList.add("modal-open");
 
@@ -191,6 +216,7 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
         cropBoxResizable: true,
         toggleDragModeOnDblclick: false,
         ready() {
+          confirmButton.disabled = false;
           syncZoomInput();
           window.requestAnimationFrame(syncZoomInput);
         },
@@ -200,7 +226,32 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
       });
     };
 
-    window.requestAnimationFrame(() => initializeCropper());
+    const startCropper = (url) => {
+      image.src = url;
+      window.requestAnimationFrame(() => initializeCropper());
+    };
+
+    if (prepareImageUrl) {
+      showStatus("Preparing your photo…");
+      prepareImageUrl().then((url) => {
+        if (isClosed) {
+          return;
+        }
+
+        statusElement.hidden = true;
+        startCropper(url);
+      }).catch((error) => {
+        console.error(error);
+        if (!isClosed) {
+          showStatus(
+            "We couldn't open that photo. Try a JPEG or PNG instead, or check your connection and try again.",
+            { isError: true }
+          );
+        }
+      });
+    } else {
+      startCropper(imageUrl);
+    }
 
     zoomInput.addEventListener("input", () => {
       if (!cropper || isSyncingZoom) {
@@ -224,17 +275,19 @@ function openCropperModal({ imageUrl, aspectRatio, cleanup = () => {} }) {
 
     modal.querySelector("[data-photo-crop-confirm]")?.addEventListener("click", async () => {
       try {
-        const canvas = cropper?.getCroppedCanvas({
-          width: CROPPED_OUTPUT_WIDTH,
-          height: CROPPED_OUTPUT_HEIGHT,
-          fillColor: "#ffffff",
-        });
+        const variantEntries = await Promise.all(
+          Object.entries(PHOTO_VARIANT_SIZES).map(async ([variant, { width, height, quality }]) => {
+            const canvas = cropper?.getCroppedCanvas({ width, height, fillColor: "#ffffff" });
 
-        if (!canvas) {
-          throw new Error("Could not crop that image.");
-        }
+            if (!canvas) {
+              throw new Error("Could not crop that image.");
+            }
 
-        finish(await canvasToJpegBlob(canvas));
+            return [variant, await canvasToJpegBlob(canvas, quality)];
+          })
+        );
+
+        finish(Object.fromEntries(variantEntries));
       } catch (error) {
         fail(error);
       }
@@ -255,6 +308,7 @@ function renderCropModal() {
       </div>
       <div class="photo-crop-modal__stage" data-photo-crop-stage>
         <img class="photo-crop-modal__image" data-photo-crop-image alt="" draggable="false" />
+        <p class="photo-crop-modal__status" data-photo-crop-status role="status" hidden></p>
       </div>
       <label class="field photo-crop-modal__zoom">
         <span>Zoom</span>
@@ -262,7 +316,7 @@ function renderCropModal() {
       </label>
       <div class="modal-card__actions modal-card__actions--end photo-crop-modal__actions">
         <button class="button button--secondary" data-photo-crop-cancel type="button">Cancel</button>
-        <button class="button" data-photo-crop-confirm type="button">Use this crop</button>
+        <button class="button" data-photo-crop-confirm type="button" disabled>Use this crop</button>
       </div>
     </section>
   `;
@@ -270,7 +324,7 @@ function renderCropModal() {
   return modal;
 }
 
-function canvasToJpegBlob(canvas) {
+function canvasToJpegBlob(canvas, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
@@ -279,6 +333,6 @@ function canvasToJpegBlob(canvas) {
       }
 
       resolve(blob);
-    }, "image/jpeg", JPEG_QUALITY);
+    }, "image/jpeg", quality);
   });
 }

@@ -282,6 +282,21 @@
   align-items: center;
 }
 
+/* Padding lives in its own higher-specificity rule on purpose: trip-item-editor.css
+   loads later and sets `.modal-card--editor { padding: 0 }` at equal specificity,
+   which silently beat the plain `.photo-crop-modal__card` padding and left the
+   stage/zoom/buttons flush against the card edge. Only padding is bumped here so
+   the card's other (currently losing) declarations don't suddenly start winning
+   and change the modal's look. The card supplies the 24px side padding, so the
+   header drops the 24px it gets from `.modal-card--editor .modal-card__header`. */
+.photo-crop-modal__card.modal-card--editor {
+  padding: 0 24px;
+}
+
+.photo-crop-modal__card.modal-card--editor .modal-card__header {
+  padding-inline: 0;
+}
+
 .photo-crop-modal__stage {
   width: 100%;
   height: min(62vh, 560px);
@@ -290,6 +305,26 @@
   background: var(--color-surface-muted);
   overflow: hidden;
   margin-top: 1rem;
+  position: relative;
+}
+
+.photo-crop-modal__status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.photo-crop-modal__status[hidden] {
+  display: none;
+}
+
+.photo-crop-modal__status--error {
+  color: var(--color-danger-strong);
 }
 
 .photo-crop-modal__stage .cropper-container {

@@ -80,11 +80,11 @@ async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
       return;
     }
 
-    const croppedBlob = existingPhoto && mode !== "replace"
+    const croppedPhoto = existingPhoto && mode !== "replace"
       ? await openPhotoCropModalFromUrl(existingPhoto.public_url, { aspectRatio: DEFAULT_PHOTO_ASPECT_RATIO })
       : await selectAndCropNewPhoto();
 
-    if (!croppedBlob) {
+    if (!croppedPhoto) {
       return;
     }
 
@@ -98,14 +98,14 @@ async function handleHeroPhotoAction({ tripId, baseId = null, context, mode }) {
       ? await recropExistingPrimaryPhoto({
         photoId: existingPhoto.id,
         storagePath: existingPhoto.storage_path,
-        blob: croppedBlob,
+        photo: croppedPhoto,
       })
       : await replaceExistingPrimaryPhoto({
         userId: session.user.id,
         tripId,
         baseId,
         context,
-        blob: croppedBlob,
+        photo: croppedPhoto,
       });
 
     appStore.updateTripDetail({
@@ -154,6 +154,8 @@ function applyUploadedPhotoToStore({ photo, baseId, context }) {
       tripStore.updateCurrentTrip({
         ...trip,
         hero_photo_url: photo.public_url,
+        hero_photo_preview_url: photo.preview_url,
+        hero_photo_card_url: photo.card_url,
         hero_photo: photo,
       });
     }
@@ -167,6 +169,8 @@ function applyUploadedPhotoToStore({ photo, baseId, context }) {
     tripStore.updateCurrentBase({
       ...base,
       hero_photo_url: photo.public_url,
+      hero_photo_preview_url: photo.preview_url,
+      hero_photo_card_url: photo.card_url,
       hero_photo: photo,
     });
   }

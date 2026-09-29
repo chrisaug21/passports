@@ -1,6 +1,6 @@
 # Destinations — Spec (Board + Map)
 
-**Status:** Board core, the Wishlist detail/edit experience, board movement/interactions, and the Map foundation are all shipped (`chrisaug21/passports` PR #63, PR #65, PR #68, then PR #70). The next work is either a small Map fast-follow mini-phase or the next planned destination phase, depending on which scope feels cleaner after discussion.
+**Status:** Board core, the Wishlist detail/edit experience, board movement/interactions, the Map foundation, and the backend-geocoder-proxy/timezone-inference pieces of the Map fast-follows mini-phase are all shipped (`chrisaug21/passports` PR #63, PR #65, PR #68, PR #70, then PR #71). The remaining Map fast-follows items (overlay polish, data health/repair flows) are still open — see "Potential mini-phase — Map fast follows" below — plus whichever the next planned destination phase turns out to be.
 
 **Progress:** Phase 0 shipped and merged in PR #61. Navigation shipped and merged in PR #62. Board core shipped in PR #63. Wishlist destination detail modal — editing, notes preview, promote-to-Planning — shipped in PR #65. Board movement/interactions — Wishlist drag-to-reorder, cross-column drag (Wishlist ↔ Planning), and Planning → Wishlist demotion from the trip settings modal — shipped in PR #68. Map foundation — `/app/map`, base coordinates, user-confirmed geocoding, status-filtered pins, missing-location repair paths, grouped overlays, and map-provider config — shipped in PR #70. Destination-specific edit views beyond the Wishlist detail modal are still ahead.
 
@@ -222,14 +222,17 @@ Start with OpenStreetMap tiles and Nominatim geocoding for the first Map phase. 
 
 ## Potential mini-phase — Map fast follows
 
-These are not prerequisites for the shipped map foundation, but they are good candidates for a focused follow-up PR before the next larger destination phase if we want the map to feel more deliberate in day-to-day use:
+Backend geocoder proxy/cache and timezone inference shipped in PR #71. These remain open — good candidates for a focused follow-up PR before the next larger destination phase if we want the map to feel more deliberate in day-to-day use:
 
-- **Backend geocoder proxy/cache:** keep the UI's Search Location interaction, but move Nominatim requests behind a Netlify function so the app can centralize rate limiting, caching, user-agent/contact headers, error handling, and future provider swaps. This would also reduce repeated identical searches from the browser.
-- **Timezone inference:** keep `trip_bases.local_timezone` as the stored source of truth, but infer a suggested timezone when a user chooses a mapped location. Decision for the fast-follow branch: use `@photostructure/tz-lookup` in the Netlify geocoder function so coordinate-to-IANA-timezone inference is local, private, fast, and does not introduce another hosted API key. This creates a small root-level backend dependency exception, but nothing in `src/` imports it.
 - **Map overlay polish:** continue refining single-location and grouped-location cards: consistent base-first hierarchy, clear trip labels, status-colored dots on every trip row, compact photo-led rows, date ranges with years, and no **Open** button for Someday/Wishlist rows.
 - **Map data health:** add easier repair flows for missing or stale coordinates, especially for older single-base trips where the base was historically hidden behind the trip name.
-- **Provider/style swap readiness:** leave OpenStreetMap as the default, but make sure tile/geocoder configuration remains contained so MapTiler, Stadia, Thunderforest, Mapbox, or another provider can be tested later without touching unrelated UI code.
+- **Provider/style swap readiness:** leave OpenStreetMap as the default, but make sure tile/geocoder configuration remains contained so MapTiler, Stadia, Thunderforest, Mapbox, or another provider can be tested later without touching unrelated UI code. (Structurally already true since PR #70/#71 — no action needed unless a swap is actually desired.)
 - **Public/account map decision:** keep the account-level public board/map idea out of this mini-phase unless we explicitly decide to pull it forward; it is still a larger sharing/privacy design problem.
+
+Shipped in PR #71, for reference:
+
+- **Backend geocoder proxy/cache** — Nominatim requests now go through `netlify/functions/location-search.js`, with in-memory caching (24h TTL), a request queue enforcing Nominatim's rate limit, and a proper contact User-Agent header.
+- **Timezone inference** — the same function uses `@photostructure/tz-lookup` to suggest an IANA timezone from a chosen location's coordinates; `trip_bases.local_timezone` remains the stored source of truth.
 
 ### Later map provider/style options
 
