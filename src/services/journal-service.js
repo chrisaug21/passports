@@ -117,9 +117,12 @@ export async function uploadJournalPhoto({ tripId, userId, itemId, blob }) {
   const publicUrl = urlData?.publicUrl || "";
   const now = new Date().toISOString();
 
+  // The table allows one row per (user, item) — including soft-deleted ones —
+  // so upsert onto that row (reviving it if it was deleted, or overwriting it
+  // on a replace) rather than inserting a second row that would be rejected.
   const { data, error: insertError } = await getSupabase()
     .from("journal_item_photos")
-    .insert({
+    .upsert({
       id: crypto.randomUUID(),
       trip_id: tripId,
       user_id: userId,
@@ -128,25 +131,47 @@ export async function uploadJournalPhoto({ tripId, userId, itemId, blob }) {
       public_url: publicUrl,
       created_at: now,
       updated_at: now,
-    })
+      deleted_at: null,
+    }, { onConflict: "user_id,item_id" })
     .select(JOURNAL_PHOTO_SELECT)
     .single();
 
   if (insertError) {
-    await getSupabase().storage.from(JOURNAL_PHOTO_BUCKET).remove([storagePath]).catch(() => {});
+    await removeJournalPhotoFile(storagePath).catch(() => {});
     throw insertError;
   }
 
   return data;
 }
 
-export async function deleteJournalPhoto({ photoId, storagePath }) {
-  const { error: storageError } = await getSupabase()
-    .storage
-    .from(JOURNAL_PHOTO_BUCKET)
-    .remove([storagePath]);
+// Removing the file is retried a few times so a brief network hiccup doesn't
+// leave an unreachable photo file sitting in storage forever.
+const STORAGE_REMOVE_ATTEMPTS = 3;
+const STORAGE_REMOVE_RETRY_DELAY_MS = 500;
 
-  if (storageError) throw storageError;
+async function removeJournalPhotoFile(storagePath) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= STORAGE_REMOVE_ATTEMPTS; attempt += 1) {
+    const { error } = await getSupabase()
+      .storage
+      .from(JOURNAL_PHOTO_BUCKET)
+      .remove([storagePath]);
+
+    if (!error) return;
+
+    lastError = error;
+
+    if (attempt < STORAGE_REMOVE_ATTEMPTS) {
+      await new Promise((resolve) => setTimeout(resolve, STORAGE_REMOVE_RETRY_DELAY_MS * attempt));
+    }
+  }
+
+  throw lastError;
+}
+
+export async function deleteJournalPhoto({ photoId, storagePath }) {
+  await removeJournalPhotoFile(storagePath);
 
   const { error: dbError } = await getSupabase()
     .from("journal_item_photos")
