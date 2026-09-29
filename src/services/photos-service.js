@@ -34,7 +34,15 @@ export async function saveUploadedPrimaryPhoto({
   const existingPhoto = await getPrimaryPhotoForSlot({ tripId, baseId });
 
   const storagePath = `${userId}/${tripId}/${context}/${Date.now()}.jpg`;
-  await uploadPhotoVariants({ storagePath, photo, upsert: false });
+  try {
+    await uploadPhotoVariants({ storagePath, photo, upsert: false });
+  } catch (error) {
+    // The three files upload in parallel, so one can fail after the others
+    // landed. This path is brand new (nothing references it yet), so it's
+    // safe to sweep up whatever did get uploaded.
+    await removePhotoVariants(storagePath).catch(() => {});
+    throw error;
+  }
 
   // Remove the old DB row before inserting the new one — the trip_photos
   // unique constraint (one row per trip/base slot) blocks INSERT while the
@@ -191,6 +199,10 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
         const context = photo.base_id ? PHOTO_CONTEXTS.baseHero : PHOTO_CONTEXTS.tripHero;
         newStoragePath = `${ownerId}/${newTripId}/${context}/${crypto.randomUUID()}.jpg`;
 
+        // The full-size file is required. Preview/card files are best-effort:
+        // photos uploaded before client-side variants existed (and not yet
+        // backfilled) only have the full-size file, and the UI already falls
+        // back to it when a variant is missing.
         const copyResults = await Promise.all(
           Object.keys(PHOTO_VARIANT_SUFFIXES).map((variant) =>
             supabase.storage
@@ -199,10 +211,11 @@ export async function duplicatePrimaryPhotosForNewTrip({ sourceTripId, newTripId
           )
         );
 
-        const failedCopy = copyResults.find((result) => result.error);
+        // "full" is the first key of PHOTO_VARIANT_SUFFIXES, so it's first here.
+        const [fullCopyResult] = copyResults;
 
-        if (failedCopy) {
-          throw failedCopy.error;
+        if (fullCopyResult.error) {
+          throw fullCopyResult.error;
         }
       }
 
