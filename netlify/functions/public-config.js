@@ -23,6 +23,8 @@ exports.handler = async function handler() {
     body: JSON.stringify({
       supabaseUrl,
       supabaseAnonKey,
+      // Optional: the map falls back to the default basemap when unset.
+      stadiaMapsApiKey: process.env.STADIA_MAPS_API_KEY || "",
     }),
   };
 };

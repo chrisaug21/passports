@@ -1,10 +1,56 @@
-// Basemap styles. The map engine (MapLibre) draws vector tiles from OpenFreeMap
-// (free, no key) and we recolor them with the app's design tokens so the map
-// matches the rest of the UI. Attribution comes from the style itself and must
-// stay visible.
+import { initializeEnv } from "../config/env.js";
+
+// Basemap styles. The map engine (MapLibre) draws either:
+//  - "vector" (default): OpenFreeMap vector tiles (free, no key), recolored with
+//    the app's design tokens so the map matches the rest of the UI; or
+//  - "watercolor": Stamen Watercolor raster tiles via Stadia Maps (needs a key).
+// TEMPORARY: `?map=watercolor` on the map page URL switches styles so the two
+// can be compared side by side. Delete the switch once one look is chosen.
+// Each style's attribution comes with it and must stay visible.
 const VECTOR_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+const WATERCOLOR_TILES_URL = "https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg";
+const WATERCOLOR_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank" rel="noopener">Stadia Maps</a> &copy; <a href="https://stamen.com/" target="_blank" rel="noopener">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
 
 export async function loadMapStyle() {
+  if (new URLSearchParams(window.location.search).get("map") === "watercolor") {
+    const watercolorStyle = await buildWatercolorStyle();
+
+    if (watercolorStyle) {
+      return watercolorStyle;
+    }
+  }
+
+  return loadVectorStyle();
+}
+
+async function buildWatercolorStyle() {
+  try {
+    const { stadiaMapsApiKey } = await initializeEnv();
+
+    if (!stadiaMapsApiKey) {
+      return null;
+    }
+
+    return {
+      version: 8,
+      projection: { type: "globe" },
+      sources: {
+        watercolor: {
+          type: "raster",
+          tiles: [`${WATERCOLOR_TILES_URL}?api_key=${encodeURIComponent(stadiaMapsApiKey)}`],
+          tileSize: 256,
+          maxzoom: 16,
+          attribution: WATERCOLOR_ATTRIBUTION,
+        },
+      },
+      layers: [{ id: "watercolor", type: "raster", source: "watercolor" }],
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function loadVectorStyle() {
   try {
     const response = await fetch(VECTOR_STYLE_URL);
 
