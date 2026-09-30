@@ -425,18 +425,25 @@ function createMapPinElement(pinGroup) {
   const element = document.createElement("div");
 
   element.className = `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`;
-  element.innerHTML = isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>';
+  element.append(isMultiPin ? createMultiPinSegments(statuses) : createSpan());
   return element;
 }
 
-function renderMultiPinSegments(statuses) {
-  const visibleStatuses = statuses.slice(0, 4);
+function createMultiPinSegments(statuses) {
+  const segments = createSpan("travel-map-pin__segments");
 
-  return `
-    <span class="travel-map-pin__segments" aria-hidden="true">
-      ${visibleStatuses.map((status) => `<span class="travel-map-pin__segment travel-map-pin__segment--${getStatusClassName(status)}"></span>`).join("")}
-    </span>
-  `;
+  statuses.slice(0, 4).forEach((status) => {
+    segments.append(createSpan(`travel-map-pin__segment travel-map-pin__segment--${getStatusClassName(status)}`));
+  });
+
+  return segments;
+}
+
+function createSpan(className = "") {
+  const span = document.createElement("span");
+  span.className = className;
+  span.setAttribute("aria-hidden", "true");
+  return span;
 }
 
 function renderPinPopup(pin) {

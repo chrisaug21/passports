@@ -117,7 +117,10 @@ export function createTravelMap({ container, style, pinGroups, camera, createPin
     element.type = "button";
     element.className = "travel-map-cluster";
     element.setAttribute("aria-label", `${feature.properties.point_count} places, zoom in`);
-    element.innerHTML = `<span>${feature.properties.point_count}</span>`;
+
+    const count = document.createElement("span");
+    count.textContent = String(feature.properties.point_count);
+    element.append(count);
 
     element.addEventListener("click", async () => {
       const zoom = await map.getSource(PIN_SOURCE_ID).getClusterExpansionZoom(feature.properties.cluster_id);

@@ -1,6 +1,28 @@
 // Small floating "Map style" menu on the map canvas. Owns only its own DOM;
 // map-page.js decides what happens when a style is picked.
 
+function createElement(tagName, className, attributes = {}) {
+  const element = document.createElement(tagName);
+  element.className = className;
+  Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+  return element;
+}
+
+function createOption(style, isSelected) {
+  const option = createElement("button", "map-style-picker__option", {
+    type: "button",
+    "data-map-style-id": style.id,
+    "aria-pressed": String(isSelected),
+  });
+  const label = document.createElement("strong");
+  const hint = document.createElement("small");
+
+  label.textContent = style.label;
+  hint.textContent = style.hint;
+  option.append(label, hint);
+  return option;
+}
+
 export function mountMapStylePicker({ shell, styles, selectedId, onSelect }) {
   shell.querySelector(".map-style-picker")?.remove();
 
@@ -9,31 +31,24 @@ export function mountMapStylePicker({ shell, styles, selectedId, onSelect }) {
   }
 
   const selectedStyle = styles.find((style) => style.id === selectedId) || styles[0];
-  const picker = document.createElement("div");
-  picker.className = "map-style-picker";
-  picker.innerHTML = `
-    <button class="map-style-picker__toggle" type="button" aria-expanded="false" aria-controls="map-style-menu">
-      <span class="map-style-picker__swatch" aria-hidden="true"></span>
-      <span class="map-style-picker__current"></span>
-    </button>
-    <div class="map-style-picker__menu" id="map-style-menu" role="group" aria-label="Map style" hidden>
-      ${styles.map((style) => `
-        <button class="map-style-picker__option" type="button" data-map-style-id="${style.id}" aria-pressed="${style.id === selectedStyle.id}">
-          <strong></strong>
-          <small></small>
-        </button>
-      `).join("")}
-    </div>
-  `;
+  const picker = createElement("div", "map-style-picker");
 
-  picker.querySelector(".map-style-picker__current").textContent = selectedStyle.label;
-  picker.querySelectorAll(".map-style-picker__option").forEach((button, index) => {
-    button.querySelector("strong").textContent = styles[index].label;
-    button.querySelector("small").textContent = styles[index].hint;
+  const toggle = createElement("button", "map-style-picker__toggle", {
+    type: "button",
+    "aria-expanded": "false",
+    "aria-controls": "map-style-menu",
   });
+  const current = createElement("span", "map-style-picker__current");
+  current.textContent = selectedStyle.label;
+  toggle.append(createElement("span", "map-style-picker__swatch", { "aria-hidden": "true" }), current);
 
-  const toggle = picker.querySelector(".map-style-picker__toggle");
-  const menu = picker.querySelector(".map-style-picker__menu");
+  const menu = createElement("div", "map-style-picker__menu", {
+    id: "map-style-menu",
+    role: "group",
+    "aria-label": "Map style",
+  });
+  menu.hidden = true;
+  menu.append(...styles.map((style) => createOption(style, style.id === selectedStyle.id)));
 
   toggle.addEventListener("click", () => {
     const willOpen = menu.hidden;
@@ -49,5 +64,6 @@ export function mountMapStylePicker({ shell, styles, selectedId, onSelect }) {
     }
   });
 
+  picker.append(toggle, menu);
   shell.append(picker);
 }
