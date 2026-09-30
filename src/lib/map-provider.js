@@ -10,12 +10,12 @@ const STADIA_TILES_URL = "https://tiles.stadiamaps.com/tiles";
 const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank" rel="noopener">Stadia Maps</a> &copy; <a href="https://stamen.com/" target="_blank" rel="noopener">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
 const SATELLITE_ATTRIBUTION = `&copy; CNES, Distribution Airbus DS, &copy; Airbus DS, &copy; PlanetObserver (Contains Copernicus Data) | ${STADIA_ATTRIBUTION}`;
 const MAP_STYLE_STORAGE_KEY = "passports.mapStyle";
-const DEFAULT_MAP_STYLE_ID = "paper";
+const DEFAULT_MAP_STYLE_ID = "vivid";
 
 // Order here is the order in the picker; the first entry is the default.
 export const MAP_STYLES = [
-  { id: "paper", label: "Paper", hint: "Warm parchment atlas", type: "vector", source: "positron", theme: "paper" },
   { id: "vivid", label: "Vivid", hint: "Colorful, detailed streets", type: "vector", source: "liberty" },
+  { id: "paper", label: "Paper", hint: "Warm parchment atlas", type: "vector", source: "positron", theme: "paper" },
   { id: "night", label: "Night", hint: "Dark navy", type: "vector", source: "fiord" },
   { id: "terrain", label: "Terrain", hint: "Illustrated relief map", type: "raster", tileSet: "stamen_terrain", format: "png", maxzoom: 18, attribution: STADIA_ATTRIBUTION },
   { id: "satellite", label: "Satellite", hint: "Aerial imagery", type: "raster", tileSet: "alidade_satellite", format: "jpg", maxzoom: 18, attribution: SATELLITE_ATTRIBUTION },
