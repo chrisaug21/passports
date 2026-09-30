@@ -313,16 +313,16 @@ export function openFocalPointModal(imageUrl, { focalX = 50, focalY = 50 } = {})
         </div>
         <p class="photo-focal-modal__hint">Drag the dot to the part of the photo that matters. Shorter banners and small thumbnails will center on it.</p>
         <div class="photo-focal-modal__stage" data-focal-stage>
-          <img class="photo-focal-modal__image" data-focal-image src="${escapeAttribute(imageUrl)}" alt="" draggable="false" />
+          <img class="photo-focal-modal__image" data-focal-image alt="" draggable="false" />
           <span class="photo-focal-modal__dot" data-focal-dot aria-hidden="true"></span>
         </div>
         <div class="photo-focal-modal__previews">
           <figure class="photo-focal-modal__preview photo-focal-modal__preview--banner">
-            <img data-focal-preview src="${escapeAttribute(imageUrl)}" alt="" />
+            <img data-focal-preview alt="" />
             <figcaption>Banner</figcaption>
           </figure>
           <figure class="photo-focal-modal__preview photo-focal-modal__preview--thumb">
-            <img data-focal-preview src="${escapeAttribute(imageUrl)}" alt="" />
+            <img data-focal-preview alt="" />
             <figcaption>Thumbnail</figcaption>
           </figure>
         </div>
@@ -337,6 +337,11 @@ export function openFocalPointModal(imageUrl, { focalX = 50, focalY = 50 } = {})
     const stage = modal.querySelector("[data-focal-stage]");
     const dot = modal.querySelector("[data-focal-dot]");
     const previews = modal.querySelectorAll("[data-focal-preview]");
+    // Set via the DOM rather than interpolated into the template above.
+    modal.querySelector("[data-focal-image]").src = imageUrl;
+    previews.forEach((preview) => {
+      preview.src = imageUrl;
+    });
     let x = clampPercent(focalX);
     let y = clampPercent(focalY);
 
@@ -388,10 +393,6 @@ export function openFocalPointModal(imageUrl, { focalX = 50, focalY = 50 } = {})
 function clampPercent(value) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(100, Math.max(0, Math.round(number * 10) / 10)) : 50;
-}
-
-function escapeAttribute(value) {
-  return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 function renderCropModal() {
