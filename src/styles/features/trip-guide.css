@@ -1019,6 +1019,7 @@
   .guide-nav-item {
     flex-direction: row;
     align-items: center;
+    gap: 0.4rem;
     white-space: nowrap;
     min-width: auto;
     min-height: var(--touch-target);
