@@ -1,5 +1,7 @@
 import { navigate, renderRoute } from "../../app/router.js";
-import { MAP_TILE_PROVIDER } from "../../lib/map-provider.js";
+import { getAvailableMapStyles, getSelectedMapStyleId, loadMapStyle, setSelectedMapStyleId } from "../../lib/map-provider.js";
+import { createTravelMap } from "./map-canvas.js";
+import { mountMapStylePicker } from "./map-style-picker.js";
 import { formatDestinationTargetDate, formatShortDateRange, formatTripDateSummary } from "../../lib/format.js";
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
@@ -28,7 +30,7 @@ let mapState = {
 };
 
 let activeMap = null;
-let activeMapPinGroups = [];
+let mapInitToken = 0;
 let baseDataVersion = 0;
 let isPopupClickBound = false;
 
@@ -337,12 +339,16 @@ function renderNoPinsState(missingLocations) {
   `;
 }
 
-function initializeMap() {
+async function initializeMap({ camera } = {}) {
   const mapEl = document.querySelector("#travel-map");
 
-  if (!mapEl || !window.L) {
+  if (!mapEl || !window.maplibregl) {
     return;
   }
+
+  // The page re-renders on every filter change; only the newest call may
+  // build a map, since loading the style is async.
+  const initToken = ++mapInitToken;
 
   if (activeMap) {
     activeMap.remove();
@@ -351,101 +357,93 @@ function initializeMap() {
 
   const pins = parsePins(mapEl.getAttribute("data-map-pins"));
   const pinGroups = groupPinsByCoordinates(pins);
-  activeMapPinGroups = pinGroups;
-  const map = window.L.map(mapEl, {
-    worldCopyJump: true,
-  }).setView([20, 0], 2);
+  const availableStyles = await getAvailableMapStyles();
+  const selectedStyleId = availableStyles.some((entry) => entry.id === getSelectedMapStyleId())
+    ? getSelectedMapStyleId()
+    : availableStyles[0].id;
+  const style = await loadMapStyle(selectedStyleId);
 
-  window.L.tileLayer(MAP_TILE_PROVIDER.urlTemplate, {
-    attribution: MAP_TILE_PROVIDER.attribution,
-    maxZoom: 18,
-  }).addTo(map);
-
-  // Popup HTML only exists once a pin is clicked, so wire the image fallback
-  // (card-size -> full-size) each time a popup opens.
-  map.on("popupopen", (event) => {
-    event.popup.getElement()?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
-      image.addEventListener("error", () => {
-        const fallbackUrl = image.getAttribute("data-full-src");
-
-        if (fallbackUrl && image.src !== fallbackUrl) {
-          image.src = fallbackUrl;
-          image.removeAttribute("data-full-src");
-        }
-      }, { once: true });
-    });
-  });
-
-  const markerLayer = window.L.markerClusterGroup
-    ? window.L.markerClusterGroup({ showCoverageOnHover: false })
-    : window.L.layerGroup();
-
-  pinGroups.forEach((pinGroup) => {
-    const marker = window.L.marker([pinGroup.lat, pinGroup.lng], {
-      icon: createMapIcon(pinGroup),
-      title: pinGroup.title,
-    }).bindPopup(renderPinPopup(pinGroup));
-
-    markerLayer.addLayer(marker);
-  });
-
-  markerLayer.addTo(map);
-
-  if (pinGroups.length > 0) {
-    const bounds = window.L.latLngBounds(pinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
-    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
+  if (initToken !== mapInitToken || !mapEl.isConnected) {
+    return;
   }
 
-  requestAnimationFrame(() => {
-    map.invalidateSize();
-
-    requestAnimationFrame(() => {
-      map.invalidateSize();
-    });
+  activeMap = createTravelMap({
+    container: mapEl,
+    style,
+    pinGroups,
+    camera,
+    createPinElement: createMapPinElement,
+    renderPopupHtml: renderPinPopup,
+    onPopupOpen: wirePopupPhotoFallback,
   });
 
-  setTimeout(() => {
-    map.invalidateSize();
-  }, 250);
+  mountMapStylePicker({
+    shell: mapEl.closest(".map-canvas-shell"),
+    styles: availableStyles,
+    selectedId: selectedStyleId,
+    onSelect: (styleId) => {
+      setSelectedMapStyleId(styleId);
+      // Rebuild on the new style, keeping the current view.
+      initializeMap({ camera: activeMap?.getCamera() });
+    },
+  });
+}
 
-  activeMap = map;
+// Popup HTML only exists once a pin is clicked, so wire the image fallback
+// (card-size -> full-size) each time a popup opens.
+function wirePopupPhotoFallback(popupElement) {
+  popupElement?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
+    // Popup HTML is built before it opens, so the photo may have already
+    // failed by now (its "error" event is long gone). Check for that too.
+    const handleFailure = () => {
+      const fallbackUrl = image.getAttribute("data-full-src");
+
+      if (fallbackUrl && image.src !== fallbackUrl) {
+        image.src = fallbackUrl;
+        image.removeAttribute("data-full-src");
+        return;
+      }
+
+      image.remove();
+    };
+
+    image.addEventListener("error", handleFailure);
+
+    if (image.complete && image.naturalWidth === 0) {
+      handleFailure();
+    }
+  });
 }
 
 function resetActiveMapView() {
-  if (!activeMap) {
-    return;
-  }
-
-  if (activeMapPinGroups.length > 0) {
-    const bounds = window.L.latLngBounds(activeMapPinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
-    activeMap.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
-    return;
-  }
-
-  activeMap.setView([20, 0], 2);
+  activeMap?.fitAll();
 }
 
-function createMapIcon(pinGroup) {
+function createMapPinElement(pinGroup) {
   const statuses = pinGroup.statuses || [pinGroup.status];
   const isMultiPin = statuses.length > 1 || pinGroup.pins?.length > 1;
+  const element = document.createElement("div");
 
-  return window.L.divIcon({
-    className: `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
-    html: isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    popupAnchor: [0, -12],
-  });
+  element.className = `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`;
+  element.append(isMultiPin ? createMultiPinSegments(statuses) : createSpan());
+  return element;
 }
 
-function renderMultiPinSegments(statuses) {
-  const visibleStatuses = statuses.slice(0, 4);
+function createMultiPinSegments(statuses) {
+  const segments = createSpan("travel-map-pin__segments");
 
-  return `
-    <span class="travel-map-pin__segments" aria-hidden="true">
-      ${visibleStatuses.map((status) => `<span class="travel-map-pin__segment travel-map-pin__segment--${getStatusClassName(status)}"></span>`).join("")}
-    </span>
-  `;
+  statuses.slice(0, 4).forEach((status) => {
+    segments.append(createSpan(`travel-map-pin__segment travel-map-pin__segment--${getStatusClassName(status)}`));
+  });
+
+  return segments;
+}
+
+function createSpan(className = "") {
+  const span = document.createElement("span");
+  span.className = className;
+  span.setAttribute("aria-hidden", "true");
+  return span;
 }
 
 function renderPinPopup(pin) {
@@ -512,21 +510,32 @@ function renderGroupedTripCardCopy(pin, options) {
   `;
 }
 
+// The placeholder is always rendered; a photo, when there is one, is layered on
+// top of it. If the photo fails to load it is removed and the placeholder shows,
+// so there is never a broken-image icon.
 function renderPopupTripPhoto(pin) {
-  if (!pin.coverPhotoUrl) {
-    return `<span class="map-popup__trip-photo map-popup__trip-photo--empty" aria-hidden="true"></span>`;
-  }
+  const photo = pin.coverPhotoUrl
+    ? `
+      <img
+        class="map-popup__trip-photo-image"
+        src="${escapeHtml(pin.coverPhotoUrl)}"
+        ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
+        data-map-popup-photo
+        style="object-position: ${pin.coverPhotoPosition}"
+        alt=""
+        loading="lazy"
+      />
+    `
+    : "";
 
   return `
-    <img
-      class="map-popup__trip-photo"
-      src="${escapeHtml(pin.coverPhotoUrl)}"
-      ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
-      data-map-popup-photo
-      style="object-position: ${pin.coverPhotoPosition}"
-      alt=""
-      loading="lazy"
-    />
+    <span class="map-popup__trip-photo" aria-hidden="true">
+      <svg class="map-popup__trip-photo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+      ${photo}
+    </span>
   `;
 }
 
