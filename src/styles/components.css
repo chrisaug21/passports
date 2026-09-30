@@ -340,9 +340,25 @@
 /* Focal-point picker (second step after cropping) */
 .photo-focal-modal__card {
   width: min(720px, 100%);
-  max-height: 96vh;
-  overflow: auto;
   gap: 0.75rem;
+}
+
+/* Same specificity trick as .photo-crop-modal__card.modal-card--editor above:
+   trip-item-editor.css loads later and sets `.modal-card--editor { padding: 0;
+   overflow: hidden }`, which would otherwise leave every child flush against
+   the card edge. The card is a flex column, so children must not shrink or
+   the photo canvas gets squashed and no longer matches the crop. */
+.photo-focal-modal__card.modal-card--editor {
+  padding: 0 24px;
+  overflow-y: auto;
+}
+
+.photo-focal-modal__card.modal-card--editor .modal-card__header {
+  padding-inline: 0;
+}
+
+.photo-focal-modal__card > * {
+  flex-shrink: 0;
 }
 
 .photo-focal-modal__hint {
@@ -353,7 +369,6 @@
 .photo-focal-modal__stage {
   position: relative;
   width: 100%;
-  aspect-ratio: 3 / 2;
   border-radius: 18px;
   overflow: hidden;
   cursor: crosshair;
@@ -362,12 +377,12 @@
   -webkit-user-select: none;
 }
 
+/* The image sizes the stage (no fixed height), so the dot's percentages are
+   always measured against the whole photo. */
 .photo-focal-modal__image {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
   pointer-events: none;
 }
 

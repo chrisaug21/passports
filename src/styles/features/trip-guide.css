@@ -473,12 +473,18 @@
   display: block;
 }
 
+/* Photo tab: fills the whole area under the tabs edge to edge (cancels the
+   card's padding and the tabs-to-panel gap), like the hero fills its space. */
+.guide-overview__panel[data-overview-panel="photo"] {
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+}
+
 .guide-overview__photo {
   display: block;
   width: 100%;
   aspect-ratio: var(--photo-banner-ratio);
   object-fit: cover;
-  border-radius: var(--radius-control);
+  border-radius: 0 0 var(--radius-panel) var(--radius-panel);
   background: var(--trip-header-media-gradient);
 }
 

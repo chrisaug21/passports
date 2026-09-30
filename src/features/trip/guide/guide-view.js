@@ -316,6 +316,16 @@ function renderOverviewBlock(block) {
   `;
 }
 
+// Which tab each overview section has open, keyed by section id. The guide
+// re-renders its content on tab switches, data refreshes and lazy scroll
+// loads, and every re-render would otherwise snap each section back to its
+// first tab. Lives in memory only, so a page reload starts fresh.
+const selectedOverviewTabs = new Map();
+
+export function rememberOverviewTab(sectionId, category) {
+  selectedOverviewTabs.set(sectionId, category);
+}
+
 // scopeBaseId = null renders trip-wide content; a base id renders that base's
 // content. Returns "" when there's nothing to show in scope — no empty
 // selector row, per spec. For a base, its cover photo counts as content: it
@@ -339,16 +349,20 @@ export function renderOverviewSection(scopeBaseId, overviewBlocks, title, sectio
     groups.splice(photoIndex, 0, { category: "photo", blocks: [] });
   }
 
+  const remembered = selectedOverviewTabs.get(sectionId);
+  const activeIndex = Math.max(0, groups.findIndex((group) => group.category === remembered));
+
   const tabs = groups
     .map(({ category }, index) => {
+      const isActive = index === activeIndex;
       const isPhoto = category === "photo";
       const label = isPhoto ? "Photo" : OVERVIEW_CATEGORY_LABELS[category] || category;
       const icon = isPhoto ? "camera" : OVERVIEW_CATEGORY_ICONS[category] || "circle-dot";
       return `
         <button
-          class="guide-overview__tab${index === 0 ? " is-active" : ""}"
+          class="guide-overview__tab${isActive ? " is-active" : ""}"
           role="tab"
-          aria-selected="${index === 0 ? "true" : "false"}"
+          aria-selected="${isActive ? "true" : "false"}"
           data-overview-category="${escapeHtml(category)}"
           type="button"
         >
@@ -363,10 +377,10 @@ export function renderOverviewSection(scopeBaseId, overviewBlocks, title, sectio
     .map(
       ({ category, blocks }, index) => `
         <div
-          class="guide-overview__panel${index === 0 ? " is-active" : ""}"
+          class="guide-overview__panel${index === activeIndex ? " is-active" : ""}"
           role="tabpanel"
           data-overview-panel="${escapeHtml(category)}"
-          ${index === 0 ? "" : "hidden"}
+          ${index === activeIndex ? "" : "hidden"}
         >
           ${category === "photo"
             ? `<img class="guide-overview__photo" src="${escapeHtml(photoUrl)}" style="object-position: ${getPhotoObjectPosition(base.hero_photo)}" alt="" loading="lazy" />`

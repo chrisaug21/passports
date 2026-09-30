@@ -9,6 +9,7 @@ import {
   getOverviewNavEntries,
   renderFullDayContent,
   renderOverviewSection,
+  rememberOverviewTab,
   sortGuideItems,
   getTodayDayNumber,
 } from "./guide-view.js";
@@ -552,6 +553,8 @@ function wireOverviewAccordions() {
       panel.classList.remove("is-active");
       panel.setAttribute("hidden", "");
     });
+
+    rememberOverviewTab(section.closest(".guide-overview-section")?.id, button.dataset.overviewCategory);
 
     button.classList.add("is-active");
     button.setAttribute("aria-selected", "true");
