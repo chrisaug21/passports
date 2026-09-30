@@ -421,9 +421,9 @@
 .guide-overview__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-2);
   border-bottom: 1px solid var(--color-border);
-  padding-bottom: var(--space-1);
+  padding-bottom: var(--space-3);
 }
 
 .guide-overview__tab {
@@ -432,14 +432,13 @@
   gap: 0.4rem;
   border: none;
   background: none;
-  padding: 0.35rem 0.1rem 0.6rem;
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: color 140ms ease, border-color 140ms ease;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .guide-overview__tab i {
@@ -451,9 +450,11 @@
   color: var(--color-text);
 }
 
+/* Selected tab is a soft pill rather than an underline, so it never sits
+   right against whatever content (rule, text or photo) is below. */
 .guide-overview__tab.is-active {
   color: var(--color-structure);
-  border-bottom-color: var(--color-structure);
+  background: var(--color-structure-tint);
 }
 
 .guide-overview__panels {
@@ -526,7 +527,7 @@
   }
 
   .guide-overview__tabs {
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 }
 
