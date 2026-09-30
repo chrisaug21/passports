@@ -1,5 +1,6 @@
 import { navigate, renderRoute } from "../../app/router.js";
-import { MAP_TILE_PROVIDER } from "../../lib/map-provider.js";
+import { loadMapStyle } from "../../lib/map-provider.js";
+import { createTravelMap } from "./map-canvas.js";
 import { formatDestinationTargetDate, formatShortDateRange, formatTripDateSummary } from "../../lib/format.js";
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
@@ -28,7 +29,7 @@ let mapState = {
 };
 
 let activeMap = null;
-let activeMapPinGroups = [];
+let mapInitToken = 0;
 let baseDataVersion = 0;
 let isPopupClickBound = false;
 
@@ -337,12 +338,16 @@ function renderNoPinsState(missingLocations) {
   `;
 }
 
-function initializeMap() {
+async function initializeMap() {
   const mapEl = document.querySelector("#travel-map");
 
-  if (!mapEl || !window.L) {
+  if (!mapEl || !window.maplibregl) {
     return;
   }
+
+  // The page re-renders on every filter change; only the newest call may
+  // build a map, since loading the style is async.
+  const initToken = ++mapInitToken;
 
   if (activeMap) {
     activeMap.remove();
@@ -351,91 +356,49 @@ function initializeMap() {
 
   const pins = parsePins(mapEl.getAttribute("data-map-pins"));
   const pinGroups = groupPinsByCoordinates(pins);
-  activeMapPinGroups = pinGroups;
-  const map = window.L.map(mapEl, {
-    worldCopyJump: true,
-  }).setView([20, 0], 2);
+  const style = await loadMapStyle();
 
-  window.L.tileLayer(MAP_TILE_PROVIDER.urlTemplate, {
-    attribution: MAP_TILE_PROVIDER.attribution,
-    maxZoom: 18,
-  }).addTo(map);
-
-  // Popup HTML only exists once a pin is clicked, so wire the image fallback
-  // (card-size -> full-size) each time a popup opens.
-  map.on("popupopen", (event) => {
-    event.popup.getElement()?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
-      image.addEventListener("error", () => {
-        const fallbackUrl = image.getAttribute("data-full-src");
-
-        if (fallbackUrl && image.src !== fallbackUrl) {
-          image.src = fallbackUrl;
-          image.removeAttribute("data-full-src");
-        }
-      }, { once: true });
-    });
-  });
-
-  const markerLayer = window.L.markerClusterGroup
-    ? window.L.markerClusterGroup({ showCoverageOnHover: false })
-    : window.L.layerGroup();
-
-  pinGroups.forEach((pinGroup) => {
-    const marker = window.L.marker([pinGroup.lat, pinGroup.lng], {
-      icon: createMapIcon(pinGroup),
-      title: pinGroup.title,
-    }).bindPopup(renderPinPopup(pinGroup));
-
-    markerLayer.addLayer(marker);
-  });
-
-  markerLayer.addTo(map);
-
-  if (pinGroups.length > 0) {
-    const bounds = window.L.latLngBounds(pinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
-    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
+  if (initToken !== mapInitToken || !mapEl.isConnected) {
+    return;
   }
 
-  requestAnimationFrame(() => {
-    map.invalidateSize();
-
-    requestAnimationFrame(() => {
-      map.invalidateSize();
-    });
+  activeMap = createTravelMap({
+    container: mapEl,
+    style,
+    pinGroups,
+    createPinElement: createMapPinElement,
+    renderPopupHtml: renderPinPopup,
+    onPopupOpen: wirePopupPhotoFallback,
   });
+}
 
-  setTimeout(() => {
-    map.invalidateSize();
-  }, 250);
+// Popup HTML only exists once a pin is clicked, so wire the image fallback
+// (card-size -> full-size) each time a popup opens.
+function wirePopupPhotoFallback(popupElement) {
+  popupElement?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
+    image.addEventListener("error", () => {
+      const fallbackUrl = image.getAttribute("data-full-src");
 
-  activeMap = map;
+      if (fallbackUrl && image.src !== fallbackUrl) {
+        image.src = fallbackUrl;
+        image.removeAttribute("data-full-src");
+      }
+    }, { once: true });
+  });
 }
 
 function resetActiveMapView() {
-  if (!activeMap) {
-    return;
-  }
-
-  if (activeMapPinGroups.length > 0) {
-    const bounds = window.L.latLngBounds(activeMapPinGroups.map((pinGroup) => [pinGroup.lat, pinGroup.lng]));
-    activeMap.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
-    return;
-  }
-
-  activeMap.setView([20, 0], 2);
+  activeMap?.fitAll();
 }
 
-function createMapIcon(pinGroup) {
+function createMapPinElement(pinGroup) {
   const statuses = pinGroup.statuses || [pinGroup.status];
   const isMultiPin = statuses.length > 1 || pinGroup.pins?.length > 1;
+  const element = document.createElement("div");
 
-  return window.L.divIcon({
-    className: `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
-    html: isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -15],
-  });
+  element.className = `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`;
+  element.innerHTML = isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>';
+  return element;
 }
 
 function renderMultiPinSegments(statuses) {

@@ -198,14 +198,14 @@ PR #70 added:
 ## Map view — shipped foundation in PR #70
 
 - **Route/nav:** Map is a fourth persistent nav item at `/app/map`. It is not behind a Board | Map toggle on `/app/destinations`; the map is a different browsing mode, not a sub-state of the board.
-- **Library:** [Leaflet](https://leafletjs.com/) and Leaflet.markercluster are loaded via CDN `<script>` tags — same loading pattern this app already uses for Lucide, no npm dependency needed in `src/`. The first implementation uses free OpenStreetMap tiles because they need no API key and are plenty for validating the product shape. OSM tile attribution must remain visible.
+- **Library:** [MapLibre GL JS](https://maplibre.org/) is loaded via CDN `<script>` tag (pinned version with SRI) — same loading pattern this app already uses for Lucide, no npm dependency needed in `src/`. Base map is OpenFreeMap's free, key-less vector Positron style, recolored at load from the app's design tokens and shown as a globe when zoomed out. The style's attribution must remain visible.
 - **Provider configuration:** isolate tile URL/attribution and geocoder endpoint/result normalization in dedicated map/geocoder helpers. Do not hardcode provider URLs and attribution strings directly throughout UI modules. This lets the app swap to MapTiler, Stadia, Thunderforest, Mapbox, or another provider later without rewriting the map screen.
 - **Pin coordinates:** explicit geocoded search when adding/editing a base and when creating a Wishlist destination. The user types a place, clicks **Search Location** (or presses Enter), then chooses from disambiguated results. This is intentionally not live autocomplete. Start with **Nominatim** (OpenStreetMap, free, no API key) and keep requests user-initiated so the app stays within the service's usage policy. Populate `trip_bases.lat`/`lng` alongside the existing free-text `location_name`; coordinates are not typed manually.
 - **Wishlist creation:** new Wishlist destinations require a mapped location. Creating the destination also creates one candidate base with the chosen place's `location_name`, `lat`, and `lng`, but does not create days. Optional description, target year/month, and cover photo stay as-is.
 - **Promotion/demotion:** promotion reuses existing Wishlist bases and their coordinates when scaffolding the trip. Demotion from Planning to Wishlist preserves all bases and coordinates exactly as they are today; no board-card base list is needed in the first pass.
 - **Editing location names:** changing the free-text `location_name` does not clear existing coordinates automatically. Coordinates update only when the user selects a new geocoded result.
 - **One pin per base, not per trip** — a multi-base trip shows one pin per base once coordinates exist.
-- **Legibility at different zoom levels:** nearby pins cluster into a single numbered marker using Leaflet.markercluster, then expand as the user zooms in.
+- **Legibility at different zoom levels:** nearby pins cluster into a single numbered marker using MapLibre's built-in GeoJSON clustering (pins and cluster bubbles are HTML markers, see `src/features/map/map-canvas.js`), then expand as the user zooms in.
 - **Filters:** map filters use **Someday** (`destinations`), **Planned** (`planning`), **Traveling Now** (`active`), and **Visited** (`done`). Desktop keeps these visible in the left rail and uses the colored dots as a legend. Mobile tucks them behind a filter button.
 - **Missing coordinates:** bases without `lat`/`lng` do not create pins, but the map page shows a helpful maintenance state such as "3 places need locations." Rows point the user toward the relevant edit flow so missing pins are fixable, not mysterious.
 - **Data loading:** the Map route loads trip rows, active bases (`id`, `trip_id`, `name`, `location_name`, `lat`, `lng`, `sort_order`, base date range), primary trip photos, and enough trip metadata to group/filter/open cards.
@@ -243,7 +243,7 @@ Do not swap providers in the fast-follow PR. Keep OpenStreetMap/Nominatim as the
 - **Thunderforest:** distinctive themed map styles and a simple Leaflet tile swap. Requires an API key. Good candidate for a specific visual personality, but less neutral than MapTiler/Stadia.
 - **Mapbox:** strongest all-in-one product for polished maps plus search/geocoding. Requires token/billing awareness, and geocoding result storage/caching rules need care. Best candidate if we want both prettier tiles and a more premium location-search UX.
 
-Provider swap difficulty: low for tiles only, medium if geocoding changes too. The fast-follow architecture should keep provider-specific geocoding behavior in `netlify/functions/location-search.js` and provider-specific tile display in `src/lib/map-provider.js`.
+Provider swap difficulty: low for tiles only, medium if geocoding changes too. The fast-follow architecture should keep provider-specific geocoding behavior in `netlify/functions/location-search.js` and provider-specific basemap style loading in `src/lib/map-provider.js`.
 
 ## Explicitly out of scope for now
 
