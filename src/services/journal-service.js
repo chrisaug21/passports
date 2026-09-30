@@ -1,6 +1,6 @@
 import { getSupabase } from "../lib/supabase.js";
 
-const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, created_at, updated_at";
+const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, rating, do_it_again, created_at, updated_at";
 const JOURNAL_PHOTO_SELECT = "id, trip_id, user_id, item_id, storage_path, public_url, created_at, updated_at";
 const USER_PROFILE_SELECT = "id, first_name, last_name, preferred_maps_app, updated_at";
 
@@ -54,7 +54,9 @@ export async function fetchJournalData(tripId, memberUserIds, doneUserIds = []) 
 // Journal entries
 // ---------------------------------------------------------------------------
 
-export async function upsertJournalEntry({ existingId, tripId, userId, dayId, itemId, notes }) {
+// notes / rating / doItAgain are each optional: a field left undefined is not
+// sent, so saving a note never wipes a rating (and vice versa).
+export async function upsertJournalEntry({ existingId, tripId, userId, dayId, itemId, notes, rating, doItAgain }) {
   const supabase = getSupabase();
   const now = new Date().toISOString();
 
@@ -64,10 +66,13 @@ export async function upsertJournalEntry({ existingId, tripId, userId, dayId, it
     user_id: userId,
     day_id: dayId || null,
     item_id: itemId || null,
-    notes,
     updated_at: now,
     deleted_at: null,
   };
+
+  if (notes !== undefined) payload.notes = notes;
+  if (rating !== undefined) payload.rating = rating;
+  if (doItAgain !== undefined) payload.do_it_again = doItAgain;
 
   if (!existingId) {
     payload.created_at = now;

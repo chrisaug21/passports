@@ -201,6 +201,52 @@ function renderItemEntryRead(entry) {
   return `<div class="journal-item-entry journal-item-entry--read">${renderEntryDisplay(entry.notes, "", false)}</div>`;
 }
 
+const RATING_VALUES = [1, 2, 3, 4];
+
+// Compact read-only summary of someone's rating, e.g. "★4" plus a repeat icon.
+function renderRatingBadge(entry) {
+  if (!entry) return "";
+  const parts = [];
+  if (entry.rating) {
+    parts.push(`<span class="journal-rating-badge__score" aria-label="Rated ${entry.rating} out of 4">★${entry.rating}</span>`);
+  }
+  if (entry.do_it_again) {
+    parts.push(`<span class="journal-rating-badge__again">Do it again</span>`);
+  }
+  return parts.length ? `<div class="journal-rating-badge">${parts.join("")}</div>` : "";
+}
+
+// The current traveler's own controls: four tappable stars + a "Do it again" toggle.
+function renderRatingControls(item, entry) {
+  const title = item.title || "this stop";
+  const current = entry?.rating || 0;
+  const stars = RATING_VALUES.map((value) => `
+    <button
+      class="journal-rating__star${value <= current ? " journal-rating__star--on" : ""}"
+      data-journal-rating-value="${value}"
+      type="button"
+      role="radio"
+      aria-checked="${value === current}"
+      aria-label="${value} of 4"
+    >★</button>
+  `).join("");
+
+  return `
+    <div class="journal-rating"
+      data-journal-rating="${escapeHtml(item.id)}"
+      data-entry-id="${escapeHtml(entry?.id || "")}"
+    >
+      <div class="journal-rating__stars" role="radiogroup" aria-label="${escapeHtml(`Your rating for ${title}`)}">${stars}</div>
+      <button
+        class="journal-rating__again${entry?.do_it_again ? " journal-rating__again--on" : ""}"
+        data-journal-again
+        type="button"
+        aria-pressed="${Boolean(entry?.do_it_again)}"
+      >Do it again</button>
+    </div>
+  `;
+}
+
 function renderItemJournalArea(item, entries, photos, members, profiles, isWritable, currentUserId) {
   const itemEntries = entries.filter((e) => e.item_id === item.id);
   const itemPhotos = photos.filter((p) => p.item_id === item.id);
@@ -228,14 +274,23 @@ function renderItemJournalArea(item, entries, photos, members, profiles, isWrita
         ? renderItemPhotoRead(item, photo)
         : "";
 
-    if (!noteHtml && !photoHtml) {
+    const isOwnWritableRow = isCurrentUser && isWritable;
+    const ratingHtml = isOwnWritableRow
+      ? renderRatingControls(item, entry)
+      : renderRatingBadge(entry);
+
+    if (!noteHtml && !photoHtml && !ratingHtml) {
       return "";
     }
 
     return `
       <div class="journal-member-row">
         <div class="journal-member-row__note">
-          ${renderJournalAvatar(memberUserId, members, profiles)}
+          <div class="journal-member-row__who">
+            ${renderJournalAvatar(memberUserId, members, profiles)}
+            ${isOwnWritableRow ? "" : ratingHtml}
+          </div>
+          ${isOwnWritableRow ? ratingHtml : ""}
           ${noteHtml || ""}
         </div>
         <div class="journal-member-row__photo${photoHtml ? "" : " journal-member-row__photo--empty"}">
