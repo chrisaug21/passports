@@ -432,9 +432,9 @@ function createMapIcon(pinGroup) {
   return window.L.divIcon({
     className: `travel-map-pin travel-map-pin--${getStatusClassName(pinGroup.status)} ${isMultiPin ? "travel-map-pin--multi" : ""}`,
     html: isMultiPin ? renderMultiPinSegments(statuses) : '<span aria-hidden="true"></span>',
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    popupAnchor: [0, -12],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -15],
   });
 }
 

@@ -351,15 +351,78 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-pill);
-  border: 2px solid var(--color-surface-strong);
-  box-shadow: var(--shadow-soft);
+  border: 3px solid var(--color-surface-strong);
+  /* Tight dark shadow keeps the pin readable on any basemap; the wide one gives lift. */
+  box-shadow: 0 1px 2px rgba(26, 35, 50, 0.35), 0 6px 14px rgba(26, 35, 50, 0.22);
 }
 
+/* Leaflet positions the root element with its own transform, so all motion goes on the inner span. */
 .travel-map-pin span {
   width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--color-structure);
+  transition: transform 0.15s ease;
+}
+
+.travel-map-pin:hover > span {
+  transform: scale(1.18);
+}
+
+/* Active trips get a soft pulsing ring so "happening now" stands out. */
+.travel-map-pin--active:not(.travel-map-pin--multi)::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-item-meal);
+  opacity: 0;
+  pointer-events: none;
+  animation: travel-map-pin-pulse 2.2s ease-out infinite;
+}
+
+@keyframes travel-map-pin-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel-map-pin span {
+    transition: none;
+  }
+
+  .travel-map-pin--active:not(.travel-map-pin--multi)::after {
+    animation: none;
+  }
+}
+
+/* Cluster bubbles: navy so they never read as one of the four trip-status colors. */
+.marker-cluster,
+.marker-cluster div {
+  background-clip: padding-box;
+}
+
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background-color: rgba(26, 35, 50, 0.22);
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background-color: var(--color-text);
+  color: var(--color-surface-strong);
+  font-family: var(--font-body);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(26, 35, 50, 0.35), 0 6px 14px rgba(26, 35, 50, 0.22);
 }
 
 .travel-map-pin--multi {
