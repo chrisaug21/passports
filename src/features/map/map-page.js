@@ -1,6 +1,7 @@
 import { navigate, renderRoute } from "../../app/router.js";
-import { loadMapStyle } from "../../lib/map-provider.js";
+import { getAvailableMapStyles, getSelectedMapStyleId, loadMapStyle, setSelectedMapStyleId } from "../../lib/map-provider.js";
 import { createTravelMap } from "./map-canvas.js";
+import { mountMapStylePicker } from "./map-style-picker.js";
 import { formatDestinationTargetDate, formatShortDateRange, formatTripDateSummary } from "../../lib/format.js";
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
@@ -338,7 +339,7 @@ function renderNoPinsState(missingLocations) {
   `;
 }
 
-async function initializeMap() {
+async function initializeMap({ camera } = {}) {
   const mapEl = document.querySelector("#travel-map");
 
   if (!mapEl || !window.maplibregl) {
@@ -356,7 +357,11 @@ async function initializeMap() {
 
   const pins = parsePins(mapEl.getAttribute("data-map-pins"));
   const pinGroups = groupPinsByCoordinates(pins);
-  const style = await loadMapStyle();
+  const availableStyles = await getAvailableMapStyles();
+  const selectedStyleId = availableStyles.some((entry) => entry.id === getSelectedMapStyleId())
+    ? getSelectedMapStyleId()
+    : availableStyles[0].id;
+  const style = await loadMapStyle(selectedStyleId);
 
   if (initToken !== mapInitToken || !mapEl.isConnected) {
     return;
@@ -366,9 +371,21 @@ async function initializeMap() {
     container: mapEl,
     style,
     pinGroups,
+    camera,
     createPinElement: createMapPinElement,
     renderPopupHtml: renderPinPopup,
     onPopupOpen: wirePopupPhotoFallback,
+  });
+
+  mountMapStylePicker({
+    shell: mapEl.closest(".map-canvas-shell"),
+    styles: availableStyles,
+    selectedId: selectedStyleId,
+    onSelect: (styleId) => {
+      setSelectedMapStyleId(styleId);
+      // Rebuild on the new style, keeping the current view.
+      initializeMap({ camera: activeMap?.getCamera() });
+    },
   });
 }
 

@@ -5,13 +5,14 @@ const FIT_OPTIONS = { padding: 48, maxZoom: 6 };
 const GLOBE_SPAN_DEGREES = 100;
 const PIN_SOURCE_ID = "trip-pins";
 
-export function createTravelMap({ container, style, pinGroups, createPinElement, renderPopupHtml, onPopupOpen }) {
+// `camera` ({ center, zoom }) restores the view when the style is swapped.
+export function createTravelMap({ container, style, pinGroups, camera, createPinElement, renderPopupHtml, onPopupOpen }) {
   const { maplibregl } = window;
   const map = new maplibregl.Map({
     container,
     style,
-    center: [0, 20],
-    zoom: 1,
+    center: camera?.center || [0, 20],
+    zoom: camera?.zoom ?? 1,
     maxZoom: 18,
     pitchWithRotate: false,
     dragRotate: false,
@@ -144,10 +145,13 @@ export function createTravelMap({ container, style, pinGroups, createPinElement,
     });
 
     map.on("render", syncMarkers);
-    fitAll({ duration: 0 });
+    if (!camera) {
+      fitAll({ duration: 0 });
+    }
   });
 
   return {
+    getCamera: () => ({ center: map.getCenter().toArray(), zoom: map.getZoom() }),
     fitAll: () => fitAll({ duration: 800 }),
     remove: () => map.remove(),
   };
