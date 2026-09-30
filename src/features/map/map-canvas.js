@@ -2,6 +2,7 @@
 // content; this file owns the map engine details (globe, clustering, markers).
 
 const FIT_OPTIONS = { padding: 48, maxZoom: 6 };
+const POPUP_VIEW_PADDING = 12;
 const GLOBE_SPAN_DEGREES = 100;
 const PIN_SOURCE_ID = "trip-pins";
 
@@ -46,6 +47,49 @@ export function createTravelMap({ container, style, pinGroups, camera, createPin
     map.fitBounds(bounds, { ...FIT_OPTIONS, ...options });
   }
 
+  // Popups don't pan the map on their own, so a pin near an edge (common on
+  // phones) opens a popup that is partly off screen. Nudge the map just enough
+  // that the popup and its pin are both fully visible; do nothing if they fit.
+  function keepPopupInView(popup, markerElement) {
+    const popupRect = popup.getElement()?.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    if (!popupRect || popupRect.width === 0) {
+      return;
+    }
+
+    const pinRect = markerElement.getBoundingClientRect();
+    const left = Math.min(popupRect.left, pinRect.left);
+    const right = Math.max(popupRect.right, pinRect.right);
+    const top = Math.min(popupRect.top, pinRect.top);
+    const bottom = Math.max(popupRect.bottom, pinRect.bottom);
+
+    let shiftX = 0;
+    let shiftY = 0;
+
+    if (left < containerRect.left + POPUP_VIEW_PADDING) {
+      shiftX = containerRect.left + POPUP_VIEW_PADDING - left;
+    } else if (right > containerRect.right - POPUP_VIEW_PADDING) {
+      shiftX = containerRect.right - POPUP_VIEW_PADDING - right;
+    }
+
+    if (top < containerRect.top + POPUP_VIEW_PADDING) {
+      shiftY = containerRect.top + POPUP_VIEW_PADDING - top;
+    } else if (bottom > containerRect.bottom - POPUP_VIEW_PADDING) {
+      shiftY = containerRect.bottom - POPUP_VIEW_PADDING - bottom;
+    }
+
+    // If both can't fit (a very tall popup), the popup's top edge wins.
+    if (top + shiftY < containerRect.top + POPUP_VIEW_PADDING) {
+      shiftY = containerRect.top + POPUP_VIEW_PADDING - top;
+    }
+
+    if (shiftX !== 0 || shiftY !== 0) {
+      // Content moves opposite to the map's own pan direction.
+      map.panBy([-shiftX, -shiftY], { duration: 300 });
+    }
+  }
+
   function createPinMarker(pinGroup) {
     const element = createPinElement(pinGroup);
     element.setAttribute("role", "button");
@@ -62,6 +106,7 @@ export function createTravelMap({ container, style, pinGroups, camera, createPin
 
       openPopup = popup;
       onPopupOpen(popup.getElement());
+      requestAnimationFrame(() => keepPopupInView(popup, element));
     });
 
     return new maplibregl.Marker({ element, opacityWhenCovered: "0" }).setLngLat([pinGroup.lng, pinGroup.lat]).setPopup(popup);

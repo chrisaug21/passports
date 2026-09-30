@@ -478,15 +478,34 @@
 }
 
 .map-popup__trip-photo {
+  position: relative;
   width: 4.25rem;
   aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
   border-radius: calc(var(--radius-control) - 2px);
-  background: var(--color-surface-muted);
-  object-fit: cover;
+  /* Placeholder shown when there's no photo (or it fails to load). */
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-structure) 16%, var(--color-surface-strong)),
+    color-mix(in srgb, var(--color-action) 18%, var(--color-surface-strong))
+  );
+  color: var(--color-structure);
 }
 
-.map-popup__trip-photo--empty {
-  display: block;
+.map-popup__trip-photo-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.map-popup__trip-photo-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--color-surface-muted);
 }
 
 .map-popup__trip-copy {

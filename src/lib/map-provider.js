@@ -1,8 +1,8 @@
 import { initializeEnv } from "../config/env.js";
 
 // Basemap styles. MapLibre draws them all, so switching is cheap:
-//  - "vector" styles: OpenFreeMap tiles (free, no key). "Clean" and "Paper" are
-//    recolored from the app's design tokens; the rest are OpenFreeMap's own looks.
+//  - "vector" styles: OpenFreeMap tiles (free, no key). "Paper" is
+//    recolored from the app's design tokens; the others are OpenFreeMap's own looks.
 //  - "raster" styles: Stadia Maps / Stamen tiles (need STADIA_MAPS_API_KEY).
 // Each style's attribution comes with it and must stay visible.
 const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles";
@@ -10,32 +10,21 @@ const STADIA_TILES_URL = "https://tiles.stadiamaps.com/tiles";
 const STADIA_ATTRIBUTION = '&copy; <a href="https://stadiamaps.com/" target="_blank" rel="noopener">Stadia Maps</a> &copy; <a href="https://stamen.com/" target="_blank" rel="noopener">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
 const SATELLITE_ATTRIBUTION = `&copy; CNES, Distribution Airbus DS, &copy; Airbus DS, &copy; PlanetObserver (Contains Copernicus Data) | ${STADIA_ATTRIBUTION}`;
 const MAP_STYLE_STORAGE_KEY = "passports.mapStyle";
-const DEFAULT_MAP_STYLE_ID = "clean";
+const DEFAULT_MAP_STYLE_ID = "paper";
 
-// This list is a candidate menu: trim it once we know which looks earn a place.
+// Order here is the order in the picker; the first entry is the default.
 export const MAP_STYLES = [
-  { id: "clean", label: "Clean", hint: "Quiet and modern; pins pop", type: "vector", source: "positron", theme: "clean" },
   { id: "paper", label: "Paper", hint: "Warm parchment atlas", type: "vector", source: "positron", theme: "paper" },
   { id: "vivid", label: "Vivid", hint: "Colorful, detailed streets", type: "vector", source: "liberty" },
   { id: "night", label: "Night", hint: "Dark navy", type: "vector", source: "fiord" },
   { id: "terrain", label: "Terrain", hint: "Illustrated relief map", type: "raster", tileSet: "stamen_terrain", format: "png", maxzoom: 18, attribution: STADIA_ATTRIBUTION },
   { id: "satellite", label: "Satellite", hint: "Aerial imagery", type: "raster", tileSet: "alidade_satellite", format: "jpg", maxzoom: 18, attribution: SATELLITE_ATTRIBUTION },
-  { id: "ink", label: "Ink", hint: "High-contrast black and white", type: "raster", tileSet: "stamen_toner_lite", format: "png", maxzoom: 18, attribution: STADIA_ATTRIBUTION },
-  { id: "smooth", label: "Smooth", hint: "Soft, polished gray", type: "raster", tileSet: "alidade_smooth", format: "png", maxzoom: 18, attribution: STADIA_ATTRIBUTION },
   { id: "watercolor", label: "Watercolor", hint: "Painted, no labels", type: "raster", tileSet: "stamen_watercolor", format: "jpg", maxzoom: 16, attribution: STADIA_ATTRIBUTION },
 ];
 
 // Colors for the recolored vector styles, as design tokens to read at load time.
-// `mixes` are [topToken, baseToken, amount] blends against the paper color.
+// Each entry is [token] or [topToken, baseToken, amount] (a blend of the two).
 const VECTOR_THEMES = {
-  clean: {
-    land: ["--color-bg"],
-    water: ["--color-structure", "--color-bg", 0.18],
-    park: ["--color-action", "--color-bg", 0.1],
-    building: ["--color-border-card"],
-    border: ["--color-text-subtle"],
-    label: ["--color-text-muted"],
-  },
   paper: {
     land: ["--color-status-done", "--color-surface-strong", 0.28],
     water: ["--color-item-activity", "--color-surface-strong", 0.2],

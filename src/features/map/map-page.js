@@ -393,14 +393,25 @@ async function initializeMap({ camera } = {}) {
 // (card-size -> full-size) each time a popup opens.
 function wirePopupPhotoFallback(popupElement) {
   popupElement?.querySelectorAll("[data-map-popup-photo]").forEach((image) => {
-    image.addEventListener("error", () => {
+    // Popup HTML is built before it opens, so the photo may have already
+    // failed by now (its "error" event is long gone). Check for that too.
+    const handleFailure = () => {
       const fallbackUrl = image.getAttribute("data-full-src");
 
       if (fallbackUrl && image.src !== fallbackUrl) {
         image.src = fallbackUrl;
         image.removeAttribute("data-full-src");
+        return;
       }
-    }, { once: true });
+
+      image.remove();
+    };
+
+    image.addEventListener("error", handleFailure);
+
+    if (image.complete && image.naturalWidth === 0) {
+      handleFailure();
+    }
   });
 }
 
@@ -492,21 +503,32 @@ function renderGroupedTripCardCopy(pin, options) {
   `;
 }
 
+// The placeholder is always rendered; a photo, when there is one, is layered on
+// top of it. If the photo fails to load it is removed and the placeholder shows,
+// so there is never a broken-image icon.
 function renderPopupTripPhoto(pin) {
-  if (!pin.coverPhotoUrl) {
-    return `<span class="map-popup__trip-photo map-popup__trip-photo--empty" aria-hidden="true"></span>`;
-  }
+  const photo = pin.coverPhotoUrl
+    ? `
+      <img
+        class="map-popup__trip-photo-image"
+        src="${escapeHtml(pin.coverPhotoUrl)}"
+        ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
+        data-map-popup-photo
+        style="object-position: ${pin.coverPhotoPosition}"
+        alt=""
+        loading="lazy"
+      />
+    `
+    : "";
 
   return `
-    <img
-      class="map-popup__trip-photo"
-      src="${escapeHtml(pin.coverPhotoUrl)}"
-      ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
-      data-map-popup-photo
-      style="object-position: ${pin.coverPhotoPosition}"
-      alt=""
-      loading="lazy"
-    />
+    <span class="map-popup__trip-photo" aria-hidden="true">
+      <svg class="map-popup__trip-photo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+      ${photo}
+    </span>
   `;
 }
 
