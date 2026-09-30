@@ -9,6 +9,7 @@ import {
   getOverviewNavEntries,
   renderFullDayContent,
   renderOverviewSection,
+  rememberOverviewTab,
   sortGuideItems,
   getTodayDayNumber,
 } from "./guide-view.js";
@@ -540,7 +541,9 @@ function wireOverviewAccordions() {
     const section = button.closest(".guide-overview");
     if (!section) return;
 
-    const wasActive = button.classList.contains("is-active");
+    // Tapping the already-open tab is a no-op — a tab never collapses its own
+    // content.
+    if (button.classList.contains("is-active")) return;
 
     section.querySelectorAll("[data-overview-category]").forEach((tab) => {
       tab.classList.remove("is-active");
@@ -551,7 +554,7 @@ function wireOverviewAccordions() {
       panel.setAttribute("hidden", "");
     });
 
-    if (wasActive) return;
+    rememberOverviewTab(section.closest(".guide-overview-section")?.id, button.dataset.overviewCategory);
 
     button.classList.add("is-active");
     button.setAttribute("aria-selected", "true");
@@ -724,7 +727,7 @@ function renderItineraryModeContent() {
       const dayBase = bases.find((b) => b.id === day.base_id);
       const baseName = dayBase?.name || dayBase?.location_name || "This base";
       const baseOverviewHtml = baseTransitionDayNumbers.has(day.day_number)
-        ? renderOverviewSection(day.base_id, overviewBlocks || [], `${baseName} Overview`, `guide-base-overview-${day.base_id}`)
+        ? renderOverviewSection(day.base_id, overviewBlocks || [], `${baseName} Overview`, `guide-base-overview-${day.base_id}`, dayBase)
         : "";
 
       if (index === 0) {

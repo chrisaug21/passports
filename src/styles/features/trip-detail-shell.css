@@ -300,3 +300,10 @@
       padding-inline: 0;
     }
 }
+
+/* Desktop only: mobile planning keeps the taller 3:2 cover. */
+@media (min-width: 841px) {
+  .trip-header__media {
+    aspect-ratio: var(--photo-banner-ratio);
+  }
+}

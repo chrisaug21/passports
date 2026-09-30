@@ -295,6 +295,106 @@ function openCropperModal({ imageUrl = "", prepareImageUrl = null, aspectRatio, 
   });
 }
 
+// Second step after cropping: pick the point that stays in view when the
+// photo is shown in a shorter/narrower frame (wide banner, tall thumbnail).
+// Resolves { focalX, focalY } (0-100), or null if cancelled. Uses the same
+// shapes the app actually renders so the previews are honest.
+export function openFocalPointModal(imageUrl, { focalX = 50, focalY = 50 } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.createElement("div");
+    modal.className = "modal-shell photo-crop-modal";
+    modal.setAttribute("aria-hidden", "false");
+    modal.innerHTML = `
+      <div class="modal-backdrop" data-focal-cancel></div>
+      <section class="panel modal-card modal-card--editor photo-focal-modal__card" role="dialog" aria-modal="true" aria-label="Choose photo focus">
+        <div class="modal-card__header">
+          <h3>Choose what stays in view</h3>
+          <button class="icon-button" data-focal-cancel type="button" aria-label="Close">×</button>
+        </div>
+        <p class="photo-focal-modal__hint">Drag the dot to the part of the photo that matters. Shorter banners and small thumbnails will center on it.</p>
+        <div class="photo-focal-modal__stage" data-focal-stage>
+          <img class="photo-focal-modal__image" data-focal-image alt="" draggable="false" />
+          <span class="photo-focal-modal__dot" data-focal-dot aria-hidden="true"></span>
+        </div>
+        <div class="photo-focal-modal__previews">
+          <figure class="photo-focal-modal__preview photo-focal-modal__preview--banner">
+            <img data-focal-preview alt="" />
+            <figcaption>Banner</figcaption>
+          </figure>
+          <figure class="photo-focal-modal__preview photo-focal-modal__preview--thumb">
+            <img data-focal-preview alt="" />
+            <figcaption>Thumbnail</figcaption>
+          </figure>
+        </div>
+        <div class="modal-card__actions modal-card__actions--end photo-crop-modal__actions">
+          <button class="button button--secondary" data-focal-cancel type="button">Cancel</button>
+          <button class="button" data-focal-confirm type="button">Save photo</button>
+        </div>
+      </section>
+    `;
+
+    const hadModalOpen = document.body.classList.contains("modal-open");
+    const stage = modal.querySelector("[data-focal-stage]");
+    const dot = modal.querySelector("[data-focal-dot]");
+    const previews = modal.querySelectorAll("[data-focal-preview]");
+    // Set via the DOM rather than interpolated into the template above.
+    modal.querySelector("[data-focal-image]").src = imageUrl;
+    previews.forEach((preview) => {
+      preview.src = imageUrl;
+    });
+    let x = clampPercent(focalX);
+    let y = clampPercent(focalY);
+
+    const render = () => {
+      dot.style.left = `${x}%`;
+      dot.style.top = `${y}%`;
+      previews.forEach((preview) => {
+        preview.style.objectPosition = `${x}% ${y}%`;
+      });
+    };
+
+    const moveTo = (event) => {
+      const rect = stage.getBoundingClientRect();
+      x = clampPercent(((event.clientX - rect.left) / rect.width) * 100);
+      y = clampPercent(((event.clientY - rect.top) / rect.height) * 100);
+      render();
+    };
+
+    const finish = (result) => {
+      modal.remove();
+      if (!hadModalOpen) {
+        document.body.classList.remove("modal-open");
+      }
+      resolve(result);
+    };
+
+    stage.addEventListener("pointerdown", (event) => {
+      stage.setPointerCapture(event.pointerId);
+      moveTo(event);
+    });
+    stage.addEventListener("pointermove", (event) => {
+      if (stage.hasPointerCapture(event.pointerId)) {
+        moveTo(event);
+      }
+    });
+    modal.querySelectorAll("[data-focal-cancel]").forEach((button) => {
+      button.addEventListener("click", () => finish(null));
+    });
+    modal.querySelector("[data-focal-confirm]").addEventListener("click", () => {
+      finish({ focalX: x, focalY: y });
+    });
+
+    render();
+    document.body.classList.add("modal-open");
+    document.body.append(modal);
+  });
+}
+
+function clampPercent(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(100, Math.max(0, Math.round(number * 10) / 10)) : 50;
+}
+
 function renderCropModal() {
   const modal = document.createElement("div");
   modal.className = "modal-shell photo-crop-modal";

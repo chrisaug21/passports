@@ -14,6 +14,7 @@ import {
 } from "../../../config/constants.js";
 import {
   escapeHtml,
+  getBaseHeroPhotoUrl,
   getTripHeroPhotoUrl,
   getTripStatTiles,
   renderExpandableItemNotes,
@@ -21,6 +22,7 @@ import {
   renderItemTypeIcon,
   sanitizeCoverUrl,
 } from "../detail/trip-detail-ui.js";
+import { getPhotoObjectPosition } from "../../../services/photos-service.js";
 
 // ---------------------------------------------------------------------------
 // Item ordering — guide-specific sort (spec §6)
@@ -314,30 +316,53 @@ function renderOverviewBlock(block) {
   `;
 }
 
+// Which tab each overview section has open, keyed by section id. The guide
+// re-renders its content on tab switches, data refreshes and lazy scroll
+// loads, and every re-render would otherwise snap each section back to its
+// first tab. Lives in memory only, so a page reload starts fresh.
+const selectedOverviewTabs = new Map();
+
+export function rememberOverviewTab(sectionId, category) {
+  selectedOverviewTabs.set(sectionId, category);
+}
+
 // scopeBaseId = null renders trip-wide content; a base id renders that base's
-// content. Returns "" when there's nothing published in scope — no empty
-// selector row, per spec (zero published blocks = show nothing).
-export function renderOverviewSection(scopeBaseId, overviewBlocks, title, sectionId) {
+// content. Returns "" when there's nothing to show in scope — no empty
+// selector row, per spec. For a base, its cover photo counts as content: it
+// adds a "Photo" tab right after Summary (or first when there's no Summary),
+// and a base with a photo but no published text still gets its section.
+export function renderOverviewSection(scopeBaseId, overviewBlocks, title, sectionId, base = null) {
   const visibleBlocks = filterOverviewBlocksForViewer(overviewBlocks).filter(
     (block) => (block.base_id || null) === scopeBaseId
   );
+  const photoUrl = scopeBaseId ? getBaseHeroPhotoUrl(base) : "";
 
-  if (visibleBlocks.length === 0) return "";
+  if (visibleBlocks.length === 0 && !photoUrl) return "";
 
   const groups = OVERVIEW_CATEGORIES.map((category) => ({
     category,
     blocks: visibleBlocks.filter((block) => block.category === category).sort(compareByOverviewSortOrder),
   })).filter((group) => group.blocks.length > 0);
 
+  if (photoUrl) {
+    const photoIndex = groups.length > 0 && groups[0].category === "summary" ? 1 : 0;
+    groups.splice(photoIndex, 0, { category: "photo", blocks: [] });
+  }
+
+  const remembered = selectedOverviewTabs.get(sectionId);
+  const activeIndex = Math.max(0, groups.findIndex((group) => group.category === remembered));
+
   const tabs = groups
     .map(({ category }, index) => {
-      const label = OVERVIEW_CATEGORY_LABELS[category] || category;
-      const icon = OVERVIEW_CATEGORY_ICONS[category] || "circle-dot";
+      const isActive = index === activeIndex;
+      const isPhoto = category === "photo";
+      const label = isPhoto ? "Photo" : OVERVIEW_CATEGORY_LABELS[category] || category;
+      const icon = isPhoto ? "camera" : OVERVIEW_CATEGORY_ICONS[category] || "circle-dot";
       return `
         <button
-          class="guide-overview__tab${index === 0 ? " is-active" : ""}"
+          class="guide-overview__tab${isActive ? " is-active" : ""}"
           role="tab"
-          aria-selected="${index === 0 ? "true" : "false"}"
+          aria-selected="${isActive ? "true" : "false"}"
           data-overview-category="${escapeHtml(category)}"
           type="button"
         >
@@ -352,12 +377,14 @@ export function renderOverviewSection(scopeBaseId, overviewBlocks, title, sectio
     .map(
       ({ category, blocks }, index) => `
         <div
-          class="guide-overview__panel${index === 0 ? " is-active" : ""}"
+          class="guide-overview__panel${index === activeIndex ? " is-active" : ""}"
           role="tabpanel"
           data-overview-panel="${escapeHtml(category)}"
-          ${index === 0 ? "" : "hidden"}
+          ${index === activeIndex ? "" : "hidden"}
         >
-          ${blocks.map((block) => renderOverviewBlock(block)).join("")}
+          ${category === "photo"
+            ? `<img class="guide-overview__photo" src="${escapeHtml(photoUrl)}" style="object-position: ${getPhotoObjectPosition(base.hero_photo)}" alt="" loading="lazy" />`
+            : blocks.map((block) => renderOverviewBlock(block)).join("")}
         </div>
       `
     )
@@ -391,9 +418,9 @@ export function getOverviewNavEntries(days, bases, overviewBlocks) {
     .sort((a, b) => a.day_number - b.day_number)
     .forEach((day) => {
       if (!day.base_id || !transitionDayNumbers.has(day.day_number)) return;
-      if (!visibleBlocks.some((block) => block.base_id === day.base_id)) return;
-
       const base = bases.find((b) => b.id === day.base_id);
+      if (!visibleBlocks.some((block) => block.base_id === day.base_id) && !getBaseHeroPhotoUrl(base)) return;
+
       const baseName = base?.name || base?.location_name || "This base";
       entries.push({
         beforeDayNumber: day.day_number,
@@ -558,7 +585,7 @@ function renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, viewerRol
   return `
     <div class="guide-hero">
       ${heroPhotoUrl
-        ? `<img class="guide-hero__photo" src="${escapeHtml(heroPhotoUrl)}" alt="" />`
+        ? `<img class="guide-hero__photo" src="${escapeHtml(heroPhotoUrl)}" style="object-position: ${getPhotoObjectPosition(trip.hero_photo)}" alt="" />`
         : `<div class="guide-hero__photo guide-hero__photo--empty"></div>`
       }
       <div class="guide-hero__overlay"></div>
@@ -655,7 +682,7 @@ export function renderGuideView(state) {
       const dayBase = bases.find((b) => b.id === day.base_id);
       const baseName = dayBase?.name || dayBase?.location_name || "This base";
       const baseOverviewHtml = baseTransitionDayNumbers.has(day.day_number)
-        ? renderOverviewSection(day.base_id, overviewBlocks, `${baseName} Overview`, `guide-base-overview-${day.base_id}`)
+        ? renderOverviewSection(day.base_id, overviewBlocks, `${baseName} Overview`, `guide-base-overview-${day.base_id}`, dayBase)
         : "";
 
       return baseOverviewHtml + renderDaySection(day, sorted, viewerRole, dayBands, bases, trip.start_date, isLazy, day.day_number === todayDayNumber);

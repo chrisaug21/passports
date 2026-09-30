@@ -188,8 +188,8 @@ export function formatDayDateCompact(startDate, dayNumber) {
   return `${parts.weekday} ${parts.month} ${parts.day}`;
 }
 
-// Tightest form for phone-width nav pills: "Oct 15 Th" (M Tu W Th F Sa Su).
-const MOBILE_WEEKDAY_LABELS = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
+// Compact form for phone-width nav pills: "Oct 15 Thu".
+const MOBILE_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function formatDayDateMobile(startDate, dayNumber) {
   const date = getTripDateByDayNumber(startDate, dayNumber);

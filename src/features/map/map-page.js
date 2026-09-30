@@ -3,6 +3,7 @@ import { MAP_TILE_PROVIDER } from "../../lib/map-provider.js";
 import { formatDestinationTargetDate, formatShortDateRange, formatTripDateSummary } from "../../lib/format.js";
 import { appStore } from "../../state/app-store.js";
 import { tripStore } from "../../state/trip-store.js";
+import { getPhotoObjectPosition } from "../../services/photos-service.js";
 import { listBasesForTrips } from "../../services/bases-service.js";
 import { listDaysForTrips } from "../../services/days-service.js";
 import { loadDashboard, setDashboardRenderer } from "../dashboard/dashboard-page.js";
@@ -522,6 +523,7 @@ function renderPopupTripPhoto(pin) {
       src="${escapeHtml(pin.coverPhotoUrl)}"
       ${pin.coverPhotoFullUrl ? `data-full-src="${escapeHtml(pin.coverPhotoFullUrl)}"` : ""}
       data-map-popup-photo
+      style="object-position: ${pin.coverPhotoPosition}"
       alt=""
       loading="lazy"
     />
@@ -568,6 +570,7 @@ function buildMapData({ trips, bases, days, selectedStatuses }) {
         // and keep the full-size photo as a fallback (older photos that
         // haven't been backfilled don't have a card-size file yet).
         coverPhotoUrl: trip.hero_photo_card_url || trip.hero_photo_url || trip.cover_photo_url || "",
+        coverPhotoPosition: getPhotoObjectPosition(trip.hero_photo),
         coverPhotoFullUrl: trip.hero_photo_card_url && trip.hero_photo_url ? trip.hero_photo_url : "",
         placeLabel: base.location_name || base.name || trip.title || "Untitled place",
         status: trip.status,
