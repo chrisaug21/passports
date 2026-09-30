@@ -251,11 +251,15 @@
 
 .map-style-picker__menu {
   order: -1;
-  display: grid;
+  /* Flex (not grid) so rows keep their natural height and the menu scrolls
+     instead of squashing them. */
+  display: flex;
+  flex-direction: column;
   gap: var(--space-1);
   min-width: 13rem;
-  /* Never taller than the map frame (minus the toggle and margins), or the top gets clipped. */
-  max-height: calc(max(var(--map-canvas-height), 24rem) - 5.5rem);
+  /* Stay inside the map frame and below the zoom buttons: frame height minus
+     the toggle, its margins, and the zoom control. */
+  max-height: calc(max(var(--map-canvas-height), 24rem) - 8.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-2);
@@ -270,6 +274,7 @@
 }
 
 .map-style-picker__option {
+  flex: 0 0 auto;
   min-height: var(--touch-target);
   display: grid;
   gap: 0.1rem;
