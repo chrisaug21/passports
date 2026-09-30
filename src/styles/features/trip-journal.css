@@ -399,6 +399,71 @@
   min-height: 5.625rem;
 }
 
+.journal-member-row__who {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.journal-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.journal-rating-badge__score {
+  color: var(--color-status-done);
+  font-weight: 600;
+}
+
+.journal-rating {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
+.journal-rating__stars {
+  display: inline-flex;
+}
+
+.journal-rating__star {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--color-status-done-muted);
+  cursor: pointer;
+}
+
+.journal-rating__star--on {
+  color: var(--color-status-done);
+}
+
+.journal-rating__again {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.journal-rating__again--on {
+  border-color: var(--color-action);
+  background: var(--color-action-tint);
+  color: var(--color-action-strong);
+}
+
 .journal-member-row__photo {
   width: 120px;
   min-height: 5.625rem;

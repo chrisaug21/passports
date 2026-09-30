@@ -44,6 +44,7 @@ export function wireJournalMode(state, journalState) {
   wireProfilePrompt(state, journalState);
   wireDayEntries(state, journalState, userId);
   wireItemEntries(state, journalState, userId);
+  wireItemRatings(state, journalState, userId);
   wireItemPhotos(state, journalState, userId);
   wirePhotoLightbox(state, journalState);
   wireDoneToggles(state, journalState);
@@ -197,7 +198,8 @@ function wireEntryContainer({
   const persistEntry = async ({ shouldCloseEditor = true } = {}) => {
     const notes = textarea.value.trim();
     const savedEl = container.querySelector(savedSelector);
-    const previousEntryId = savedEntryId || null;
+    // Read the dataset fresh: rating taps can create the entry before a note is saved.
+    const previousEntryId = container.dataset.entryId || savedEntryId || null;
     _saveCounter += 1;
     const currentSaveToken = _saveCounter;
 
@@ -317,6 +319,86 @@ function wireItemEntries(state, journalState, userId) {
       saveErrorMessage: "Couldn't save your note. Try again.",
       savedSelector: ".journal-item-entry__saved",
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Item ratings + "Do it again"
+// ---------------------------------------------------------------------------
+
+function paintRatingControls(container, { rating, doItAgain }) {
+  container.querySelectorAll("[data-journal-rating-value]").forEach((star) => {
+    const value = Number(star.dataset.journalRatingValue);
+    star.classList.toggle("journal-rating__star--on", value <= (rating || 0));
+    star.setAttribute("aria-checked", String(value === rating));
+  });
+  const again = container.querySelector("[data-journal-again]");
+  if (again) {
+    again.classList.toggle("journal-rating__again--on", Boolean(doItAgain));
+    again.setAttribute("aria-pressed", String(Boolean(doItAgain)));
+  }
+}
+
+function wireItemRatings(state, journalState, userId) {
+  document.querySelectorAll("[data-journal-rating]").forEach((container) => {
+    if (container.dataset.journalRatingBound === "true") return;
+    const itemId = container.dataset.journalRating;
+    if (!itemId || !userId) return;
+    container.dataset.journalRatingBound = "true";
+
+    const findEntry = () =>
+      journalState.entries.find((e) => e.item_id === itemId && e.user_id === userId) || null;
+
+    // Taps are queued so two quick taps can't race to create two rows.
+    let queue = Promise.resolve();
+
+    const save = (changes) => {
+      queue = queue.then(async () => {
+        const entry = findEntry();
+        const before = {
+          rating: entry?.rating ?? null,
+          doItAgain: Boolean(entry?.do_it_again),
+        };
+        const next = { ...before, ...changes };
+        paintRatingControls(container, next);
+
+        try {
+          const result = await upsertJournalEntry({
+            existingId: entry?.id || container.dataset.entryId || null,
+            tripId: state.tripId,
+            userId,
+            itemId,
+            rating: next.rating,
+            doItAgain: next.doItAgain,
+          });
+          updateLocalJournalEntry(journalState.entries, result, entry?.id || null);
+          container.dataset.entryId = result.id;
+          const noteContainer = document.querySelector(`[data-journal-item-entry="${CSS.escape(itemId)}"]`);
+          if (noteContainer) noteContainer.dataset.entryId = result.id;
+        } catch (error) {
+          console.error("Failed to save rating:", error);
+          paintRatingControls(container, before);
+          showToast("Couldn't save your rating. Try again.", "error");
+        }
+      });
+    };
+
+    const handleClick = (event) => {
+      const star = event.target.closest("[data-journal-rating-value]");
+      if (star) {
+        const value = Number(star.dataset.journalRatingValue);
+        const current = findEntry()?.rating ?? null;
+        // Tapping the star you already chose clears the rating.
+        save({ rating: current === value ? null : value });
+        return;
+      }
+      if (event.target.closest("[data-journal-again]")) {
+        save({ doItAgain: !findEntry()?.do_it_again });
+      }
+    };
+
+    container.addEventListener("click", handleClick);
+    _journalCleanupFns.push(() => container.removeEventListener("click", handleClick));
   });
 }
 
