@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.2.46";
+export const APP_VERSION = "1.2.47";
 
 export const TRIP_STATUSES = ["destinations", "planning", "active", "done"];
 
@@ -133,5 +133,15 @@ export const EMAIL_PREFERENCE_OPTIONS = [
     column: "email_journal_reminder",
     label: "Journal reminders",
     description: "About a week after a trip ends, a nudge to add your memories.",
+  },
+  {
+    column: "email_trip_day_two",
+    label: "Trip check-in",
+    description: "The evening of the second day of a trip, a nudge to start journaling.",
+  },
+  {
+    column: "email_trip_starts_soon",
+    label: "Trip countdown",
+    description: "Three days before a trip starts, a link to your itinerary and what's still to do.",
   },
 ];

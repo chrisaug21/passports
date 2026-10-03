@@ -32,6 +32,9 @@ function adminHeaders(serviceKey, extra) {
 const ALLOWED_TABLES = new Set([
   "trips",
   "trip_members",
+  "trip_bases",
+  "trip_days",
+  "trip_todos",
   "trip_photos",
   "trip_email_sends",
   "user_profiles",
