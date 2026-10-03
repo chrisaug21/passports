@@ -224,6 +224,14 @@ This repo has both Codacy and Sourcery installed on PRs. Each publishes its real
   but **it skips draft PRs by default** — on a draft it only posts a high-level "Reviewer's Guide" summary as an issue comment, with no line-by-line findings. Comment `@sourcery-ai review` on the PR (or mark it ready for review) to trigger a real review with inline comments.
 - If Codacy's dashboard/API needs its own auth (the annotations trick above doesn't need it, but Codacy's own web UI does), ask the project owner for a token rather than assuming access doesn't exist.
 
+## Local CodeRabbit Reviews
+The CodeRabbit CLI (`coderabbit` / `cr`) is installed and logged in. The free plan includes 3 local reviews per rolling hour, separate from the 1 PR review per hour. Code is sent to CodeRabbit's servers for each review.
+
+- **Always ask the project owner before running a CodeRabbit review**, unless they've explicitly asked for one in that message. Never run one on your own.
+- **Suggest one** when a branch is nearing the end of its work and the change is large or risky (database/SQL changes, auth, emails, anything touching access rules or public sharing). Don't suggest it for small text/style fixes.
+- Default command: `coderabbit review --agent --base main -c CLAUDE.md` (whole branch; `-c` feeds in the project rules). For only uncommitted work: `coderabbit review --agent --uncommitted -c CLAUDE.md`. Add `--include-untracked` to cover brand-new files. Check remaining quota first with `coderabbit usage`.
+- It's read-only — it never edits code. Treat findings as suggestions: check each one against the rules in this file, tell the owner which matter and which are noise, and only fix the real ones.
+
 ## Verification
 Unless otherwise specified, do not plan on `netlify dev` or a local server for final verification. Open a draft PR when instructed, then the project owner will test on the Netlify preview URL. Non-server checks, static analysis, and code review are still appropriate before handing off.
 
