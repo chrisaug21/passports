@@ -184,7 +184,7 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - `UNSPLASH_ACCESS_KEY`
 - `RESEND_API_KEY` — server-only (Netlify functions); sending-access key for the `mail.chrisaug.com` domain
 - `EMAIL_LINK_SECRET` — server-only; signs unsubscribe links (generate with `openssl rand -hex 32`)
-- `SUPABASE_SERVICE_ROLE_KEY` — server-only; bypasses all access rules, so never expose it to the browser and permission-check before every use (`netlify/lib/supabase-admin.js`)
+- `SUPABASE_SECRET_KEY` — server-only; bypasses all access rules, so never expose it to the browser and permission-check before every use (`netlify/lib/supabase-admin.js`)
 
 ## Emails
 Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions (`netlify/functions/`, shared code in `netlify/lib/`). Email is always best-effort — a failed email must never make the user's action look like it failed.

@@ -1,20 +1,25 @@
 // Minimal Supabase REST helpers for Netlify functions that must act with no
 // signed-in user (or must read another person's email address). These use the
-// service-role key, which bypasses every access rule — it must only ever be
+// project's secret key (SUPABASE_SECRET_KEY — "sb_secret_…" in the Supabase
+// dashboard, the successor to the old service_role key), which bypasses every
+// access rule — it must only ever be
 // read from process.env on the server, never sent to a browser, and every
 // caller must do its own permission check first.
 
 function getConfig() {
   const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SECRET_KEY;
   if (!url || !serviceKey) return null;
   return { url, serviceKey };
 }
 
+// New-style secret keys ("sb_secret_…") are not JWTs and Supabase rejects them
+// in the Authorization header — they go in `apikey` only. A legacy service_role
+// key is a JWT and still needs the Authorization header too.
 function adminHeaders(serviceKey, extra) {
   return {
     apikey: serviceKey,
-    authorization: `Bearer ${serviceKey}`,
+    ...(serviceKey.startsWith("eyJ") ? { authorization: `Bearer ${serviceKey}` } : {}),
     "content-type": "application/json",
     ...extra,
   };
@@ -22,7 +27,7 @@ function adminHeaders(serviceKey, extra) {
 
 async function restRequest(method, table, params, body, { prefer } = {}) {
   const config = getConfig();
-  if (!config) throw new Error("Service role is not configured.");
+  if (!config) throw new Error("Secret key is not configured.");
 
   const query = new URLSearchParams(params || {}).toString();
   const response = await fetch(`${config.url}/rest/v1/${table}${query ? `?${query}` : ""}`, {
