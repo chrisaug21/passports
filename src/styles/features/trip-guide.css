@@ -1141,3 +1141,8 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+
+/* The buttons are links (they navigate), so drop the browser's link underline. */
+.guide-signin-banner__actions .button {
+  text-decoration: none;
+}
