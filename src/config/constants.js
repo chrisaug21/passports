@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.2.34";
+export const APP_VERSION = "1.2.35";
 
 export const TRIP_STATUSES = ["destinations", "planning", "active", "done"];
 
@@ -117,4 +117,16 @@ export const CANONICAL_TIMEZONES = [
   ["America/Santiago", "Chile Time - Santiago"],
   ["America/Argentina/Buenos_Aires", "Argentina Time - Buenos Aires"],
   ["America/Sao_Paulo", "Brazil Time - Sao Paulo"],
+];
+
+// Every email Passports can send, as shown in Settings. `column` is the boolean
+// on user_profiles that switches it on/off. Keep in sync with EMAIL_KINDS in
+// netlify/lib/email-prefs.js (the server can't import this file, and this file
+// can't import that one — there is no build step).
+export const EMAIL_PREFERENCE_OPTIONS = [
+  {
+    column: "email_member_added",
+    label: "Added to a trip",
+    description: "When someone adds you to one of their trips.",
+  },
 ];

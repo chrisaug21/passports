@@ -98,3 +98,37 @@
 .mcp-connection-row__status--warn {
   color: var(--color-danger-strong);
 }
+
+.settings-email-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-email-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.settings-email-row__text {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.settings-email-row__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.settings-email-row__description {
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.settings-email-turn-off {
+  width: fit-content;
+}

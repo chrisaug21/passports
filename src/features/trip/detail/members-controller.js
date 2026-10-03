@@ -4,6 +4,7 @@ import { tripStore } from "../../../state/trip-store.js";
 import {
   fetchTripMembersWithEmails,
   addTripMember,
+  sendMemberAddedEmail,
   removeTripMember,
   getUserIdByEmail,
 } from "../../../services/members-service.js";
@@ -212,6 +213,7 @@ export function createMembersHandlers() {
         }
 
         await addTripMember({ tripId: trip.id, userId });
+        void sendMemberAddedEmail({ tripId: trip.id, userId });
         setMembersState({ isAdding: false, addEmail: "", addError: null });
         await loadMembers(trip.id);
       } catch (error) {

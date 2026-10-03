@@ -110,6 +110,20 @@ Trip
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `UNSPLASH_ACCESS_KEY`
+- `RESEND_API_KEY` — server-only (Netlify functions); sending-access key for the `mail.chrisaug.com` domain
+- `EMAIL_LINK_SECRET` — server-only; signs unsubscribe links (generate with `openssl rand -hex 32`)
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only; bypasses all access rules, so never expose it to the browser and permission-check before every use (`netlify/lib/supabase-admin.js`)
+
+## Emails
+Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions (`netlify/functions/`, shared code in `netlify/lib/`). Email is always best-effort — a failed email must never make the user's action look like it failed.
+
+**Every new email type needs all of these:**
+1. A per-person on/off column on `user_profiles` (`email_*`, boolean) via a `sql/` migration. Default `true` for everyone — except people whose existing `email_*` columns are all `false`: they get `false`, so a new email type can't override someone who turned everything off.
+2. An entry in `EMAIL_KINDS` (`netlify/lib/email-prefs.js`) **and** `EMAIL_PREFERENCE_OPTIONS` (`src/config/constants.js`) — it shows up as a switch in Settings automatically.
+3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
+4. The function checks the recipient's column before sending. No profile row means never changed → on.
+
+There is deliberately **no** "unsubscribe all" column. "Turn all off" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
 
 ## Local Dev
 `netlify dev` injects env vars correctly. `file://` and `npx serve .` do not work.

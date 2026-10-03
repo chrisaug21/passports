@@ -28,6 +28,10 @@ The current foundation includes:
 
 Both are fully isolated from `src/`, which stays dependency-free. See [passports-mcp-server-spec.md](./passports-mcp-server-spec.md).
 
+## Emails
+
+Transactional email goes out through Resend from `passports@mail.chrisaug.com`, sent by Netlify functions. Each email type has its own per-person switch in Settings. Adding a new email type requires its own switch, signed unsubscribe link, and migration — see the "Emails" section in `AGENTS.md`. Needs three server-only env vars: `RESEND_API_KEY`, `EMAIL_LINK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Local Development
 
 Use Netlify local dev so the app gets its environment variables correctly:

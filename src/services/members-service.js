@@ -38,6 +38,26 @@ export async function addTripMember({ tripId, userId }) {
   if (error) throw error;
 }
 
+// Asks the server to email a newly added member. Best-effort by design: the
+// member is already added, so a failed or skipped email must never surface as
+// an error. The server decides whether to actually send (their email settings,
+// one email per membership).
+export async function sendMemberAddedEmail({ tripId, userId }) {
+  try {
+    const { data } = await getSupabase().auth.getSession();
+    const accessToken = data?.session?.access_token;
+    if (!accessToken) return;
+
+    await fetch("/api/send-member-added-email", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ tripId, userId }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 export async function removeTripMember({ tripId, userId }) {
   const { error } = await getSupabase()
     .from("trip_members")
