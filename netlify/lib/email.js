@@ -4,11 +4,15 @@
 const FROM_ADDRESS = "Passports <passports@mail.chrisaug.com>";
 const PRODUCTION_URL = "https://passports.chrisaug.com";
 
-// Links in an email must point at the real site. process.env.URL is the
-// primary site URL on production and the deploy URL on a preview, so links
-// in a preview email open that preview.
+// Links in an email must point at the site the email was sent from. Netlify's
+// `URL` variable is always the PRODUCTION site, even on a deploy preview, so
+// on anything other than production use DEPLOY_PRIME_URL (the preview's own
+// address) — otherwise a preview's unsubscribe/trip links would point at
+// production, which doesn't have unmerged changes yet.
 function getAppBaseUrl() {
-  return (process.env.URL || PRODUCTION_URL).replace(/\/$/, "");
+  const isProduction = !process.env.CONTEXT || process.env.CONTEXT === "production";
+  const url = (!isProduction && process.env.DEPLOY_PRIME_URL) || process.env.URL || PRODUCTION_URL;
+  return url.replace(/\/$/, "");
 }
 
 function escapeHtml(value) {
