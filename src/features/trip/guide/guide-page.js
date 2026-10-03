@@ -4,7 +4,7 @@ import { getSupabase } from "../../../lib/supabase.js";
 import { sessionStore } from "../../../state/session-store.js";
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
-import { navigate } from "../../../app/router.js";
+import { navigate, rememberReturnPath } from "../../../app/router.js";
 import {
   renderGuideView,
   renderGuideLoadingView,
@@ -65,6 +65,9 @@ export async function loadGuidePage(tripId) {
 
     // Non-member on a private trip → redirect away
     if (viewerRole === "public" && !bundle.trip.is_public) {
+      // Signed out: this may be a member following an email link, so keep the
+      // link (including #journal) for after they sign in.
+      if (!userId) rememberReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
       navigate("/app");
       return;
     }
