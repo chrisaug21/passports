@@ -47,7 +47,7 @@ Trip
 ```
 
 ## Supabase Tables
-- `trips` — `owner_id` → auth.users; `status`: planning/upcoming/active/done; `is_public`; soft delete via `deleted_at`
+- `trips` — `owner_id` → auth.users; `status`: destinations/planning/active/done (the database enforces exactly these; `destinations` is a Wishlist entry with no dates yet, and "upcoming" is not a status — it's only a description of a planning trip whose start date is ahead); `is_public`; soft delete via `deleted_at`
 - `trip_bases` — `trip_id`; `local_timezone` IANA string; `date_start`/`date_end` nullable; soft delete via `deleted_at`
 - `trip_days` — `trip_id` + `base_id`; `day_number` 1-indexed across entire trip; real date derived never stored; soft delete via `deleted_at`
 - `trip_items` — `base_id` and `day_id` independently nullable; `is_anchor` boolean; `time_start`/`time_end` local HH:MM strings; `cost_low`/`cost_high` USD numeric; `address` free-text nullable (renders as a map-pin icon; link searches `"<item title>, <address>"` so it resolves to the actual business listing, not just a bare pin — opens Apple Maps or Google Maps per `user_profiles.preferred_maps_app`, an account-level setting synced via Supabase, not a device/browser setting); `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`; soft delete via `deleted_at`
