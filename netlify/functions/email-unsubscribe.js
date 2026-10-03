@@ -118,7 +118,7 @@ function renderSettingsPage({ token, values, notice, baseUrl }) {
 
 async function readCurrentValues(userId) {
   const columns = Object.values(EMAIL_KINDS).map((config) => config.column);
-  const rows = await admin.select("user_profiles", { select: columns.join(","), id: `eq.${userId}` });
+  const rows = await admin.select("user_profiles", { select: columns.join(","), id: admin.eqId(userId) });
   const profile = rows[0];
   // No profile row yet means they've never changed a switch: everything is on.
   return Object.fromEntries(Object.entries(EMAIL_KINDS).map(([kind, config]) => [kind, !profile || profile[config.column] !== false]));

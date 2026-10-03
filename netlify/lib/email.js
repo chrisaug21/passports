@@ -39,7 +39,7 @@ function getAppBaseUrl(event) {
 const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+  return String(value ?? "").replace(/[&<>\x22\x27]/g, (character) => HTML_ESCAPES[character]);
 }
 
 // Marks a string as already-safe markup, for use inside html`...`.

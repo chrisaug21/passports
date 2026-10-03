@@ -48,8 +48,8 @@ async function readRequest(event) {
 async function isActiveMember(tripId, userId) {
   const rows = await admin.select("trip_members", {
     select: "id",
-    trip_id: `eq.${tripId}`,
-    user_id: `eq.${userId}`,
+    trip_id: admin.eqId(tripId),
+    user_id: admin.eqId(userId),
     deleted_at: "is.null",
   });
   return rows.length > 0;
@@ -62,8 +62,8 @@ async function claimWelcomeEmail(tripId, userId) {
   const claimed = await admin.update(
     "trip_members",
     {
-      trip_id: `eq.${tripId}`,
-      user_id: `eq.${userId}`,
+      trip_id: admin.eqId(tripId),
+      user_id: admin.eqId(userId),
       deleted_at: "is.null",
       added_email_sent_at: "is.null",
       invited_at: `gte.${new Date(Date.now() - MAX_MEMBERSHIP_AGE_MS).toISOString()}`,
@@ -77,9 +77,9 @@ async function claimWelcomeEmail(tripId, userId) {
 async function composeAndSend({ event, tripId, userId, callerId, linkSecret }) {
   const column = EMAIL_KINDS.member_added.column;
   const [trips, recipientProfiles, inviterProfiles, recipientEmail, photos] = await Promise.all([
-    admin.select("trips", { select: "id,title,start_date,trip_length", id: `eq.${tripId}`, deleted_at: "is.null" }),
-    admin.select("user_profiles", { select: `first_name,${column}`, id: `eq.${userId}` }),
-    admin.select("user_profiles", { select: "first_name,last_name", id: `eq.${callerId}` }),
+    admin.select("trips", { select: "id,title,start_date,trip_length", id: admin.eqId(tripId), deleted_at: "is.null" }),
+    admin.select("user_profiles", { select: `first_name,${column}`, id: admin.eqId(userId) }),
+    admin.select("user_profiles", { select: "first_name,last_name", id: admin.eqId(callerId) }),
     admin.getEmailForUser(userId),
     admin.select("trip_photos", heroPhotoParams(tripId)),
   ]);

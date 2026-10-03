@@ -27,17 +27,34 @@ function adminHeaders(serviceKey, extra) {
   };
 }
 
-const TABLE_NAME_PATTERN = /^[a-z_]+$/;
+// The only tables these helpers may touch. Adding an email feature that needs
+// another table means adding it here on purpose.
+const ALLOWED_TABLES = new Set([
+  "trips",
+  "trip_members",
+  "trip_photos",
+  "trip_email_sends",
+  "user_profiles",
+  "journal_entries",
+  "journal_item_photos",
+]);
+
+// A PostgREST "equals this id" filter value. Ids must be UUIDs, so a value
+// from a request can never smuggle extra filter syntax in.
+function eqId(id) {
+  if (!UUID_PATTERN.test(String(id))) throw new Error("Invalid id.");
+  return "eq." + String(id);
+}
 
 // Codacy flags the fetch below as user-controlled-URL / SSRF (CWE-918) — a
 // false positive: the host is always process.env.SUPABASE_URL, and `table` is
-// a literal written in this repo's own code, never request input (and is
-// checked against TABLE_NAME_PATTERN anyway). Documented rather than
+// a literal written in this repo's own code, never request input (and must
+// be in ALLOWED_TABLES anyway). Documented rather than
 // restructured, same as mcp-server/src/lib/supabase-rest.js.
 async function restRequest(method, table, params, body, { prefer } = {}) {
   const config = getConfig();
   if (!config) throw new Error("Secret key is not configured.");
-  if (!TABLE_NAME_PATTERN.test(table)) throw new Error("Invalid table name.");
+  if (!ALLOWED_TABLES.has(table)) throw new Error("Table not allowed.");
 
   const query = new URLSearchParams(params || {}).toString();
   const response = await fetch(`${config.url}/rest/v1/${table}${query ? `?${query}` : ""}`, {
@@ -110,4 +127,4 @@ async function getEmailForUser(userId) {
   return user?.email || null;
 }
 
-module.exports = { getConfig, select, update, upsert, insertIgnoringDuplicates, remove, getUserFromToken, getEmailForUser };
+module.exports = { eqId, getConfig, select, update, upsert, insertIgnoringDuplicates, remove, getUserFromToken, getEmailForUser };
