@@ -39,8 +39,8 @@ function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirst
   };
 
   const introHtml = allSet
-    ? `<p style="margin:0 0 26px;"><strong>${escapeHtml(trip.title)}</strong> starts in 3 days, and your to-do list is all checked off. Nicely done. Your itinerary is ready whenever you want a look.</p>`
-    : `<p style="margin:0 0 18px;"><strong>${escapeHtml(trip.title)}</strong> starts in 3 days. Your itinerary is ready, and here's what's still open:</p>
+    ? `<p style="margin:0 0 26px;"><strong>${escapeHtml(trip.title)}</strong> starts in 3 days, and your to-do list is all checked off. Nicely done. It's a good moment to give your itinerary one more look.</p>`
+    : `<p style="margin:0 0 18px;"><strong>${escapeHtml(trip.title)}</strong> starts in 3 days. Take a look at your itinerary, and here's what's still open:</p>
        ${renderGroup("Still to do", openTodos)}
        ${renderGroup("Still to pack", openPacking)}`;
 
@@ -50,7 +50,7 @@ function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirst
     ${meta ? `<p style="margin:0 0 22px;font-size:14px;color:${COLORS.muted};">${escapeHtml(meta)}</p>` : `<div style="height:16px;"></div>`}
     <p style="margin:0 0 12px;">${greeting}</p>
     ${introHtml}
-    <p style="margin:0 0 12px;">${renderButton(guideUrl, "Open your itinerary")}</p>
+    <p style="margin:0 0 12px;">${renderButton(guideUrl, "Check your itinerary")}</p>
     ${allSet ? "" : `<p style="margin:0;font-size:14px;"><a href="${escapeHtml(prepUrl)}" style="color:${COLORS.muted};">Go to your trip prep list</a></p>`}
   `;
 
@@ -74,12 +74,12 @@ function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirst
     recipientFirstName ? `Hi ${recipientFirstName},` : "Hi,",
     "",
     allSet
-      ? `"${trip.title}" starts in 3 days, and your to-do list is all checked off. Nicely done. Your itinerary is ready whenever you want a look.`
-      : `"${trip.title}" starts in 3 days. Your itinerary is ready, and here's what's still open:`,
+      ? `"${trip.title}" starts in 3 days, and your to-do list is all checked off. Nicely done. It's a good moment to give your itinerary one more look.`
+      : `"${trip.title}" starts in 3 days. Take a look at your itinerary, and here's what's still open:`,
     "",
     ...textGroup("Still to do:", openTodos),
     ...textGroup("Still to pack:", openPacking),
-    `Open your itinerary: ${guideUrl}`,
+    `Check your itinerary: ${guideUrl}`,
     "",
     `Stop trip countdown emails: ${unsubscribeUrl}`,
   ].join("\n");
