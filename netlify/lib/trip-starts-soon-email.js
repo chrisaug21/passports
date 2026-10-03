@@ -1,5 +1,5 @@
 const { escapeHtml, renderEmailLayout, renderButton, COLORS } = require("./email.js");
-const { parseDate, formatShortDate, formatDateRange } = require("./trip-dates.js");
+const { MS_PER_DAY, parseDate, formatShortDate, formatDateRange } = require("./trip-dates.js");
 
 // How many open to-dos are listed per group before "and N more".
 const MAX_LISTED = 5;
@@ -10,7 +10,7 @@ const MAX_LISTED = 5;
 function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirstName, photo, baseUrl, unsubscribeUrl }) {
   const start = parseDate(trip.start_date);
   const length = Number(trip.trip_length);
-  const end = start && Number.isInteger(length) && length >= 1 ? new Date(start.getTime() + (length - 1) * 86400000) : null;
+  const end = start && Number.isInteger(length) && length >= 1 ? new Date(start.getTime() + (length - 1) * MS_PER_DAY) : null;
   const meta = start && end ? `${formatDateRange(start, end)} · ${length} ${length === 1 ? "day" : "days"}` : start ? formatShortDate(start, true) : "";
 
   const guideUrl = `${baseUrl}/app/trip/${trip.id}/guide?from=email`;

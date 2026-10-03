@@ -222,7 +222,10 @@ async function runSweep({ now = new Date(), dryRun = false, onlyTripFilter = nul
     select: "id,title,start_date,trip_length,status",
     deleted_at: "is.null",
     journal_reminders_enabled: "eq.true",
-    status: "neq.done",
+    // Planning and active trips only: a Wishlist ("destinations") entry can pick
+    // up a start date in trip settings without being promoted, and a done trip
+    // is over.
+    status: "in.(planning,active)",
     and: `(start_date.gte.${addDays(utcToday, -2)},start_date.lte.${addDays(utcToday, STARTS_SOON_DAYS_AHEAD + 1)})`,
     ...(onlyTripFilter ? { id: onlyTripFilter } : {}),
   });
