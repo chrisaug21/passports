@@ -30,7 +30,7 @@ Both are fully isolated from `src/`, which stays dependency-free. See [passports
 
 ## Emails
 
-Transactional email goes out through Resend from `passports@mail.chrisaug.com`, sent by Netlify functions. Each email type has its own per-person switch in Settings. Adding a new email type requires its own switch, signed unsubscribe link, and migration — see the "Emails" section in `AGENTS.md`. Needs three server-only env vars: `RESEND_API_KEY`, `EMAIL_LINK_SECRET`, `SUPABASE_SECRET_KEY`.
+Transactional email goes out through Resend from `passports@mail.chrisaug.com`, sent by Netlify functions. Each email type has its own per-person switch in Settings. Adding a new email type requires its own switch, signed unsubscribe link, and migration — see the "Emails" section in `AGENTS.md`. Two emails exist today: "added to a trip" and a daily-swept journal reminder sent 7–10 days after a trip ends (a per-trip switch exists too). Needs three server-only env vars: `RESEND_API_KEY`, `EMAIL_LINK_SECRET`, `SUPABASE_SECRET_KEY`.
 
 ## Local Development
 

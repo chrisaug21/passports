@@ -257,6 +257,18 @@ export function renderTripSettingsForm(trip, isSaving) {
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>
               </div>
+              <div class="trip-settings-form__sharing-row">
+                <div class="trip-settings-form__sharing-label-group">
+                  <div class="trip-settings-form__sharing-heading">
+                    <span class="trip-settings-form__sharing-label">Journal reminder email</span>
+                  </div>
+                  <span class="field-hint trip-settings-form__sharing-hint">Email everyone on this trip about a week after it ends, asking them to add to the journal. Each person can also opt out in their own Settings.</span>
+                </div>
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Journal reminder email">
+                  <input name="journalRemindersEnabled" type="checkbox" class="toggle-switch__input" ${trip.journal_reminders_enabled === false ? "" : "checked"} />
+                  <span class="toggle-switch__track" aria-hidden="true"></span>
+                </label>
+              </div>
             </div>
 
           </div>
@@ -528,6 +540,7 @@ export function createTripSettingsHandlers({ getTripItemErrorMessage, loadTripDe
         isPublic,
         isJournalPublic: isPublic && formData.get("isJournalPublic") === "on",
         isPlanningPublic: formData.get("isPlanningPublic") === "on",
+        journalRemindersEnabled: formData.get("journalRemindersEnabled") === "on",
       };
       const bases = tripStore.getCurrentBases();
       const singleBase = bases.length === 1 ? bases[0] : null;

@@ -13,6 +13,10 @@ const EMAIL_KINDS = {
     column: "email_member_added",
     label: "being added to a trip",
   },
+  journal_reminder: {
+    column: "email_journal_reminder",
+    label: "journal reminders",
+  },
 };
 
 const ALL_EMAIL_COLUMNS = Object.values(EMAIL_KINDS).map((kind) => kind.column);

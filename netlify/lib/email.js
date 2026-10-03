@@ -113,10 +113,56 @@ async function sendEmail({ to, subject, html, text, unsubscribeUrl }) {
   }
 }
 
+// Sends up to 100 different emails in one request (Resend's batch endpoint —
+// also keeps a sweep under Resend's request-rate limit). All-or-nothing:
+// returns true only if the whole batch was accepted.
+async function sendEmailBatch(messages) {
+  if (!messages.length) return true;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("sendEmailBatch skipped: RESEND_API_KEY is not set.");
+    return false;
+  }
+
+  try {
+    for (let index = 0; index < messages.length; index += 100) {
+      const chunk = messages.slice(index, index + 100).map((message) => ({
+        from: FROM_ADDRESS,
+        to: [message.to],
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        headers: message.unsubscribeUrl
+          ? {
+              "List-Unsubscribe": `<${message.unsubscribeUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            }
+          : undefined,
+      }));
+
+      const response = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify(chunk),
+      });
+
+      if (!response.ok) {
+        console.error("sendEmailBatch failed:", response.status, await response.text());
+        return false;
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error("sendEmailBatch threw:", error);
+    return false;
+  }
+}
+
 // Names (never values) of required server settings that aren't set on this
 // deploy — logged so a "not configured" failure says exactly what's missing.
 function getMissingEmailEnv(names) {
   return names.filter((name) => !process.env[name]);
 }
 
-module.exports = { COLORS, getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };
+module.exports = { sendEmailBatch, COLORS, getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };

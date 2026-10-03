@@ -60,6 +60,19 @@ function upsert(table, values, onConflict) {
   });
 }
 
+// INSERT that silently skips rows that already exist (per the unique columns
+// in `onConflict`) and returns only the rows actually inserted — so an empty
+// array means "someone already did this". That's how sends are claimed.
+function insertIgnoringDuplicates(table, values, onConflict) {
+  return restRequest("POST", table, { on_conflict: onConflict }, values, {
+    prefer: "resolution=ignore-duplicates,return=representation",
+  });
+}
+
+function remove(table, params) {
+  return restRequest("DELETE", table, params);
+}
+
 // The signed-in user behind a browser's access token, or null if it's not valid.
 async function getUserFromToken(accessToken) {
   const config = getConfig();
@@ -86,4 +99,4 @@ async function getEmailForUser(userId) {
   return user?.email || null;
 }
 
-module.exports = { getConfig, select, update, upsert, getUserFromToken, getEmailForUser };
+module.exports = { getConfig, select, update, upsert, insertIgnoringDuplicates, remove, getUserFromToken, getEmailForUser };

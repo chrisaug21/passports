@@ -3,7 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, created_at, updated_at";
 const JOURNAL_PHOTO_SELECT = "id, trip_id, user_id, item_id, storage_path, public_url, created_at, updated_at";
 const USER_PROFILE_SELECT = "id, first_name, last_name, preferred_maps_app, updated_at";
-const EMAIL_PREFERENCE_SELECT = "id, email_member_added";
+const EMAIL_PREFERENCE_SELECT = "id, email_member_added, email_journal_reminder";
 
 export const JOURNAL_PHOTO_BUCKET = "journal-photos";
 export const JOURNAL_PHOTO_MAX_PX = 1200;

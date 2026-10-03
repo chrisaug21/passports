@@ -1,11 +1,8 @@
 const { EMAIL_KINDS, buildUnsubscribeUrl } = require("../lib/email-prefs.js");
 const { getMissingEmailEnv, getAppBaseUrl, sendEmail } = require("../lib/email.js");
 const { buildMemberAddedEmail } = require("../lib/member-added-email.js");
+const { buildEmailPhoto, heroPhotoParams } = require("../lib/trip-photo.js");
 const admin = require("../lib/supabase-admin.js");
-
-// Public bucket holding uploaded trip photos (see PHOTO_BUCKET in
-// src/services/photos-service.js). The "-720x480" file is the mid-size copy.
-const PHOTO_BUCKET = "trip-photos";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,22 +17,6 @@ function json(statusCode, body) {
     headers: { "content-type": "application/json", "cache-control": "no-store" },
     body: JSON.stringify(body),
   };
-}
-
-// The mid-size copy ("-720x480") keeps the email light, but photos uploaded
-// before the app made size variants only have the full-size file — so check
-// for the smaller one and fall back rather than emailing a broken image.
-async function getEmailPhotoUrl(storagePath) {
-  const publicBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${PHOTO_BUCKET}`;
-  const fullUrl = `${publicBase}/${storagePath}`;
-  const previewUrl = `${publicBase}/${storagePath.replace(/(\.[^./]+)$/, "-720x480$1")}`;
-
-  try {
-    const response = await fetch(previewUrl, { method: "HEAD" });
-    return response.ok ? previewUrl : fullUrl;
-  } catch {
-    return fullUrl;
-  }
 }
 
 function formatName(profile) {
@@ -104,16 +85,7 @@ exports.handler = async function handler(event) {
       admin.select("user_profiles", { select: `first_name,${kind.column}`, id: `eq.${userId}` }),
       admin.select("user_profiles", { select: "first_name,last_name", id: `eq.${caller.id}` }),
       admin.getEmailForUser(userId),
-      admin.select("trip_photos", {
-        select: "storage_path,source,credit_name",
-        trip_id: `eq.${tripId}`,
-        is_primary: "eq.true",
-        base_id: "is.null",
-        day_id: "is.null",
-        item_id: "is.null",
-        order: "updated_at.desc",
-        limit: "1",
-      }),
+      admin.select("trip_photos", heroPhotoParams(tripId)),
     ]);
 
     const trip = trips[0];
@@ -126,13 +98,7 @@ exports.handler = async function handler(event) {
     const baseUrl = getAppBaseUrl();
     const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, "member_added", linkSecret);
 
-    const photoRow = photos[0];
-    const photo = photoRow?.storage_path
-      ? {
-          url: await getEmailPhotoUrl(photoRow.storage_path),
-          creditName: photoRow.source === "unsplash" ? photoRow.credit_name : null,
-        }
-      : null;
+    const photo = await buildEmailPhoto(photos[0]);
 
     const { subject, html, text } = buildMemberAddedEmail({
       trip,

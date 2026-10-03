@@ -197,6 +197,10 @@ Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions 
 
 There is deliberately **no** "unsubscribe all" column. "Unsubscribe from all" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
 
+**Emails sent today:**
+- *Added to a trip* — `send-member-added-email`, called by the app right after a member is added. Wording and link depend on whether the trip is upcoming, happening now, over, or undated.
+- *Journal reminder* — `journal-reminder`, a daily sweep (`netlify.toml`, 14:00 UTC ≈ 10am Eastern; production only, scheduled functions never run on deploy previews). Emails members 7–10 days after a trip's last day. The end date is derived fresh each run (start + length − 1), and `trip_email_sends` (one row per trip per end date) prevents repeats — so date edits are handled automatically: an extended trip gets one fresh reminder, and dates edited long after the fact fall outside the window and send nothing. A planner can switch it off per trip (`trips.journal_reminders_enabled`); people who already wrote in the journal are skipped. To test on a preview: `curl -H "Authorization: Bearer $EMAIL_LINK_SECRET" "<preview>/api/journal-reminder?dry_run=1&today=YYYY-MM-DD&trip=<trip id>"` (drop `dry_run` to really send).
+
 ## Local Dev
 `netlify dev` is the only correct local workflow (injects env vars). `file://` and `npx serve .` do not work. If Mac permissions error: `netlify dev --no-watch`.
 

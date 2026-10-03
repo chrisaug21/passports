@@ -1,50 +1,5 @@
 const { escapeHtml, renderEmailLayout, renderButton, COLORS } = require("./email.js");
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function parseDate(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
-  if (!match) return null;
-  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-}
-
-// Where a trip sits relative to today, from its start date and length (the
-// end date is derived, never stored): "undated", "upcoming", "active", "past".
-// Whole-day comparison in UTC — close enough for choosing which wording to
-// use, and avoids any time-zone math (see Timezone Handling in AGENTS.md).
-function getTripPhase({ startDate, tripLength }, today = new Date()) {
-  const start = parseDate(startDate);
-  const length = Number(tripLength);
-  if (!start || !Number.isInteger(length) || length < 1) return { phase: "undated", end: null };
-
-  const end = new Date(start.getTime() + (length - 1) * MS_PER_DAY);
-  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-
-  if (todayUtc < start) return { phase: "upcoming", start, end };
-  if (todayUtc <= end) return { phase: "active", start, end };
-  return { phase: "past", start, end };
-}
-
-function formatShortDate(date, withYear) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: withYear ? "numeric" : undefined,
-    timeZone: "UTC",
-  }).format(date);
-}
-
-// "Oct 11 – 19, 2026", "Oct 28 – Nov 2, 2026", "Dec 28, 2026 – Jan 3, 2027".
-function formatDateRange(start, end) {
-  if (start.getTime() === end.getTime()) return formatShortDate(start, true);
-  if (start.getUTCFullYear() !== end.getUTCFullYear()) {
-    return `${formatShortDate(start, true)} – ${formatShortDate(end, true)}`;
-  }
-  if (start.getUTCMonth() === end.getUTCMonth()) {
-    return `${formatShortDate(start, false)} – ${end.getUTCDate()}, ${end.getUTCFullYear()}`;
-  }
-  return `${formatShortDate(start, false)} – ${formatShortDate(end, true)}`;
-}
+const { getTripPhase, formatShortDate, formatDateRange } = require("./trip-dates.js");
 
 // Wording depends on when the trip is. Most people are added to a trip that
 // hasn't happened yet, but someone added afterward (to see the plan, or to
@@ -146,4 +101,4 @@ function buildMemberAddedEmail({
   };
 }
 
-module.exports = { buildMemberAddedEmail, getTripPhase, formatDateRange };
+module.exports = { buildMemberAddedEmail };
