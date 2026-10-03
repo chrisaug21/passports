@@ -1,0 +1,4 @@
+---
+exclude_paths:
+  - 'sql/**/*'
+  - 'src/lib/vendor/**/*'
