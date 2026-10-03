@@ -18,6 +18,14 @@
 [functions."journal-reminder"]
   schedule = "0 14 * * *"
 
+# Hourly sweep for the emails that follow a trip's calendar on the traveler's
+# LOCAL clock ("day 2" check-in in the evening, "starts in 3 days" in the
+# morning). Hourly because Netlify schedules are UTC and the right moment
+# differs by timezone; most runs find nothing due and send nothing. Production
+# only, like the journal reminder.
+[functions."trip-timeline"]
+  schedule = "0 * * * *"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]

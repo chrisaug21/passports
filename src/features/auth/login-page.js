@@ -1,5 +1,6 @@
 import { signIn, signUp } from "../../services/auth-service.js";
 import { showToast } from "../shared/toast.js";
+import { LOGIN_START_MODE_KEY } from "../../config/constants.js";
 
 export function renderLoginPage() {
   return `
@@ -101,6 +102,13 @@ export function wireLoginPage() {
     showSignInButton?.classList.toggle("is-active", showingSignIn);
     showSignUpButton?.classList.toggle("is-active", !showingSignIn);
   };
+
+  try {
+    if (sessionStorage.getItem(LOGIN_START_MODE_KEY) === "sign-up") setMode("sign-up");
+    sessionStorage.removeItem(LOGIN_START_MODE_KEY);
+  } catch {
+    // Storage unavailable: the page just opens on Sign In.
+  }
 
   showSignInButton?.addEventListener("click", () => setMode("sign-in"));
   showSignUpButton?.addEventListener("click", () => setMode("sign-up"));

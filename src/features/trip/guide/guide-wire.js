@@ -1,5 +1,6 @@
 import { attachScrollFade } from "../../shared/scroll-fade.js";
-import { navigate } from "../../../app/router.js";
+import { navigate, rememberReturnPath } from "../../../app/router.js";
+import { LOGIN_START_MODE_KEY } from "../../../config/constants.js";
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import {
@@ -114,6 +115,7 @@ export function wireGuideView(state) {
   _currentMode = getStoredActiveMode();
 
   wireBackLink(state.tripId);
+  wireSignedOutBanner();
   wireTabSwitching();
   wireNavClicks();
   wireOverviewAccordions();
@@ -175,6 +177,24 @@ async function ensureMembersLoaded() {
 // ---------------------------------------------------------------------------
 // Back link + topbar dashboard link
 // ---------------------------------------------------------------------------
+
+// The signed-out banner's buttons: remember this exact page (including the
+// Journal tab) so signing in brings the person back, then open the login page,
+// on the sign-up form when they chose "Create account".
+function wireSignedOutBanner() {
+  document.querySelectorAll("[data-guide-auth]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      rememberReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+      try {
+        if (link.dataset.guideAuth === "sign-up") sessionStorage.setItem(LOGIN_START_MODE_KEY, "sign-up");
+      } catch {
+        // Storage unavailable: they land on Sign In and can switch tabs.
+      }
+      navigate("/login");
+    });
+  });
+}
 
 function wireBackLink(tripId) {
   document.querySelector("[data-guide-back]")?.addEventListener("click", (event) => {
