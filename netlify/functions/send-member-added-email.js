@@ -23,100 +23,110 @@ function formatName(profile) {
   return [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
 }
 
+// Reads and checks the request. Returns { tripId, userId, caller } or an
+// { error } response to send straight back.
+async function readRequest(event) {
+  let payload;
+  try {
+    payload = JSON.parse(event.body || "{}");
+  } catch {
+    return { error: json(400, { error: "Invalid request." }) };
+  }
+
+  const { tripId, userId } = payload;
+  if (!UUID_PATTERN.test(tripId || "") || !UUID_PATTERN.test(userId || "")) {
+    return { error: json(400, { error: "Invalid request." }) };
+  }
+
+  const accessToken = (event.headers?.authorization || event.headers?.Authorization || "").replace(/^Bearer\s+/i, "");
+  const caller = await admin.getUserFromToken(accessToken);
+  if (!caller) return { error: json(401, { error: "Please sign in again." }) };
+  return { tripId, userId, caller };
+}
+
+// The caller must be an active member of this trip themselves.
+async function isActiveMember(tripId, userId) {
+  const rows = await admin.select("trip_members", {
+    select: "id",
+    trip_id: `eq.${tripId}`,
+    user_id: `eq.${userId}`,
+    deleted_at: "is.null",
+  });
+  return rows.length > 0;
+}
+
+// Claims the one-time right to email this member. If the filters match
+// nothing (already emailed, too old, or not a member) there is nothing to
+// send — and a repeat call can never send a second email.
+async function claimWelcomeEmail(tripId, userId) {
+  const claimed = await admin.update(
+    "trip_members",
+    {
+      trip_id: `eq.${tripId}`,
+      user_id: `eq.${userId}`,
+      deleted_at: "is.null",
+      added_email_sent_at: "is.null",
+      invited_at: `gte.${new Date(Date.now() - MAX_MEMBERSHIP_AGE_MS).toISOString()}`,
+    },
+    { added_email_sent_at: new Date().toISOString() }
+  );
+  return claimed.length > 0;
+}
+
+// Composes and sends the email. Returns whether it was sent.
+async function composeAndSend({ event, tripId, userId, callerId, linkSecret }) {
+  const column = EMAIL_KINDS.member_added.column;
+  const [trips, recipientProfiles, inviterProfiles, recipientEmail, photos] = await Promise.all([
+    admin.select("trips", { select: "id,title,start_date,trip_length", id: `eq.${tripId}`, deleted_at: "is.null" }),
+    admin.select("user_profiles", { select: `first_name,${column}`, id: `eq.${userId}` }),
+    admin.select("user_profiles", { select: "first_name,last_name", id: `eq.${callerId}` }),
+    admin.getEmailForUser(userId),
+    admin.select("trip_photos", heroPhotoParams(tripId)),
+  ]);
+
+  const trip = trips[0];
+  const recipientProfile = recipientProfiles[0];
+  if (!trip || !recipientEmail) return false;
+
+  // No profile row yet means they've never touched their settings: default on.
+  if (recipientProfile && recipientProfile[column] === false) return false;
+
+  const baseUrl = getAppBaseUrl(event);
+  const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, "member_added", linkSecret);
+  const { subject, html, text } = buildMemberAddedEmail({
+    trip,
+    inviterName: formatName(inviterProfiles[0]) || "Someone",
+    recipientFirstName: recipientProfile?.first_name,
+    photo: await buildEmailPhoto(photos[0]),
+    baseUrl,
+    unsubscribeUrl,
+  });
+
+  return sendEmail({ to: recipientEmail, subject, html, text, unsubscribeUrl });
+}
+
 // Called by the app right after a planner adds someone to a trip. Always
 // best-effort: the member is already added by the time this runs, so nothing
 // here may make that look like it failed.
 exports.handler = async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." });
 
-  const linkSecret = process.env.EMAIL_LINK_SECRET;
   const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SECRET_KEY", "EMAIL_LINK_SECRET", "RESEND_API_KEY"]);
   if (missingEnv.length) {
     console.error(`send-member-added-email: not configured on this deploy. Missing: ${missingEnv.join(", ")}`);
     return json(503, { sent: false });
   }
 
-  let payload;
-  try {
-    payload = JSON.parse(event.body || "{}");
-  } catch {
-    return json(400, { error: "Invalid request." });
-  }
-
-  const { tripId, userId } = payload;
-  if (!UUID_PATTERN.test(tripId || "") || !UUID_PATTERN.test(userId || "")) {
-    return json(400, { error: "Invalid request." });
-  }
-
-  const accessToken = (event.headers?.authorization || event.headers?.Authorization || "").replace(/^Bearer\s+/i, "");
-  const caller = await admin.getUserFromToken(accessToken);
-  if (!caller) return json(401, { error: "Please sign in again." });
+  const request = await readRequest(event);
+  if (request.error) return request.error;
+  const { tripId, userId, caller } = request;
   if (caller.id === userId) return json(200, { sent: false });
 
   try {
-    // The caller must be an active member of this trip themselves.
-    const callerMembership = await admin.select("trip_members", {
-      select: "id",
-      trip_id: `eq.${tripId}`,
-      user_id: `eq.${caller.id}`,
-      deleted_at: "is.null",
-    });
-    if (!callerMembership.length) return json(403, { error: "Not allowed." });
+    if (!(await isActiveMember(tripId, caller.id))) return json(403, { error: "Not allowed." });
+    if (!(await claimWelcomeEmail(tripId, userId))) return json(200, { sent: false });
 
-    // Claim the one-time right to email this member. If the filters match
-    // nothing (already emailed, too old, or not a member) there is nothing to
-    // send — and a repeat call can never send a second email.
-    const claimed = await admin.update(
-      "trip_members",
-      {
-        trip_id: `eq.${tripId}`,
-        user_id: `eq.${userId}`,
-        deleted_at: "is.null",
-        added_email_sent_at: "is.null",
-        invited_at: `gte.${new Date(Date.now() - MAX_MEMBERSHIP_AGE_MS).toISOString()}`,
-      },
-      { added_email_sent_at: new Date().toISOString() }
-    );
-    if (!claimed.length) return json(200, { sent: false });
-
-    const kind = EMAIL_KINDS.member_added;
-    const [trips, recipientProfiles, inviterProfiles, recipientEmail, photos] = await Promise.all([
-      admin.select("trips", { select: "id,title,start_date,trip_length", id: `eq.${tripId}`, deleted_at: "is.null" }),
-      admin.select("user_profiles", { select: `first_name,${kind.column}`, id: `eq.${userId}` }),
-      admin.select("user_profiles", { select: "first_name,last_name", id: `eq.${caller.id}` }),
-      admin.getEmailForUser(userId),
-      admin.select("trip_photos", heroPhotoParams(tripId)),
-    ]);
-
-    const trip = trips[0];
-    const recipientProfile = recipientProfiles[0];
-    if (!trip || !recipientEmail) return json(200, { sent: false });
-
-    // No profile row yet means they've never touched their settings: default on.
-    if (recipientProfile && recipientProfile[kind.column] === false) return json(200, { sent: false });
-
-    const baseUrl = getAppBaseUrl(event);
-    const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, "member_added", linkSecret);
-
-    const photo = await buildEmailPhoto(photos[0]);
-
-    const { subject, html, text } = buildMemberAddedEmail({
-      trip,
-      inviterName: formatName(inviterProfiles[0]) || "Someone",
-      recipientFirstName: recipientProfile?.first_name,
-      photo,
-      baseUrl,
-      unsubscribeUrl,
-    });
-
-    const sent = await sendEmail({
-      to: recipientEmail,
-      subject,
-      html,
-      text,
-      unsubscribeUrl,
-    });
-
+    const sent = await composeAndSend({ event, tripId, userId, callerId: caller.id, linkSecret: process.env.EMAIL_LINK_SECRET });
     return json(200, { sent });
   } catch (error) {
     console.error("send-member-added-email failed:", error);

@@ -1,5 +1,5 @@
 const { EMAIL_KINDS, ALL_EMAIL_COLUMNS, verifyUnsubscribeToken } = require("../lib/email-prefs.js");
-const { getMissingEmailEnv, getAppBaseUrl, escapeHtml } = require("../lib/email.js");
+const { html, raw, getMissingEmailEnv, getAppBaseUrl } = require("../lib/email.js");
 const admin = require("../lib/supabase-admin.js");
 
 // The page an email's unsubscribe link opens. It works with no login: the
@@ -41,11 +41,11 @@ const PAGE_STYLES = `
   a { color: inherit; }
 `;
 
-function page(statusCode, bodyHtml) {
-  return {
-    statusCode,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-    body: `<!doctype html>
+// Every page is built with html``, which escapes each inserted value unless it
+// was wrapped in raw() — so nothing from the request (or the database) can be
+// read as markup. Only the fixed stylesheet is passed through raw().
+function page(statusCode, content) {
+  const document = html`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -55,58 +55,64 @@ function page(statusCode, bodyHtml) {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Instrument+Sans:wght@400;500;600&display=swap" />
-    <style>${PAGE_STYLES}</style>
+    <style>${raw(PAGE_STYLES)}</style>
   </head>
   <body>
     <main>
       <p class="wordmark">Passports</p>
-      <div class="card">${bodyHtml}</div>
+      <div class="card">${content}</div>
     </main>
   </body>
-</html>`,
+</html>`;
+
+  return {
+    statusCode,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    body: document.value,
   };
 }
 
 function messagePage(statusCode, heading, message, baseUrl) {
   return page(
     statusCode,
-    `<h1>${escapeHtml(heading)}</h1>
-     <p class="muted" style="margin:0;">${message} You can change your email settings any time from Settings inside <a href="${escapeHtml(baseUrl)}/app">Passports</a>.</p>`
+    html`<h1>${heading}</h1>
+     <p class="muted" style="margin:0;">${message} You can change your email settings any time from Settings inside <a href="${baseUrl}/app">Passports</a>.</p>`
   );
+}
+
+function renderSwitchRow(kind, config, isOn) {
+  return html`
+        <div class="row">
+          <div>
+            <span class="row__label">${config.title}</span>
+            <span class="row__description">${config.description}</span>
+          </div>
+          <label class="switch" aria-label="${config.title}">
+            <input type="checkbox" name="${kind}" ${raw(isOn ? "checked" : "")} />
+            <span aria-hidden="true"></span>
+          </label>
+        </div>`;
 }
 
 // `values` is { <kind>: boolean }. `notice` is an optional "Saved" banner.
 function renderSettingsPage({ token, values, notice, baseUrl }) {
   const action = `${baseUrl}/api/email-unsubscribe?t=${encodeURIComponent(token)}`;
-  const rows = Object.entries(EMAIL_KINDS)
-    .map(
-      ([kind, config]) => `
-        <div class="row">
-          <div>
-            <span class="row__label">${escapeHtml(config.title)}</span>
-            <span class="row__description">${escapeHtml(config.description)}</span>
-          </div>
-          <label class="switch" aria-label="${escapeHtml(config.title)}">
-            <input type="checkbox" name="${escapeHtml(kind)}" ${values[kind] ? "checked" : ""} />
-            <span aria-hidden="true"></span>
-          </label>
-        </div>`
-    )
-    .join("");
+  const rows = Object.entries(EMAIL_KINDS).map(([kind, config]) => renderSwitchRow(kind, config, values[kind]));
+  const noticeHtml = notice ? html`<p class="notice" role="status">${notice}</p>` : raw("");
 
   return page(
     200,
-    `<h1>Email settings</h1>
+    html`<h1>Email settings</h1>
      <p class="muted lede">Choose which emails Passports sends you.</p>
-     ${notice ? `<p class="notice" role="status">${escapeHtml(notice)}</p>` : ""}
-     <form method="post" action="${escapeHtml(action)}">
-       <div class="list">${rows}</div>
+     ${noticeHtml}
+     <form method="post" action="${action}">
+       <div class="list">${raw(rows.map((row) => row.value).join(""))}</div>
        <div class="actions">
          <button class="save" type="submit" name="action" value="save">Save</button>
          <button class="link" type="submit" name="action" value="all">Unsubscribe from all emails</button>
        </div>
      </form>
-     <p class="muted footer"><a href="${escapeHtml(baseUrl)}/app">Open Passports</a></p>`
+     <p class="muted footer"><a href="${baseUrl}/app">Open Passports</a></p>`
   );
 }
 

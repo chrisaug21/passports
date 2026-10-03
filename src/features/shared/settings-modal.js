@@ -229,26 +229,37 @@ function formatDateTime(value) {
 // Email preferences
 // ---------------------------------------------------------------------------
 
-function renderEmailPreferenceRows(preferences) {
-  return EMAIL_PREFERENCE_OPTIONS.map(
-    (option) => `
-      <div class="settings-email-row">
-        <div class="settings-email-row__text">
-          <span class="settings-email-row__label">${escapeHtml(option.label)}</span>
-          <span class="muted settings-email-row__description">${escapeHtml(option.description)}</span>
-        </div>
-        <label class="toggle-switch" aria-label="${escapeHtml(option.label)}">
-          <input
-            type="checkbox"
-            class="toggle-switch__input"
-            data-email-preference="${escapeHtml(option.column)}"
-            ${preferences[option.column] === false ? "" : "checked"}
-          />
-          <span class="toggle-switch__track" aria-hidden="true"></span>
-        </label>
-      </div>
-    `
-  ).join("");
+// Built with DOM calls rather than an HTML string, so nothing from the data can
+// be read as markup.
+function createEmailPreferenceRow(option, preferences) {
+  const row = document.createElement("div");
+  row.className = "settings-email-row";
+
+  const text = document.createElement("div");
+  text.className = "settings-email-row__text";
+  const label = document.createElement("span");
+  label.className = "settings-email-row__label";
+  label.textContent = option.label;
+  const description = document.createElement("span");
+  description.className = "muted settings-email-row__description";
+  description.textContent = option.description;
+  text.append(label, description);
+
+  const toggle = document.createElement("label");
+  toggle.className = "toggle-switch";
+  toggle.setAttribute("aria-label", option.label);
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.className = "toggle-switch__input";
+  input.setAttribute("data-email-preference", option.column);
+  input.checked = preferences[option.column] !== false;
+  const track = document.createElement("span");
+  track.className = "toggle-switch__track";
+  track.setAttribute("aria-hidden", "true");
+  toggle.append(input, track);
+
+  row.append(text, toggle);
+  return row;
 }
 
 function getEmailPreferenceInputs() {
@@ -286,7 +297,7 @@ async function loadEmailPreferences() {
 
   try {
     const preferences = await fetchEmailPreferences(userId);
-    listEl.innerHTML = renderEmailPreferenceRows(preferences);
+    listEl.replaceChildren(...EMAIL_PREFERENCE_OPTIONS.map((option) => createEmailPreferenceRow(option, preferences)));
     wireEmailPreferences(userId);
     syncTurnAllOffButton();
   } catch (error) {

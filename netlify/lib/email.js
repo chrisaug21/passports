@@ -36,13 +36,32 @@ function getAppBaseUrl(event) {
   return (process.env.URL || PRODUCTION_URL).replace(/\/$/, "");
 }
 
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
 function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return String(value ?? "").replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+}
+
+// Marks a string as already-safe markup, for use inside html`...`.
+class SafeHtml {
+  constructor(value) {
+    this.value = value;
+  }
+}
+
+function raw(value) {
+  return new SafeHtml(String(value));
+}
+
+// Tagged template that escapes every ${value} unless it was wrapped in raw().
+// Escape-by-default: forgetting to escape something is impossible, and
+// fragments built with html`` can be nested inside each other safely.
+function html(strings, ...values) {
+  const out = strings.reduce((result, chunk, index) => {
+    const value = values[index - 1];
+    return result + (value instanceof SafeHtml ? value.value : escapeHtml(value)) + chunk;
+  });
+  return new SafeHtml(out);
 }
 
 // Email clients ignore CSS variables, so these mirror the design tokens in
@@ -190,4 +209,4 @@ function getMissingEmailEnv(names) {
   return names.filter((name) => !process.env[name]);
 }
 
-module.exports = { sendEmailBatch, COLORS, getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };
+module.exports = { html, raw, sendEmailBatch, COLORS, getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };

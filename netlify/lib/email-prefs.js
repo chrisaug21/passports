@@ -1,5 +1,7 @@
 const crypto = require("crypto");
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Every email Passports can send, keyed by a short id. `column` is the
 // boolean on user_profiles that switches it on/off for a person.
 //
@@ -56,7 +58,7 @@ function verifyUnsubscribeToken(token, secret) {
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
 
   const [userId, kind] = Buffer.from(payload, "base64url").toString("utf8").split(".");
-  if (!userId || !EMAIL_KINDS[kind]) return null;
+  if (!UUID_PATTERN.test(userId || "") || !Object.hasOwn(EMAIL_KINDS, kind)) return null;
   return { userId, kind };
 }
 

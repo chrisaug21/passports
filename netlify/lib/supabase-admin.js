@@ -6,6 +6,8 @@
 // read from process.env on the server, never sent to a browser, and every
 // caller must do its own permission check first.
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function getConfig() {
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SECRET_KEY;
@@ -25,9 +27,17 @@ function adminHeaders(serviceKey, extra) {
   };
 }
 
+const TABLE_NAME_PATTERN = /^[a-z_]+$/;
+
+// Codacy flags the fetch below as user-controlled-URL / SSRF (CWE-918) — a
+// false positive: the host is always process.env.SUPABASE_URL, and `table` is
+// a literal written in this repo's own code, never request input (and is
+// checked against TABLE_NAME_PATTERN anyway). Documented rather than
+// restructured, same as mcp-server/src/lib/supabase-rest.js.
 async function restRequest(method, table, params, body, { prefer } = {}) {
   const config = getConfig();
   if (!config) throw new Error("Secret key is not configured.");
+  if (!TABLE_NAME_PATTERN.test(table)) throw new Error("Invalid table name.");
 
   const query = new URLSearchParams(params || {}).toString();
   const response = await fetch(`${config.url}/rest/v1/${table}${query ? `?${query}` : ""}`, {
@@ -91,7 +101,8 @@ async function getEmailForUser(userId) {
   const config = getConfig();
   if (!config) return null;
 
-  const response = await fetch(`${config.url}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+  if (!UUID_PATTERN.test(String(userId))) return null;
+  const response = await fetch(`${config.url}/auth/v1/admin/users/${userId}`, {
     headers: adminHeaders(config.serviceKey),
   });
   if (!response.ok) return null;
