@@ -163,7 +163,7 @@ exports.handler = async function handler(event) {
   const today = query.today && /^\d{4}-\d{2}-\d{2}$/.test(query.today) ? query.today : getTodayEastern();
   const dryRun = query.dry_run === "1";
   const onlyTripId = query.trip || null;
-  const baseUrl = getAppBaseUrl();
+  const baseUrl = getAppBaseUrl(event);
   const linkSecret = process.env.EMAIL_LINK_SECRET;
 
   try {

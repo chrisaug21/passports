@@ -95,7 +95,7 @@ exports.handler = async function handler(event) {
     // No profile row yet means they've never touched their settings: default on.
     if (recipientProfile && recipientProfile[kind.column] === false) return json(200, { sent: false });
 
-    const baseUrl = getAppBaseUrl();
+    const baseUrl = getAppBaseUrl(event);
     const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, "member_added", linkSecret);
 
     const photo = await buildEmailPhoto(photos[0]);

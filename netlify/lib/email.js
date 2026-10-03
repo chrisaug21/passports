@@ -5,14 +5,35 @@ const FROM_ADDRESS = "Passports <passports@mail.chrisaug.com>";
 const PRODUCTION_URL = "https://passports.chrisaug.com";
 
 // Links in an email must point at the site the email was sent from. Netlify's
-// `URL` variable is always the PRODUCTION site, even on a deploy preview, so
-// on anything other than production use DEPLOY_PRIME_URL (the preview's own
-// address) — otherwise a preview's unsubscribe/trip links would point at
-// production, which doesn't have unmerged changes yet.
-function getAppBaseUrl() {
-  const isProduction = !process.env.CONTEXT || process.env.CONTEXT === "production";
-  const url = (!isProduction && process.env.DEPLOY_PRIME_URL) || process.env.URL || PRODUCTION_URL;
-  return url.replace(/\/$/, "");
+// build-time variables (URL, DEPLOY_PRIME_URL, CONTEXT) don't reliably reach a
+// running function, and URL is always the PRODUCTION site even on a deploy
+// preview — so a preview's unsubscribe/trip links would point at production,
+// which doesn't have unmerged changes yet (a 404). Instead, use the address
+// the request actually arrived on. Only this site's own addresses are
+// accepted, so a forged header can't make an email link somewhere else.
+// With no request to look at (the daily scheduled sweep), it's production.
+const PRODUCTION_HOST = new URL(PRODUCTION_URL).hostname;
+const SITE_HOST_PATTERN = /^([a-z0-9-]+--)?passports-app\.netlify\.app$/;
+
+function getAppBaseUrl(event) {
+  const headers = event?.headers || {};
+  const candidates = [
+    event?.rawUrl,
+    headers["x-forwarded-host"] && `https://${String(headers["x-forwarded-host"]).split(",")[0].trim()}`,
+    headers.host && `https://${headers.host}`,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      if (url.hostname === PRODUCTION_HOST || SITE_HOST_PATTERN.test(url.hostname)) return `https://${url.hostname}`;
+    } catch {
+      // Not a usable URL — try the next source.
+    }
+  }
+
+  return (process.env.URL || PRODUCTION_URL).replace(/\/$/, "");
 }
 
 function escapeHtml(value) {

@@ -29,17 +29,17 @@ function page(statusCode, heading, bodyHtml) {
 
 const BUTTON_STYLE = "display:block;width:100%;box-sizing:border-box;margin:0 0 12px;padding:12px 16px;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;";
 
-function invalidLinkPage() {
+function invalidLinkPage(baseUrl) {
   return page(
     400,
     "This link isn't valid",
-    `<p style="margin:0;">You can change your email settings any time from Settings inside <a href="${escapeHtml(getAppBaseUrl())}/app">Passports</a>.</p>`
+    `<p style="margin:0;">You can change your email settings any time from Settings inside <a href="${escapeHtml(baseUrl)}/app">Passports</a>.</p>`
   );
 }
 
-function renderChoicePage(token, kind) {
+function renderChoicePage(token, kind, baseUrl) {
   const label = EMAIL_KINDS[kind].label;
-  const action = `${getAppBaseUrl()}/api/email-unsubscribe?t=${encodeURIComponent(token)}`;
+  const action = `${baseUrl}/api/email-unsubscribe?t=${encodeURIComponent(token)}`;
   return page(
     200,
     "Email settings",
@@ -54,6 +54,7 @@ function renderChoicePage(token, kind) {
 // Turning something off is always the same operation: set that email's
 // column(s) to false. There is no separate "unsubscribed from all" flag.
 exports.handler = async function handler(event) {
+  const baseUrl = getAppBaseUrl(event);
   const secret = process.env.EMAIL_LINK_SECRET;
   const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_SECRET_KEY", "EMAIL_LINK_SECRET"]);
   if (missingEnv.length) {
@@ -63,12 +64,12 @@ exports.handler = async function handler(event) {
 
   const token = event.queryStringParameters?.t || "";
   const verified = verifyUnsubscribeToken(token, secret);
-  if (!verified) return invalidLinkPage();
+  if (!verified) return invalidLinkPage(baseUrl);
 
   // Opening the link only shows the choice. Some mail systems pre-open every
   // link in an email, so changing anything on GET would unsubscribe people
   // who never asked to be.
-  if (event.httpMethod === "GET") return renderChoicePage(token, verified.kind);
+  if (event.httpMethod === "GET") return renderChoicePage(token, verified.kind, baseUrl);
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
 
   const rawBody = event.isBase64Encoded ? Buffer.from(event.body || "", "base64").toString("utf8") : event.body || "";
@@ -84,7 +85,7 @@ exports.handler = async function handler(event) {
     await admin.upsert("user_profiles", values, "id");
   } catch (error) {
     console.error("email-unsubscribe failed:", error);
-    return page(500, "Something went wrong", `<p style="margin:0;">Please try again, or change this in Settings inside <a href="${escapeHtml(getAppBaseUrl())}/app">Passports</a>.</p>`);
+    return page(500, "Something went wrong", `<p style="margin:0;">Please try again, or change this in Settings inside <a href="${escapeHtml(baseUrl)}/app">Passports</a>.</p>`);
   }
 
   const message = scope === "all" ? "You won't get any more emails from Passports." : `You won't get emails about ${EMAIL_KINDS[verified.kind].label} anymore.`;
@@ -92,6 +93,6 @@ exports.handler = async function handler(event) {
     200,
     "You're all set",
     `<p style="margin:0 0 12px;">${escapeHtml(message)}</p>
-     <p style="margin:0;color:#5F6B7C;font-size:14px;">Changed your mind? You can turn emails back on any time from Settings inside <a href="${escapeHtml(getAppBaseUrl())}/app">Passports</a>.</p>`
+     <p style="margin:0;color:#5F6B7C;font-size:14px;">Changed your mind? You can turn emails back on any time from Settings inside <a href="${escapeHtml(baseUrl)}/app">Passports</a>.</p>`
   );
 };
