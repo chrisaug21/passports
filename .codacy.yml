@@ -2,3 +2,6 @@
 exclude_paths:
   - 'sql/**/*'
   - 'src/lib/vendor/**/*'
+  # CLAUDE.md and AGENTS.md intentionally mirror each other (different agents read each)
+  - 'CLAUDE.md'
+  - 'AGENTS.md'
