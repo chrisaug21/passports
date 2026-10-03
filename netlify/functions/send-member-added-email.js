@@ -1,6 +1,11 @@
 const { EMAIL_KINDS, buildUnsubscribeUrl } = require("../lib/email-prefs.js");
-const { getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail } = require("../lib/email.js");
+const { getMissingEmailEnv, getAppBaseUrl, sendEmail } = require("../lib/email.js");
+const { buildMemberAddedEmail } = require("../lib/member-added-email.js");
 const admin = require("../lib/supabase-admin.js");
+
+// Public bucket holding uploaded trip photos (see PHOTO_BUCKET in
+// src/services/photos-service.js). The "-720x480" file is the mid-size copy.
+const PHOTO_BUCKET = "trip-photos";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,6 +20,22 @@ function json(statusCode, body) {
     headers: { "content-type": "application/json", "cache-control": "no-store" },
     body: JSON.stringify(body),
   };
+}
+
+// The mid-size copy ("-720x480") keeps the email light, but photos uploaded
+// before the app made size variants only have the full-size file — so check
+// for the smaller one and fall back rather than emailing a broken image.
+async function getEmailPhotoUrl(storagePath) {
+  const publicBase = `${process.env.SUPABASE_URL}/storage/v1/object/public/${PHOTO_BUCKET}`;
+  const fullUrl = `${publicBase}/${storagePath}`;
+  const previewUrl = `${publicBase}/${storagePath.replace(/(\.[^./]+)$/, "-720x480$1")}`;
+
+  try {
+    const response = await fetch(previewUrl, { method: "HEAD" });
+    return response.ok ? previewUrl : fullUrl;
+  } catch {
+    return fullUrl;
+  }
 }
 
 function formatName(profile) {
@@ -78,11 +99,21 @@ exports.handler = async function handler(event) {
     if (!claimed.length) return json(200, { sent: false });
 
     const kind = EMAIL_KINDS.member_added;
-    const [trips, recipientProfiles, inviterProfiles, recipientEmail] = await Promise.all([
-      admin.select("trips", { select: "id,title", id: `eq.${tripId}`, deleted_at: "is.null" }),
+    const [trips, recipientProfiles, inviterProfiles, recipientEmail, photos] = await Promise.all([
+      admin.select("trips", { select: "id,title,start_date,trip_length", id: `eq.${tripId}`, deleted_at: "is.null" }),
       admin.select("user_profiles", { select: `first_name,${kind.column}`, id: `eq.${userId}` }),
       admin.select("user_profiles", { select: "first_name,last_name", id: `eq.${caller.id}` }),
       admin.getEmailForUser(userId),
+      admin.select("trip_photos", {
+        select: "storage_path,source,credit_name",
+        trip_id: `eq.${tripId}`,
+        is_primary: "eq.true",
+        base_id: "is.null",
+        day_id: "is.null",
+        item_id: "is.null",
+        order: "updated_at.desc",
+        limit: "1",
+      }),
     ]);
 
     const trip = trips[0];
@@ -93,36 +124,28 @@ exports.handler = async function handler(event) {
     if (recipientProfile && recipientProfile[kind.column] === false) return json(200, { sent: false });
 
     const baseUrl = getAppBaseUrl();
-    const tripUrl = `${baseUrl}/app/trip/${tripId}`;
     const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, "member_added", linkSecret);
-    const inviterName = formatName(inviterProfiles[0]) || "Someone";
-    const greeting = recipientProfile?.first_name ? `Hi ${escapeHtml(recipientProfile.first_name)},` : "Hi,";
 
-    const html = renderEmailLayout({
-      preheader: `${inviterName} added you to ${trip.title} on Passports.`,
-      bodyHtml: `
-        <p style="margin:0 0 16px;">${greeting}</p>
-        <p style="margin:0 0 24px;"><strong>${escapeHtml(inviterName)}</strong> added you to the trip <strong>${escapeHtml(trip.title)}</strong> on Passports. You can now see the plan and help build it.</p>
-        <p style="margin:0;">${renderButton(tripUrl, "Open trip")}</p>
-      `,
+    const photoRow = photos[0];
+    const photo = photoRow?.storage_path
+      ? {
+          url: await getEmailPhotoUrl(photoRow.storage_path),
+          creditName: photoRow.source === "unsplash" ? photoRow.credit_name : null,
+        }
+      : null;
+
+    const { subject, html, text } = buildMemberAddedEmail({
+      trip,
+      inviterName: formatName(inviterProfiles[0]) || "Someone",
+      recipientFirstName: recipientProfile?.first_name,
+      photo,
+      baseUrl,
       unsubscribeUrl,
-      unsubscribeLabel: "Stop emails when I'm added to a trip",
-      settingsUrl: `${baseUrl}/app`,
     });
-
-    const text = [
-      recipientProfile?.first_name ? `Hi ${recipientProfile.first_name},` : "Hi,",
-      "",
-      `${inviterName} added you to the trip "${trip.title}" on Passports.`,
-      "",
-      `Open trip: ${tripUrl}`,
-      "",
-      `Stop emails when I'm added to a trip: ${unsubscribeUrl}`,
-    ].join("\n");
 
     const sent = await sendEmail({
       to: recipientEmail,
-      subject: `You've been added to ${trip.title}`,
+      subject,
       html,
       text,
       unsubscribeUrl,

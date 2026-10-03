@@ -33,7 +33,7 @@ const COLORS = {
 
 // Wraps a body in the shared Passports frame: wordmark, content card, and a
 // footer with the unsubscribe controls every email must carry.
-function renderEmailLayout({ preheader, bodyHtml, unsubscribeUrl, unsubscribeLabel, settingsUrl }) {
+function renderEmailLayout({ preheader, heroHtml = "", bodyHtml, unsubscribeUrl, unsubscribeLabel, settingsUrl }) {
   return `<!doctype html>
 <html lang="en">
   <body style="margin:0;padding:0;background:${COLORS.background};">
@@ -46,8 +46,11 @@ function renderEmailLayout({ preheader, bodyHtml, unsubscribeUrl, unsubscribeLab
               <td style="padding:0 4px 16px;font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:${COLORS.text};">Passports</td>
             </tr>
             <tr>
-              <td style="background:${COLORS.surface};border:1px solid ${COLORS.border};border-radius:12px;padding:28px;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:${COLORS.text};">
-                ${bodyHtml}
+              <td style="background:${COLORS.surface};border:1px solid ${COLORS.border};border-top:4px solid ${COLORS.action};border-radius:12px;overflow:hidden;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:${COLORS.text};">
+                ${heroHtml}
+                <div style="padding:28px;">
+                  ${bodyHtml}
+                </div>
               </td>
             </tr>
             <tr>
@@ -116,4 +119,4 @@ function getMissingEmailEnv(names) {
   return names.filter((name) => !process.env[name]);
 }
 
-module.exports = { getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };
+module.exports = { COLORS, getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };
