@@ -1,7 +1,13 @@
 import { escapeHtml } from "../trip/detail/trip-detail-ui.js";
 import { showToast } from "./toast.js";
 import { fetchMcpConnections, revokeMcpConnection } from "../../services/mcp-connections-service.js";
-import { fetchUserProfile, updateMapsAppPreference } from "../../services/journal-service.js";
+import {
+  fetchEmailPreferences,
+  fetchUserProfile,
+  updateEmailPreferences,
+  updateMapsAppPreference,
+} from "../../services/journal-service.js";
+import { EMAIL_PREFERENCE_OPTIONS } from "../../config/constants.js";
 import { getMapsAppPreference, getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../../lib/preferences.js";
 import { sessionStore } from "../../state/session-store.js";
 
@@ -25,6 +31,7 @@ export function openSettingsModal() {
   wireSettingsModal();
   void loadConnections();
   void refreshMapsAppPreference();
+  void loadEmailPreferences();
 }
 
 function renderSettingsModalHTML() {
@@ -51,6 +58,15 @@ function renderSettingsModalHTML() {
               `
             ).join("")}
           </div>
+        </section>
+
+        <section class="settings-modal__section">
+          <h4 class="settings-modal__section-title">Email</h4>
+          <p class="muted settings-modal__section-copy">Choose which emails Passports sends you.</p>
+          <div id="email-preferences-list" class="settings-email-list">
+            <p class="muted">Loading…</p>
+          </div>
+          <button class="settings-email-unsubscribe" id="email-turn-all-off" type="button" disabled>Unsubscribe from all emails</button>
         </section>
 
         <section class="settings-modal__section">
@@ -207,4 +223,127 @@ function formatDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+// ---------------------------------------------------------------------------
+// Email preferences
+// ---------------------------------------------------------------------------
+
+// Built with DOM calls rather than an HTML string, so nothing from the data can
+// be read as markup.
+function createEmailPreferenceRow(option, preferences) {
+  const row = document.createElement("div");
+  row.className = "settings-email-row";
+
+  const text = document.createElement("div");
+  text.className = "settings-email-row__text";
+  const label = document.createElement("span");
+  label.className = "settings-email-row__label";
+  label.textContent = option.label;
+  const description = document.createElement("span");
+  description.className = "muted settings-email-row__description";
+  description.textContent = option.description;
+  text.append(label, description);
+
+  const toggle = document.createElement("label");
+  toggle.className = "toggle-switch";
+  toggle.setAttribute("aria-label", option.label);
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.className = "toggle-switch__input";
+  input.setAttribute("data-email-preference", option.column);
+  input.checked = preferences[option.column] !== false;
+  const track = document.createElement("span");
+  track.className = "toggle-switch__track";
+  track.setAttribute("aria-hidden", "true");
+  toggle.append(input, track);
+
+  row.append(text, toggle);
+  return row;
+}
+
+function getEmailPreferenceInputs() {
+  return [...document.querySelectorAll("[data-email-preference]")];
+}
+
+// "Unsubscribe from all" has nothing to do once every switch is already off, so it
+// disables itself rather than showing a separate "unsubscribed from all" state.
+function syncTurnAllOffButton() {
+  const button = document.querySelector("#email-turn-all-off");
+  if (!button) return;
+  const inputs = getEmailPreferenceInputs();
+  button.disabled = inputs.length === 0 || inputs.every((input) => !input.checked);
+}
+
+function setEmailPreferencesBusy(busy) {
+  getEmailPreferenceInputs().forEach((input) => {
+    input.disabled = busy;
+  });
+  const button = document.querySelector("#email-turn-all-off");
+  if (button && busy) button.disabled = true;
+  if (!busy) syncTurnAllOffButton();
+}
+
+async function loadEmailPreferences() {
+  const listEl = document.querySelector("#email-preferences-list");
+  if (!listEl) return;
+
+  const { session } = sessionStore.getState();
+  const userId = session?.user?.id;
+  if (!userId) {
+    listEl.innerHTML = `<p class="muted">Sign in to manage email settings.</p>`;
+    return;
+  }
+
+  try {
+    const preferences = await fetchEmailPreferences(userId);
+    listEl.replaceChildren(...EMAIL_PREFERENCE_OPTIONS.map((option) => createEmailPreferenceRow(option, preferences)));
+    wireEmailPreferences(userId);
+    syncTurnAllOffButton();
+  } catch (error) {
+    console.error(error);
+    listEl.innerHTML = `<p class="muted">Couldn't load email settings right now.</p>`;
+  }
+}
+
+function wireEmailPreferences(userId) {
+  getEmailPreferenceInputs().forEach((input) => {
+    input.addEventListener("change", async () => {
+      const column = input.getAttribute("data-email-preference");
+      const nextValue = input.checked;
+
+      setEmailPreferencesBusy(true);
+      try {
+        await updateEmailPreferences(userId, { [column]: nextValue });
+      } catch (error) {
+        console.error(error);
+        input.checked = !nextValue;
+        showToast("Couldn't save that. Try again.", "error");
+      } finally {
+        setEmailPreferencesBusy(false);
+      }
+    });
+  });
+
+  document.querySelector("#email-turn-all-off")?.addEventListener("click", async () => {
+    const values = Object.fromEntries(EMAIL_PREFERENCE_OPTIONS.map((option) => [option.column, false]));
+    const previouslyChecked = getEmailPreferenceInputs().filter((input) => input.checked);
+
+    setEmailPreferencesBusy(true);
+    try {
+      await updateEmailPreferences(userId, values);
+      getEmailPreferenceInputs().forEach((input) => {
+        input.checked = false;
+      });
+      showToast("Unsubscribed from all emails.", "success");
+    } catch (error) {
+      console.error(error);
+      previouslyChecked.forEach((input) => {
+        input.checked = true;
+      });
+      showToast("Couldn't save that. Try again.", "error");
+    } finally {
+      setEmailPreferencesBusy(false);
+    }
+  });
 }

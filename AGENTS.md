@@ -182,6 +182,24 @@ idea → option → shortlisted → confirmed → reserved — this is the `stat
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `UNSPLASH_ACCESS_KEY`
+- `RESEND_API_KEY` — server-only (Netlify functions); sending-access key for the `mail.chrisaug.com` domain
+- `EMAIL_LINK_SECRET` — server-only; signs unsubscribe links (generate with `openssl rand -hex 32`)
+- `SUPABASE_SECRET_KEY` — server-only; bypasses all access rules, so never expose it to the browser and permission-check before every use (`netlify/lib/supabase-admin.js`)
+
+## Emails
+Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions (`netlify/functions/`, shared code in `netlify/lib/`). Email is always best-effort — a failed email must never make the user's action look like it failed.
+
+**Every new email type needs all of these:**
+1. A per-person on/off column on `user_profiles` (`email_*`, boolean) via a `sql/` migration. Default `true` for everyone — except people whose existing `email_*` columns are all `false`: they get `false`, so a new email type can't override someone who turned everything off.
+2. An entry in `EMAIL_KINDS` (`netlify/lib/email-prefs.js`) **and** `EMAIL_PREFERENCE_OPTIONS` (`src/config/constants.js`) — it shows up as a switch in Settings automatically.
+3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
+4. The function checks the recipient's column before sending. No profile row means never changed → on.
+
+There is deliberately **no** "unsubscribe all" column. "Unsubscribe from all" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
+
+**Emails sent today:**
+- *Added to a trip* — `send-member-added-email`, called by the app right after a member is added. Wording and link depend on whether the trip is upcoming, happening now, over, or undated.
+- *Journal reminder* — `journal-reminder`, a daily scheduled sweep (`netlify.toml`, 14:00 UTC ≈ 10am Eastern; production only, scheduled functions never run on deploy previews). Emails members 7–10 days after a trip's last day. The end date is derived fresh each run (start + length − 1), and `trip_email_sends` (one row per trip per end date) prevents repeats — so date edits are handled automatically: an extended trip gets one fresh reminder, and dates edited long after the fact fall outside the window and send nothing. A planner can switch it off per trip (`trips.journal_reminders_enabled`); people who already wrote in the journal are skipped. To run it by hand (testing on a preview, or re-running after an outage): Netlify blocks web requests to a scheduled function, so use `journal-reminder-run`, which always needs `Authorization: Bearer $EMAIL_LINK_SECRET` — `curl -H "Authorization: Bearer $EMAIL_LINK_SECRET" "<site>/api/journal-reminder-run?dry_run=1&today=YYYY-MM-DD&trip=<trip id>"` (drop `dry_run=1` to really send). Both functions share `netlify/lib/journal-reminder-sweep.js`.
 
 ## Local Dev
 `netlify dev` is the only correct local workflow (injects env vars). `file://` and `npx serve .` do not work. If Mac permissions error: `netlify dev --no-watch`.

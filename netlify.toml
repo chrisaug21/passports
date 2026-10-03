@@ -10,6 +10,14 @@
 [functions."keep-alive"]
   schedule = "*/10 * * * *"
 
+# Daily sweep that emails trip members a reminder to fill in their journal,
+# 7-10 days after a trip ends. 14:00 UTC is 10am US Eastern in summer / 9am in
+# winter (Netlify schedules are UTC and don't follow daylight saving): a
+# mid-morning inbox peak on the east coast. Scheduled functions only run on the
+# published production deploy, never on deploy previews.
+[functions."journal-reminder"]
+  schedule = "0 14 * * *"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]

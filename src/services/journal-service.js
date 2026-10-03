@@ -3,6 +3,7 @@ import { getSupabase } from "../lib/supabase.js";
 const JOURNAL_ENTRY_SELECT = "id, trip_id, user_id, day_id, item_id, notes, created_at, updated_at";
 const JOURNAL_PHOTO_SELECT = "id, trip_id, user_id, item_id, storage_path, public_url, created_at, updated_at";
 const USER_PROFILE_SELECT = "id, first_name, last_name, preferred_maps_app, updated_at";
+const EMAIL_PREFERENCE_SELECT = "id, email_member_added, email_journal_reminder";
 
 export const JOURNAL_PHOTO_BUCKET = "journal-photos";
 export const JOURNAL_PHOTO_MAX_PX = 1200;
@@ -305,4 +306,35 @@ export function compressJournalPhoto(file) {
 
     img.src = objectUrl;
   });
+}
+
+// ---------------------------------------------------------------------------
+// Email preferences
+//
+// One on/off column per email type on user_profiles (see
+// EMAIL_PREFERENCE_OPTIONS). "Unsubscribe from all" just sets every column to false —
+// there is no separate "unsubscribed from all" flag. A person with no profile
+// row yet has never changed a switch, so every email counts as on.
+// ---------------------------------------------------------------------------
+
+export async function fetchEmailPreferences(userId) {
+  const { data, error } = await getSupabase()
+    .from("user_profiles")
+    .select(EMAIL_PREFERENCE_SELECT)
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || {};
+}
+
+export async function updateEmailPreferences(userId, values) {
+  const { error } = await getSupabase()
+    .from("user_profiles")
+    .upsert(
+      { id: userId, ...values, updated_at: new Date().toISOString() },
+      { onConflict: "id" }
+    );
+
+  if (error) throw error;
 }
