@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.2.48";
+export const APP_VERSION = "1.2.49";
 
 export const TRIP_STATUSES = ["destinations", "planning", "active", "done"];
 
@@ -123,6 +123,10 @@ export const CANONICAL_TIMEZONES = [
 // on user_profiles that switches it on/off. Keep in sync with EMAIL_KINDS in
 // netlify/lib/email-prefs.js (the server can't import this file, and this file
 // can't import that one — there is no build step).
+// Set by a "Create account" button elsewhere in the app so the login page opens
+// on the sign-up form (sessionStorage; read once, then cleared).
+export const LOGIN_START_MODE_KEY = "login-start-mode";
+
 export const EMAIL_PREFERENCE_OPTIONS = [
   {
     column: "email_member_added",

@@ -1111,3 +1111,33 @@
     padding-right: 1rem;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Signed-out banner (public Guide): invites a viewer to sign in or sign up
+   --------------------------------------------------------------------------- */
+
+.guide-signin-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  flex-wrap: wrap;
+  background: var(--color-structure-soft);
+  border: 1px solid var(--color-structure-tint);
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.guide-signin-banner__text {
+  margin: 0;
+  flex: 1 1 16rem;
+}
+
+.guide-signin-banner__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

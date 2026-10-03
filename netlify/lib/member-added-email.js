@@ -51,7 +51,7 @@ function buildMemberAddedEmail({
   const { phase, start, end } = getTripPhase({ startDate: trip.start_date, tripLength: trip.trip_length }, today);
   const copy = getCopy(phase, trip.title, end);
 
-  const tripUrl = `${baseUrl}/app/trip/${trip.id}${copy.destination === "guide" ? "/guide" : ""}`;
+  const tripUrl = `${baseUrl}/app/trip/${trip.id}${copy.destination === "guide" ? "/guide?from=email" : ""}`;
   const greeting = recipientFirstName ? `Hi ${escapeHtml(recipientFirstName)},` : "Hi,";
   const meta = start
     ? `${formatDateRange(start, end)} · ${trip.trip_length} ${Number(trip.trip_length) === 1 ? "day" : "days"}`

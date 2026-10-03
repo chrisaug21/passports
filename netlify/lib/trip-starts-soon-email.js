@@ -13,7 +13,7 @@ function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirst
   const end = start && Number.isInteger(length) && length >= 1 ? new Date(start.getTime() + (length - 1) * 86400000) : null;
   const meta = start && end ? `${formatDateRange(start, end)} · ${length} ${length === 1 ? "day" : "days"}` : start ? formatShortDate(start, true) : "";
 
-  const guideUrl = `${baseUrl}/app/trip/${trip.id}/guide`;
+  const guideUrl = `${baseUrl}/app/trip/${trip.id}/guide?from=email`;
   const prepUrl = `${baseUrl}/app/trip/${trip.id}/prep`;
   const greeting = recipientFirstName ? `Hi ${escapeHtml(recipientFirstName)},` : "Hi,";
   const allSet = !openTodos.length && !openPacking.length;

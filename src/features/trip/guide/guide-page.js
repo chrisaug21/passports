@@ -59,6 +59,15 @@ export async function loadGuidePage(tripId) {
   const userId = session?.user?.id || null;
   const userEmail = session?.user?.email || "";
 
+  // A link from one of our emails goes to people who have accounts, so signed
+  // out they sign in first (even on a public trip, where they'd otherwise see
+  // the stripped-down public view) and then land right back here.
+  if (!userId && new URLSearchParams(window.location.search).get("from") === "email") {
+    rememberReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+    navigate("/app");
+    return;
+  }
+
   try {
     const bundle = await fetchTripDetailBundle(tripId);
     const viewerRole = await checkViewerRole(tripId, userId, bundle.trip.owner_id);

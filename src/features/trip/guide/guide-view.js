@@ -653,6 +653,20 @@ export function renderGuideErrorView() {
 // Main render (spec §3)
 // ---------------------------------------------------------------------------
 
+// Shown to anyone viewing the Guide without being signed in (a public share).
+// Both buttons go to the login page, which brings them back to this trip.
+function renderSignedOutBanner() {
+  return `
+    <div class="guide-signin-banner" data-guide-signin-banner>
+      <p class="guide-signin-banner__text">You're viewing a shared trip. Sign in to see your own view, or create an account to plan your own.</p>
+      <div class="guide-signin-banner__actions">
+        <a class="button button--secondary" href="/login" data-guide-auth="sign-in">Sign in</a>
+        <a class="button" href="/login" data-guide-auth="sign-up">Create account</a>
+      </div>
+    </div>
+  `;
+}
+
 export function renderGuideView(state) {
   const { trip, bases, days, items, overviewBlocks = [], members, viewerRole } = state;
   const isMember = viewerRole !== "public";
@@ -690,6 +704,7 @@ export function renderGuideView(state) {
     .join("");
 
   return `
+    ${state.userId ? "" : renderSignedOutBanner()}
     ${renderGuideHero(trip, bases, members, isMember, heroPhotoUrl, viewerRole)}
     <div class="guide-body">
       <div class="guide-day-nav-shell">

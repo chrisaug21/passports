@@ -4,7 +4,7 @@ const { escapeHtml, renderEmailLayout, renderButton, COLORS } = require("./email
 // encourages journaling each night. Pure: no network, no environment.
 function buildTripDayTwoEmail({ trip, recipientFirstName, photo, baseUrl, unsubscribeUrl }) {
   // Opens the Guide straight on its Journal tab (the Guide reads "#journal").
-  const journalUrl = `${baseUrl}/app/trip/${trip.id}/guide#journal`;
+  const journalUrl = `${baseUrl}/app/trip/${trip.id}/guide?from=email#journal`;
   const greeting = recipientFirstName ? `Hi ${escapeHtml(recipientFirstName)},` : "Hi,";
 
   const heroHtml = photo?.url
