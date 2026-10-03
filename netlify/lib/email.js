@@ -110,4 +110,10 @@ async function sendEmail({ to, subject, html, text, unsubscribeUrl }) {
   }
 }
 
-module.exports = { getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };
+// Names (never values) of required server settings that aren't set on this
+// deploy — logged so a "not configured" failure says exactly what's missing.
+function getMissingEmailEnv(names) {
+  return names.filter((name) => !process.env[name]);
+}
+
+module.exports = { getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail };

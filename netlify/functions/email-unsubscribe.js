@@ -1,5 +1,5 @@
 const { EMAIL_KINDS, ALL_EMAIL_COLUMNS, verifyUnsubscribeToken } = require("../lib/email-prefs.js");
-const { getAppBaseUrl, escapeHtml } = require("../lib/email.js");
+const { getMissingEmailEnv, getAppBaseUrl, escapeHtml } = require("../lib/email.js");
 const admin = require("../lib/supabase-admin.js");
 
 function page(statusCode, heading, bodyHtml) {
@@ -55,8 +55,9 @@ function renderChoicePage(token, kind) {
 // column(s) to false. There is no separate "unsubscribed from all" flag.
 exports.handler = async function handler(event) {
   const secret = process.env.EMAIL_LINK_SECRET;
-  if (!secret || !admin.getConfig()) {
-    console.error("email-unsubscribe: not configured on this deploy.");
+  const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_SECRET_KEY", "EMAIL_LINK_SECRET"]);
+  if (missingEnv.length) {
+    console.error(`email-unsubscribe: not configured on this deploy. Missing: ${missingEnv.join(", ")}`);
     return page(503, "Temporarily unavailable", `<p style="margin:0;">Please try again in a little while.</p>`);
   }
 

@@ -1,5 +1,5 @@
 const { EMAIL_KINDS, buildUnsubscribeUrl } = require("../lib/email-prefs.js");
-const { getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail } = require("../lib/email.js");
+const { getMissingEmailEnv, getAppBaseUrl, escapeHtml, renderEmailLayout, renderButton, sendEmail } = require("../lib/email.js");
 const admin = require("../lib/supabase-admin.js");
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,8 +28,9 @@ exports.handler = async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." });
 
   const linkSecret = process.env.EMAIL_LINK_SECRET;
-  if (!admin.getConfig() || !linkSecret || !process.env.RESEND_API_KEY) {
-    console.error("send-member-added-email: email is not configured on this deploy.");
+  const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SECRET_KEY", "EMAIL_LINK_SECRET", "RESEND_API_KEY"]);
+  if (missingEnv.length) {
+    console.error(`send-member-added-email: not configured on this deploy. Missing: ${missingEnv.join(", ")}`);
     return json(503, { sent: false });
   }
 
