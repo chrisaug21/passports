@@ -183,7 +183,15 @@ exports.handler = async function handler(event) {
 
   const today = query.today && /^\d{4}-\d{2}-\d{2}$/.test(query.today) ? query.today : getTodayEastern();
   const dryRun = query.dry_run === "1";
-  const onlyTripId = query.trip || null;
+  // A malformed trip id is a bad request, not a server failure.
+  let onlyTripFilter = null;
+  if (query.trip) {
+    try {
+      onlyTripFilter = admin.eqId(query.trip);
+    } catch {
+      return json(400, { error: "Invalid trip." });
+    }
+  }
   const baseUrl = getAppBaseUrl(event);
   const linkSecret = process.env.EMAIL_LINK_SECRET;
 
@@ -196,7 +204,7 @@ exports.handler = async function handler(event) {
       deleted_at: "is.null",
       journal_reminders_enabled: "eq.true",
       start_date: `lte.${addDays(today, -MIN_DAYS_AFTER_END)}`,
-      ...(onlyTripId ? { id: `eq.${onlyTripId}` } : {}),
+      ...(onlyTripFilter ? { id: onlyTripFilter } : {}),
     });
 
     const due = candidates

@@ -128,7 +128,7 @@
 
 .settings-email-row__text {
   display: grid;
-  gap: 0.1rem;
+  gap: var(--space-1);
   min-width: 0;
 }
 
