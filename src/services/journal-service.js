@@ -312,7 +312,7 @@ export function compressJournalPhoto(file) {
 // Email preferences
 //
 // One on/off column per email type on user_profiles (see
-// EMAIL_PREFERENCE_OPTIONS). "Turn all off" just sets every column to false —
+// EMAIL_PREFERENCE_OPTIONS). "Unsubscribe from all" just sets every column to false —
 // there is no separate "unsubscribed from all" flag. A person with no profile
 // row yet has never changed a switch, so every email counts as on.
 // ---------------------------------------------------------------------------

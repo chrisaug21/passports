@@ -5,7 +5,7 @@
 --
 -- 1. user_profiles.email_member_added — per-person on/off switch for this
 --    email. Defaults to ON. There is deliberately no "unsubscribe all"
---    column: "turn all off" in Settings (and in an email's unsubscribe page)
+--    column: "unsubscribe from all" in Settings (and in an email's unsubscribe page)
 --    just sets every email_* column to false. When a future email type adds
 --    its own email_* column, give it default false for anyone whose existing
 --    email_* columns are all false, and true for everyone else.

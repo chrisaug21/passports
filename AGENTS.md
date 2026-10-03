@@ -195,7 +195,7 @@ Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions 
 3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
 4. The function checks the recipient's column before sending. No profile row means never changed → on.
 
-There is deliberately **no** "unsubscribe all" column. "Turn all off" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
+There is deliberately **no** "unsubscribe all" column. "Unsubscribe from all" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
 
 ## Local Dev
 `netlify dev` is the only correct local workflow (injects env vars). `file://` and `npx serve .` do not work. If Mac permissions error: `netlify dev --no-watch`.

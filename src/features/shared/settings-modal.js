@@ -66,7 +66,7 @@ function renderSettingsModalHTML() {
           <div id="email-preferences-list" class="settings-email-list">
             <p class="muted">Loading…</p>
           </div>
-          <button class="button button--secondary settings-email-turn-off" id="email-turn-all-off" type="button" disabled>Turn all off</button>
+          <button class="settings-email-unsubscribe" id="email-turn-all-off" type="button" disabled>Unsubscribe from all emails</button>
         </section>
 
         <section class="settings-modal__section">
@@ -255,7 +255,7 @@ function getEmailPreferenceInputs() {
   return [...document.querySelectorAll("[data-email-preference]")];
 }
 
-// "Turn all off" has nothing to do once every switch is already off, so it
+// "Unsubscribe from all" has nothing to do once every switch is already off, so it
 // disables itself rather than showing a separate "unsubscribed from all" state.
 function syncTurnAllOffButton() {
   const button = document.querySelector("#email-turn-all-off");
@@ -324,7 +324,7 @@ function wireEmailPreferences(userId) {
       getEmailPreferenceInputs().forEach((input) => {
         input.checked = false;
       });
-      showToast("All emails turned off.", "success");
+      showToast("Unsubscribed from all emails.", "success");
     } catch (error) {
       console.error(error);
       previouslyChecked.forEach((input) => {

@@ -46,7 +46,7 @@ function renderChoicePage(token, kind) {
     `<form method="post" action="${escapeHtml(action)}">
        <p style="margin:0 0 20px;">Which emails would you like to stop?</p>
        <button name="scope" value="this" type="submit" style="${BUTTON_STYLE}background:#0EA87A;color:#FFFFFF;border:0;">Stop emails about ${escapeHtml(label)}</button>
-       <button name="scope" value="all" type="submit" style="${BUTTON_STYLE}background:#FFFFFF;color:#1A2332;border:1px solid #d1d5db;">Turn off all Passports emails</button>
+       <button name="scope" value="all" type="submit" style="${BUTTON_STYLE}background:#FFFFFF;color:#1A2332;border:1px solid #d1d5db;">Unsubscribe from all Passports emails</button>
      </form>`
   );
 }

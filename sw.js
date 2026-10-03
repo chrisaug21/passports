@@ -1,5 +1,5 @@
 // Keep this in sync with APP_VERSION in src/config/constants.js.
-const version = "1.2.35";
+const version = "1.2.36";
 const cacheName = `passports-shell-${version}`;
 const appShell = [
   "/",
