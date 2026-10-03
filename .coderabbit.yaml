@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://www.coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit settings for Passports. Project rules live in CLAUDE.md / AGENTS.md;
+# the instructions below only highlight the ones most worth catching in review.
+
+reviews:
+  # chill = balanced feedback (quiet = only the most important, assertive = nitpicky)
+  profile: chill
+
+  # Skip third-party / generated / binary files
+  path_filters:
+    - "!src/lib/vendor/**"
+    - "!**/node_modules/**"
+    - "!**/package-lock.json"
+    - "!deno.lock"
+    - "!.netlify/**"
+    - "!icons/**"
+    - "!assets/**"
+    - "!**/*.svg"
+    - "!**/*.png"
+    - "!**/*.ico"
+
+  path_instructions:
+    - path: "src/**"
+      instructions: |
+        Vanilla HTML/CSS/JS with ES modules. No build step and no npm dependencies in src/.
+        - Never hardcode colors; use CSS custom properties from src/styles/tokens.css.
+        - User-facing error messages must never mention Supabase.
+        - Soft delete only (set deleted_at). Never hard delete rows. The only exception is
+          removing old photo files from storage when a photo is replaced.
+        - base_id and day_id on trip_items are independently nullable; never enforce a
+          dependency between them.
+        - Public (viewerRole = "public") views must always hide idea/shortlisted items, costs,
+          reactions, and internal notes.
+        - Times are local HH:MM strings. No UTC conversion or timezone math.
+        - Unsplash images must display attribution wherever they render.
+        - If shipped code changed, APP_VERSION in src/config/constants.js and the version
+          string in sw.js must both be bumped.
+    - path: "sql/**"
+      instructions: |
+        Database migrations. Flag anything that hard deletes data, drops columns/tables,
+        or loosens row-level security. Policies are scoped to the `authenticated` role.
+        trips SELECT must keep `owner_id = auth.uid()`. trip_members INSERT stays
+        `with check (true)` for authenticated users (prevents trigger recursion).
+        Check enum-like CHECK constraints are updated when new values are introduced.
+    - path: "netlify/**"
+      instructions: |
+        Server-side functions. Secrets (SUPABASE_SECRET_KEY, RESEND_API_KEY, EMAIL_LINK_SECRET)
+        must never be exposed to the browser or logged, and SUPABASE_SECRET_KEY bypasses all
+        access rules, so check permissions before every use. Email is best-effort: a failed
+        email must never make the user's action look like it failed. Every new email type
+        needs a user_profiles email_* column, entries in EMAIL_KINDS and
+        EMAIL_PREFERENCE_OPTIONS, a signed unsubscribe link, and a recipient-preference check.
+    - path: "mcp-server/**"
+      instructions: |
+        Isolated MCP connector backend with its own package.json. Nothing in src/ may import
+        from it. Changes here must bump MCP_SERVER_VERSION in mcp-server/src/index.js.
+        Every tool must respect the signed-in user's own access (no cross-user data).
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"
+      - "AGENTS.md"
