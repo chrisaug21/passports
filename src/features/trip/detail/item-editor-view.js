@@ -113,7 +113,7 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             </div>
             <div class="item-editor-date-field" data-item-type-section="transport">
               <label class="field">
-                <span>Arrives on</span>
+                <span data-time-label="arrivalDate">Arrives on</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
                   <button class="item-time-clear" type="button" data-clear-time="arrivalDate" aria-label="Clear date">×</button>

@@ -50,7 +50,7 @@ export function normalizeTimeInput(value) {
 
 const TIME_LABELS = {
   lodging: { start: "Check-in Time", end: "Check-out Time" },
-  transport: { start: "Departs", end: "Arrives" },
+  transport: { start: "Departs", end: "Arrives", arrivalDate: "Arrives on" },
 };
 
 // Lodging and transport reuse the start/end time columns for check-in/out and
@@ -61,11 +61,12 @@ export function syncTimeLabels() {
   // A car can be a rental or a driver, so it covers both wordings.
   const labels =
     type === "transport" && mode === "car"
-      ? { start: "Departs / Pickup", end: "Arrives / Dropoff" }
+      ? { start: "Departs / Pickup", end: "Arrives / Dropoff", arrivalDate: "Arrives on / Dropoff on" }
       : TIME_LABELS[type] || { start: "Start Time", end: "End Time" };
 
   document.querySelector('[data-time-label="start"]')?.replaceChildren(labels.start);
   document.querySelector('[data-time-label="end"]')?.replaceChildren(labels.end);
+  document.querySelector('[data-time-label="arrivalDate"]')?.replaceChildren(labels.arrivalDate || "Arrives on");
 }
 
 // "End before start" is only a mistake when both times are on the same day. A
