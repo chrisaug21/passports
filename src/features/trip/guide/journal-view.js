@@ -1,5 +1,5 @@
 import {
-  formatArrivalDateSuffix,
+  getEndTimeText,
   formatTimeLabel,
   formatItemTypeLabel,
   getTripDateByDayNumber,
@@ -400,7 +400,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
     // A hotel's second time is check-out on a later day, which reads wrong next
     // to the check-in time; the Journal leaves the logistics to Plan/Itinerary.
     if (item.item_type === "lodging") timeLabel = `Check-in ${timeLabel}`;
-    else if (item.time_end) timeLabel += ` – ${formatTimeLabel(item.time_end)}${formatArrivalDateSuffix(item)}`;
+    else if (getEndTimeText(item)) timeLabel += ` – ${getEndTimeText(item)}`;
   }
 
   const itemUrl = sanitizeCoverUrl(item.url);

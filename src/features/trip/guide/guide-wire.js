@@ -243,15 +243,17 @@ function scrollOrJumpToTarget(targetId, { fromUser = false } = {}) {
   // Draw any still-grey days first so the target's position can't shift mid-scroll.
   hydrateAllLazyDays();
 
+  if (!isMobileLayout() && isUserScrolling && !fromUser) return;
+
+  // Set the pill now: scroll-spy is held off during the jump, so it won't.
+  document.querySelectorAll(".guide-nav-item").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.navId === targetId);
+  });
+  lastSpyActiveId = targetId;
+
   if (isMobileLayout()) {
-    document.querySelectorAll(".guide-nav-item").forEach((item) => {
-      item.classList.toggle("is-active", item.dataset.navId === targetId);
-    });
-    lastSpyActiveId = targetId;
     centerActiveNavItem(targetId);
     syncMobileDayNavOffset();
-  } else if (isUserScrolling && !fromUser) {
-    return;
   }
 
   const top = getJumpScrollTop(targetId);

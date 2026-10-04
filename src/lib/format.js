@@ -348,12 +348,24 @@ export function getPlanTimeParts(item) {
 
   return [
     item?.time_start ? formatTimeLabel(item.time_start) : "",
-    item?.time_end ? `to ${formatTimeLabel(item.time_end, false)}${formatArrivalDateSuffix(item)}` : "",
+    getEndTimeText(item) ? `${item?.time_end ? "to " : ""}${getEndTimeText(item)}` : "",
   ].filter(Boolean);
 }
 
 // " (Oct 12)" for a transport stop that arrives on a later day than it departs
 // (red-eyes, night trains); empty for everything else.
+// The "end" half of a time range: the end time plus arrival date for an overnight
+// transport stop, or just "arrives May 24" when a date was saved without a time.
+export function getEndTimeText(item) {
+  const suffix = formatArrivalDateSuffix(item);
+
+  if (item?.time_end) {
+    return `${formatTimeLabel(item.time_end)}${suffix}`;
+  }
+
+  return suffix ? `arrives ${suffix.trim().slice(1, -1)}` : "";
+}
+
 export function formatArrivalDateSuffix(item) {
   const label = item?.item_type === "transport" ? formatMonthDay(item.arrival_date) : "";
   return label ? ` (${label})` : "";
