@@ -279,3 +279,14 @@
       align-items: center;
     }
 }
+
+/* iOS gives empty date inputs a wide intrinsic width that pushes past the modal;
+   let the field shrink to its column instead. */
+.item-editor-form .field,
+.item-editor-section {
+  min-width: 0;
+}
+
+.item-editor-form input[type="date"] {
+  min-width: 0;
+}

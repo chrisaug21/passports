@@ -87,6 +87,8 @@ export function teardownGuideView() {
   _guideState = null;
   _currentMode = "itinerary";
   _todayDayNumber = null;
+  spyLockUntil = 0;
+  lastSpyActiveId = null;
   _journalState = { hasFetched: false, isFetching: false, isRefreshing: false, isManualRefreshing: false, entries: [], photos: [], profiles: [] };
   _itineraryRefreshInFlight = false;
   _isItineraryManualRefreshing = false;
@@ -213,7 +215,7 @@ function wireBackLink(tripId) {
 function wireNavClicks() {
   document.querySelectorAll(".guide-nav-item[data-nav-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      scrollOrJumpToTarget(button.dataset.navId);
+      scrollOrJumpToTarget(button.dataset.navId, { fromUser: true });
     });
   });
 }
@@ -231,7 +233,11 @@ function getJumpScrollTop(targetId) {
 
 // Desktop: scroll-spy updates the active pill as the page scrolls.
 // Mobile: there's no scroll-spy, so set the active pill immediately.
-function scrollOrJumpToTarget(targetId) {
+// A tap on a day pill is always deliberate, so `fromUser` skips the touch-momentum
+// guard. On iPads (which use the desktop layout) a tap fires touchstart, which
+// sets that guard, and the click lands before it clears, so without this the
+// tap was silently ignored.
+function scrollOrJumpToTarget(targetId, { fromUser = false } = {}) {
   if (!targetId) return;
 
   // Draw any still-grey days first so the target's position can't shift mid-scroll.
@@ -241,15 +247,19 @@ function scrollOrJumpToTarget(targetId) {
     document.querySelectorAll(".guide-nav-item").forEach((item) => {
       item.classList.toggle("is-active", item.dataset.navId === targetId);
     });
+    lastSpyActiveId = targetId;
     centerActiveNavItem(targetId);
     syncMobileDayNavOffset();
-  } else if (isUserScrolling) {
+  } else if (isUserScrolling && !fromUser) {
     return;
   }
 
   const top = getJumpScrollTop(targetId);
   if (top === null) return;
 
+  // Hold scroll-spy off while the smooth scroll runs so the pill doesn't flicker
+  // through every day it passes.
+  spyLockUntil = Date.now() + 400;
   window.scrollTo({ top, behavior: "smooth" });
   holdJumpTarget(targetId);
 }
@@ -337,12 +347,18 @@ function setupTouchScrollTracking() {
 // Scroll-spy → active nav highlight (desktop only — mobile uses explicit tap)
 // ---------------------------------------------------------------------------
 
-function setupScrollTracking() {
-  if (isMobileLayout()) return;
+// Pauses scroll-spy while a nav jump is scrolling (extended on every scroll
+// event during the jump, so it ends shortly after the page comes to rest).
+let spyLockUntil = 0;
 
+function setupScrollTracking() {
   let rafId = null;
 
   const handleScroll = () => {
+    if (Date.now() < spyLockUntil) {
+      spyLockUntil = Date.now() + 150;
+      return;
+    }
     if (rafId) return;
     rafId = requestAnimationFrame(() => {
       rafId = null;
@@ -359,7 +375,8 @@ function setupScrollTracking() {
 }
 
 function updateActiveSection() {
-  const OFFSET = 120;
+  // Mobile: a section counts as current once it reaches the sticky bar.
+  const OFFSET = isMobileLayout() ? getGuideDayNavOffset() + getGuideDayNavHeight() + 32 : 120;
   const sections = [...document.querySelectorAll(".guide-nav-anchor")];
   if (sections.length === 0) return;
 
@@ -376,7 +393,15 @@ function updateActiveSection() {
     item.classList.toggle("is-active", item.dataset.navId === activeId);
   });
   followActiveInPinnedNav?.();
+
+  // Mobile: keep the highlighted pill in view in the sticky bar as the page scrolls.
+  if (isMobileLayout() && activeId !== lastSpyActiveId) {
+    lastSpyActiveId = activeId;
+    centerActiveNavItem(activeId);
+  }
 }
+
+let lastSpyActiveId = null;
 
 // ---------------------------------------------------------------------------
 // Desktop pinned nav — once the left-hand day list has scrolled off the top of
@@ -405,7 +430,7 @@ function setupDesktopPinnedNav() {
   // Buttons are recreated by innerHTML, so click handling is delegated here.
   pinned.addEventListener("click", (event) => {
     const button = event.target.closest(".guide-nav-item[data-nav-id]");
-    if (button) scrollOrJumpToTarget(button.dataset.navId);
+    if (button) scrollOrJumpToTarget(button.dataset.navId, { fromUser: true });
   });
 
   let lastMarkup = "";

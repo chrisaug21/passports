@@ -24,7 +24,7 @@ import {
   wireAnchorCheckbox,
   wireDiscardConfirmModal,
 } from "./item-editor-dom.js";
-import { normalizeTimeInput, wireTimeInputs } from "./item-editor-time.js";
+import { getCheckOutDateBounds, normalizeTimeInput, wireCheckOutDateInput, wireTimeInputs } from "./item-editor-time.js";
 
 export function getTripItemErrorMessage(action = "update") {
   const messages = {
@@ -117,6 +117,7 @@ export function createItemEditorHandlers() {
     onAfterItemEditorOpen: () => {
       wireAnchorCheckbox();
       wireTimeInputs();
+      wireCheckOutDateInput();
       syncItemEditorTypeFields();
       syncItemEditorAssignmentHint();
       ensureItemEditorInitialSnapshot();
@@ -166,7 +167,8 @@ export function createItemEditorHandlers() {
       requestCloseItemEditor(() => {
         const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId) || null;
         const context = {
-          baseId: "",
+          // A day already belongs to a base, so start the new stop there too.
+          baseId: day?.base_id || "",
           dayId,
           status: "confirmed",
           dayLabel: day ? `Day ${day.day_number}` : "day",
@@ -211,6 +213,15 @@ export function createItemEditorHandlers() {
         return;
       }
 
+      const checkOutDate = String(draft.checkOutDate || "").trim();
+      if (checkOutDate && draft.itemType === "lodging") {
+        const { min, max } = getCheckOutDateBounds(nextDayId || "");
+        if ((min && checkOutDate < min) || (max && checkOutDate > max)) {
+          showToast("Check-out date has to fall within your trip dates.", "error");
+          return;
+        }
+      }
+
       const itemPayload = {
         title: String(draft.title || "").trim(),
         item_type: String(draft.itemType || "").trim(),
@@ -218,7 +229,7 @@ export function createItemEditorHandlers() {
         is_anchor: Boolean(draft.isAnchor),
         base_id: nextBaseId,
         day_id: nextDayId,
-        check_out_date: String(draft.checkOutDate || "").trim() || null,
+        check_out_date: checkOutDate || null,
         meal_slot: String(draft.mealSlot || "").trim() || null,
         activity_type: String(draft.activityType || "").trim() || null,
         transport_mode: String(draft.transportMode || "").trim() || null,

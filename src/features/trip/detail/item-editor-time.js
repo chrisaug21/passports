@@ -1,3 +1,7 @@
+import { tripStore } from "../../../state/trip-store.js";
+import { formatDateInputValue, getTripEndDate } from "../../../lib/derive.js";
+import { getTripDateByDayNumber } from "../../../lib/format.js";
+
 function getNearestUpcomingHour() {
   const now = new Date();
   now.setMinutes(now.getMinutes() === 0 ? 0 : 60, 0, 0);
@@ -109,4 +113,57 @@ export function wireTimeInputs() {
   });
 
   syncTimeWarning();
+}
+
+// Earliest and latest allowed check-out dates (YYYY-MM-DD) for a lodging stop:
+// the day it's attached to, up to the trip's last day. Either can be "" when the
+// trip has no start date or the stop isn't attached to a day yet.
+export function getCheckOutDateBounds(dayId) {
+  const trip = tripStore.getCurrentTrip();
+  const day = tripStore.getCurrentDays().find((entry) => entry.id === dayId);
+  const checkIn = day ? getTripDateByDayNumber(trip?.start_date, day.day_number) : null;
+  const tripEnd = getTripEndDate(trip);
+
+  return {
+    min: checkIn ? formatDateInputValue(checkIn) : "",
+    max: tripEnd ? formatDateInputValue(tripEnd) : "",
+  };
+}
+
+function addDays(dateString, count) {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + count);
+  return formatDateInputValue(date);
+}
+
+// Keeps the check-out date picker inside the trip, and — instead of opening on
+// today's date, which is never the right answer — starts it the morning after
+// check-in when it's still empty.
+export function wireCheckOutDateInput() {
+  const input = document.querySelector('[name="checkOutDate"]');
+  const dayInput = document.querySelector('[name="dayId"]');
+
+  if (!input) {
+    return;
+  }
+
+  const syncBounds = () => {
+    const { min, max } = getCheckOutDateBounds(dayInput?.value || "");
+    input.min = min;
+    input.max = max;
+  };
+
+  input.addEventListener("focus", () => {
+    syncBounds();
+    if (input.value || !input.min) {
+      return;
+    }
+
+    const suggested = addDays(input.min, 1);
+    input.value = input.max && suggested > input.max ? input.max : suggested;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  dayInput?.addEventListener("change", syncBounds);
+  syncBounds();
 }
