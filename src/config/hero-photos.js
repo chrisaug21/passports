@@ -16,5 +16,6 @@ export const HERO_PHOTOS = [
 ].map((name) => `/assets/hero/${name}.jpg`);
 
 export function pickHeroPhoto() {
-  return HERO_PHOTOS[Math.floor(Math.random() * HERO_PHOTOS.length)];
+  const [random] = crypto.getRandomValues(new Uint32Array(1));
+  return HERO_PHOTOS[random % HERO_PHOTOS.length];
 }

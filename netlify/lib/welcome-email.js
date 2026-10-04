@@ -49,6 +49,8 @@ function buildWelcomeEmail({ firstName, baseUrl, photoUrl, settingsUrl }) {
     ...STEPS.map((step, index) => `${index + 1}. ${step.title}: ${step.body}`),
     "",
     `Open Passports: ${dashboardUrl}`,
+    "",
+    `Email settings: ${settingsUrl || dashboardUrl}`,
   ].join("\n");
 
   return { subject: "Welcome to Passports", html, text };

@@ -204,6 +204,10 @@ Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions 
 3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) **and** a signed "Email settings" link (`buildSettingsUrl`, passed to the builder as `settingsUrl`) — both open the no-login settings page, so nobody has to sign in to change their emails plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
 4. The function checks the recipient's column before sending. No profile row means never changed → on.
 
+**Exception — the welcome email.** It is one-time and transactional (the recipient has no account settings yet), so it deliberately has no `email_*` column, no `EMAIL_KINDS` entry and no unsubscribe link; it carries only the signed "Email settings" link. Don't add a preference switch for it.
+
+**Claim rows are released, not soft-deleted.** The `*_sends` claim tables (`trip_email_sends`, `welcome_email_sends`) record "this send is taken"; if the send fails the claim is deleted so a later run can retry. That is operational bookkeeping, not user data, and is the one place besides photo replacement where rows are hard-deleted (as is pruning the `signup_attempts` rate-limit log).
+
 There is deliberately **no** "unsubscribe all" column. "Unsubscribe from all" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.
 
 **Emails sent today:**

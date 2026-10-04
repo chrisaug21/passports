@@ -200,9 +200,11 @@ export function wireLoginPage() {
       }
     } catch (error) {
       console.error(error);
-      if (isInviteRejection(error)) {
-        // The sign-up was refused for want of a code (the policy may have
-        // changed since the page loaded): make sure the field is there.
+      // The auth service reports ANY failure while creating the account as a
+      // generic database error, so only treat it as an invite problem when
+      // invites are actually required right now (the policy may have changed
+      // since the page loaded). Otherwise it's something else: say so plainly.
+      if (isInviteRejection(error) && (await fetchSignupPolicy()).requiresInvite) {
         inviteField.show();
         setFieldError("inviteCode", inviteCode ? "That invite code just ran out. Ask for a new one." : "Passports is invite-only right now. Enter an invite code to create an account.");
         document.querySelector("#sign-up-invite-code")?.focus();
@@ -362,6 +364,10 @@ function getAuthErrorMessage(error) {
 
   if (lowered.includes("already registered") || lowered.includes("already been registered")) {
     return "There's already an account with that email. Try signing in instead.";
+  }
+
+  if (lowered.includes("database error")) {
+    return "We couldn't create your account just now. Please try again in a moment.";
   }
 
   if (lowered.includes("password") && (lowered.includes("weak") || lowered.includes("should") || lowered.includes("at least"))) {

@@ -29,7 +29,7 @@ async function isRateLimited(ipHash) {
 
   await admin.insert("signup_attempts", { ip_hash: ipHash });
   // Tidy up old rows now and then so the log doesn't grow forever.
-  if (Math.random() < 0.05) {
+  if (crypto.randomInt(20) === 0) {
     await admin.remove("signup_attempts", { created_at: `lt.${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()}` });
   }
   return false;

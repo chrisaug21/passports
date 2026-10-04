@@ -146,6 +146,10 @@ async function getEmailForUser(userId) {
 // listed here may be called, for the same reason tables are allow-listed.
 const ALLOWED_FUNCTIONS = new Set(["admin_list_users"]);
 
+// Like restRequest, the fetch below is flagged as user-controlled-URL (SSRF) —
+// a false positive: the host is always process.env.SUPABASE_URL and
+// `functionName` is a literal from this repo's own code that must be in
+// ALLOWED_FUNCTIONS.
 async function rpc(functionName, args) {
   const config = getConfig();
   if (!config) throw new Error("Secret key is not configured.");
