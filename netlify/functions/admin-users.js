@@ -30,24 +30,45 @@ async function listUsers(query) {
   return json(200, { users, total: Number(result.total) || 0, page, pageSize: PAGE_SIZE });
 }
 
-// PUT { userId, isAdmin }: make someone an admin, or take it away.
+// PUT { userId, isAdmin }: make someone an admin, or take it away. Removal is
+// a soft delete (the row stays, stamped with when and by whom), like
+// everything else in the app, so there's a record of who held access.
 async function setAdmin(body, callerId) {
   if (!body || typeof body.isAdmin !== "boolean") return json(400, { error: "Invalid request." });
   const userId = String(body.userId || "");
   admin.eqId(userId); // throws "Invalid id." for anything that isn't a UUID
 
+  const existing = await admin.select("app_admins", { select: "is_owner,deleted_at", user_id: admin.eqId(userId) });
+  const row = existing[0];
+  const isActiveAdmin = Boolean(row) && row.deleted_at === null;
+
   if (body.isAdmin) {
+    if (isActiveAdmin) return json(200, { isAdmin: true });
     if (!(await admin.getEmailForUser(userId))) return json(404, { error: "That account no longer exists." });
-    await admin.insertIgnoringDuplicates("app_admins", { user_id: userId, granted_by: callerId }, "user_id");
+
+    if (row) {
+      // They were an admin before and were removed: bring the same row back.
+      await admin.update(
+        "app_admins",
+        { user_id: admin.eqId(userId), deleted_at: "not.is.null" },
+        { deleted_at: null, removed_by: null, granted_by: callerId }
+      );
+    } else {
+      await admin.insertIgnoringDuplicates("app_admins", { user_id: userId, granted_by: callerId }, "user_id");
+    }
     return json(200, { isAdmin: true });
   }
 
-  const rows = await admin.select("app_admins", { select: "is_owner", user_id: admin.eqId(userId) });
-  if (rows[0]?.is_owner) return json(403, { error: "The owner can't be removed as an admin." });
+  if (row?.is_owner) return json(403, { error: "The owner can't be removed as an admin." });
+  if (!isActiveAdmin) return json(200, { isAdmin: false });
 
-  // The extra is_owner filter means even a bug above could never delete the
-  // owner row; the database has its own rule too.
-  await admin.remove("app_admins", { user_id: admin.eqId(userId), is_owner: "eq.false" });
+  // The extra is_owner filter means even a bug above could never remove the
+  // owner; the database has its own rule too.
+  await admin.update(
+    "app_admins",
+    { user_id: admin.eqId(userId), is_owner: "eq.false", deleted_at: "is.null" },
+    { deleted_at: new Date().toISOString(), removed_by: callerId }
+  );
   return json(200, { isAdmin: false });
 }
 

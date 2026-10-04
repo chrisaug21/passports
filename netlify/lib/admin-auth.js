@@ -35,7 +35,8 @@ async function requireAdmin(event) {
   const caller = await admin.getUserFromToken(getBearerToken(event));
   if (!caller) return { error: notFound() };
 
-  const rows = await admin.select("app_admins", { select: "user_id,is_owner", user_id: admin.eqId(caller.id) });
+  // A removed admin (deleted_at set) is no longer an admin.
+  const rows = await admin.select("app_admins", { select: "user_id,is_owner", user_id: admin.eqId(caller.id), deleted_at: "is.null" });
   if (!rows.length) return { error: notFound() };
   return { caller, isOwner: Boolean(rows[0].is_owner) };
 }
