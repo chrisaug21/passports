@@ -57,7 +57,12 @@ const TIME_LABELS = {
 // depart/arrive, so name them that way instead of "Start/End Time".
 export function syncTimeLabels() {
   const type = document.querySelector("#item-type-select")?.value;
-  const labels = TIME_LABELS[type] || { start: "Start Time", end: "End Time" };
+  const mode = document.querySelector('[name="transportMode"]')?.value;
+  // A car can be a rental or a driver, so it covers both wordings.
+  const labels =
+    type === "transport" && mode === "car"
+      ? { start: "Departs / Pickup", end: "Arrives / Dropoff" }
+      : TIME_LABELS[type] || { start: "Start Time", end: "End Time" };
 
   document.querySelector('[data-time-label="start"]')?.replaceChildren(labels.start);
   document.querySelector('[data-time-label="end"]')?.replaceChildren(labels.end);
@@ -83,7 +88,8 @@ export function syncTimeWarning() {
       : type === "transport"
         ? document.querySelector('[name="arrivalDate"]')?.value
         : "";
-  const endsOnLaterDay = Boolean(laterDate) && (!startDate || laterDate > startDate);
+  const dateHasError = document.querySelector(".field-hint--error[data-date-note]:not(.is-hidden)") !== null;
+  const endsOnLaterDay = dateHasError || Boolean(laterDate) && (!startDate || laterDate > startDate);
 
   const startTime = normalizeTimeInput(startInput.value);
   const endTime = normalizeTimeInput(endInput.value);
@@ -125,6 +131,8 @@ export function wireTimeInputs() {
     input.addEventListener("change", handleTimeInputEvent);
     syncClearButtonVisibility(input);
   });
+
+  document.querySelector('[name="transportMode"]')?.addEventListener("change", syncTimeLabels);
 
   document.querySelectorAll("[data-clear-time]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -174,7 +182,7 @@ function getDateFieldRange(name, dayId) {
     return { dayDate, min: dayDate ? addDays(dayDate, 1) : "", max: "" };
   }
 
-  return { dayDate, min: dayDate, max: tripEnd };
+  return { dayDate, min: dayDate ? addDays(dayDate, 1) : "", max: tripEnd };
 }
 
 // Plain-language reason a date is out of range, or "" when it's fine.
@@ -187,16 +195,16 @@ export function getDateFieldError(name, value, dayId) {
 
   if (name === "arrivalDate") {
     return dayDate && value < min
-      ? `Arrival date must be after ${formatMonthDay(dayDate)}. Leave it empty if it arrives the same day.`
+      ? `Must be after ${formatMonthDay(dayDate)}. Leave empty if it arrives the same day.`
       : "";
   }
 
   if (min && value < min) {
-    return `Check-out date must be on or after ${formatMonthDay(min)}, the day you check in.`;
+    return `Must be after ${formatMonthDay(dayDate)}, your check-in day.`;
   }
 
   if (max && value > max) {
-    return `Check-out date must be on or before ${formatMonthDay(max)}, the last day of your trip.`;
+    return `Must be on or before ${formatMonthDay(max)}, the last day of your trip.`;
   }
 
   return "";
@@ -221,8 +229,7 @@ export function wireCheckOutDateInput() {
 
   ["checkOutDate", "arrivalDate"].forEach((name) => {
     const input = document.querySelector(`[name="${name}"]`);
-    const hint = document.querySelector(`[data-date-hint="${name}"]`);
-    const error = document.querySelector(`[data-date-error="${name}"]`);
+    const note = document.querySelector(`[data-date-note="${name}"]`);
 
     if (!input) {
       return;
@@ -234,18 +241,17 @@ export function wireCheckOutDateInput() {
       input.min = min;
       input.max = max;
 
-      const hintText = getDateFieldHint(name, dayId);
-      if (hint) {
-        hint.textContent = hintText;
-        hint.classList.toggle("is-hidden", !hintText);
-      }
-
+      // One line under the field: the helper text, swapped for the (red) error
+      // while the date is out of range.
       const message = getDateFieldError(name, input.value, dayId);
-      if (error) {
-        error.textContent = message;
-        error.classList.toggle("is-hidden", !message);
+      const noteText = message || getDateFieldHint(name, dayId);
+      if (note) {
+        note.textContent = noteText;
+        note.classList.toggle("is-hidden", !noteText);
+        note.classList.toggle("field-hint--error", Boolean(message));
       }
       input.setAttribute("aria-invalid", message ? "true" : "false");
+      input.closest(".item-time-field")?.classList.toggle("has-value", Boolean(input.value));
       syncTimeWarning();
     };
 
@@ -255,7 +261,7 @@ export function wireCheckOutDateInput() {
         return;
       }
 
-      const suggested = name === "checkOutDate" ? addDays(input.min, 1) : input.min;
+      const suggested = input.min;
       input.value = input.max && suggested > input.max ? input.max : suggested;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });

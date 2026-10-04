@@ -319,3 +319,9 @@
   min-width: 0;
   text-align: left;
 }
+
+/* display:grid above would otherwise beat .is-hidden and show the lodging
+   field on transport stops (and vice versa). */
+.item-editor-date-field.is-hidden {
+  display: none;
+}

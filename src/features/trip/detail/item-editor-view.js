@@ -104,18 +104,22 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
             <div class="item-editor-date-field" data-item-type-section="lodging">
               <label class="field">
                 <span>Check-out date</span>
-                <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+                <div class="item-time-field">
+                  <input class="item-time-input" name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+                  <button class="item-time-clear" type="button" data-clear-time="checkOutDate" aria-label="Clear date">×</button>
+                </div>
               </label>
-              <p class="field-hint is-hidden" data-date-hint="checkOutDate"></p>
-              <p class="field-hint field-hint--error is-hidden" data-date-error="checkOutDate" role="alert"></p>
+              <p class="field-hint is-hidden" data-date-note="checkOutDate" aria-live="polite"></p>
             </div>
             <div class="item-editor-date-field" data-item-type-section="transport">
               <label class="field">
                 <span>Arrives on</span>
-                <input name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
+                <div class="item-time-field">
+                  <input class="item-time-input" name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
+                  <button class="item-time-clear" type="button" data-clear-time="arrivalDate" aria-label="Clear date">×</button>
+                </div>
               </label>
-              <p class="field-hint is-hidden" data-date-hint="arrivalDate"></p>
-              <p class="field-hint field-hint--error is-hidden" data-date-error="arrivalDate" role="alert"></p>
+              <p class="field-hint is-hidden" data-date-note="arrivalDate" aria-live="polite"></p>
             </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
             <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
