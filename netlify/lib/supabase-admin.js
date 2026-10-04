@@ -40,6 +40,12 @@ const ALLOWED_TABLES = new Set([
   "user_profiles",
   "journal_entries",
   "journal_item_photos",
+  "app_admins",
+  "app_settings",
+  "invite_codes",
+  "invite_redemptions",
+  "signup_attempts",
+  "welcome_email_sends",
 ]);
 
 // A PostgREST "equals this id" filter value. Ids must be UUIDs, so a value
@@ -99,6 +105,12 @@ function insertIgnoringDuplicates(table, values, onConflict) {
   });
 }
 
+// Plain INSERT returning the new row. A duplicate on a unique column throws
+// (message contains "(409)"), which callers can turn into a friendly answer.
+function insert(table, values) {
+  return restRequest("POST", table, {}, values, { prefer: "return=representation" });
+}
+
 function remove(table, params) {
   return restRequest("DELETE", table, params);
 }
@@ -130,4 +142,30 @@ async function getEmailForUser(userId) {
   return user?.email || null;
 }
 
-module.exports = { eqId, getConfig, select, update, upsert, insertIgnoringDuplicates, remove, getUserFromToken, getEmailForUser };
+// One page of every account, from the auth system (the only place that knows
+// emails and sign-in times). Admin-only callers.
+async function listAuthUsers({ page = 1, perPage = 200 } = {}) {
+  const config = getConfig();
+  if (!config) throw new Error("Secret key is not configured.");
+
+  const response = await fetch(`${config.url}/auth/v1/admin/users?page=${Number(page)}&per_page=${Number(perPage)}`, {
+    headers: adminHeaders(config.serviceKey),
+  });
+  if (!response.ok) throw new Error(`User list request failed (${response.status}).`);
+  const body = await response.json();
+  return body?.users || [];
+}
+
+module.exports = {
+  eqId,
+  getConfig,
+  select,
+  update,
+  upsert,
+  insert,
+  insertIgnoringDuplicates,
+  remove,
+  getUserFromToken,
+  getEmailForUser,
+  listAuthUsers,
+};

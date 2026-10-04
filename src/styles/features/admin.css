@@ -1,0 +1,182 @@
+/* Passports admin page: Sign-ups and Users tabs. */
+.admin-page {
+  max-width: 1100px;
+}
+
+.admin-page .settings-toggle {
+  max-width: 100%;
+}
+
+.admin-panel {
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.admin-panel h3 {
+  margin: 0;
+}
+
+.admin-policy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.admin-policy__text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.admin-policy__label {
+  font-weight: 600;
+}
+
+.admin-policy__description {
+  font-size: 0.9rem;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.admin-form__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.admin-form .button {
+  justify-self: start;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-strong);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  white-space: nowrap;
+}
+
+.admin-table tbody tr + tr td {
+  border-top: 1px solid var(--color-border-card);
+}
+
+.admin-table__sub {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.admin-table__detail td {
+  background: var(--color-surface-subtle);
+}
+
+.admin-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+}
+
+.admin-person__name {
+  font-weight: 600;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.admin-badge--active {
+  background: var(--color-action-tint);
+  color: var(--color-action-strong);
+}
+
+.admin-badge--admin,
+.admin-badge--owner {
+  background: var(--color-structure-tint);
+  color: var(--color-structure);
+}
+
+.admin-badge--expired,
+.admin-badge--used_up {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+}
+
+.admin-detail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-detail__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.admin-search {
+  display: flex;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.admin-search__field {
+  flex: 1;
+  max-width: 360px;
+}
+
+.admin-count {
+  margin: 0;
+}
+
+.admin-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .admin-panel {
+    padding: var(--space-4);
+  }
+}

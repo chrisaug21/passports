@@ -1,5 +1,5 @@
 // When bumping APP_VERSION, also update the version constant in sw.js.
-export const APP_VERSION = "1.2.51";
+export const APP_VERSION = "1.3.0";
 
 export const TRIP_STATUSES = ["destinations", "planning", "active", "done"];
 
@@ -126,6 +126,9 @@ export const CANONICAL_TIMEZONES = [
 // Set by a "Create account" button elsewhere in the app so the login page opens
 // on the sign-up form (sessionStorage; read once, then cleared).
 export const LOGIN_START_MODE_KEY = "login-start-mode";
+
+// Where a campaign link's /login?invite=CODE is held while the login page loads.
+export const INVITE_PREFILL_KEY = "login-invite-prefill";
 
 export const EMAIL_PREFERENCE_OPTIONS = [
   {

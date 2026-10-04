@@ -1,6 +1,7 @@
 import { signIn, signUp } from "../../services/auth-service.js";
+import { checkInviteCode, fetchSignupPolicy } from "../../services/signup-service.js";
 import { showToast } from "../shared/toast.js";
-import { LOGIN_START_MODE_KEY } from "../../config/constants.js";
+import { INVITE_PREFILL_KEY, LOGIN_START_MODE_KEY } from "../../config/constants.js";
 
 export function renderLoginPage() {
   return `
@@ -37,6 +38,12 @@ export function renderLoginPage() {
             <label class="field">
               <span>Password</span>
               <input id="sign-up-password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <button class="button-link is-hidden" id="invite-code-reveal" type="button">Have an invite code?</button>
+            <label class="field is-hidden" id="invite-code-field">
+              <span>Invite code</span>
+              <input id="sign-up-invite-code" name="inviteCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+              <small class="field-hint" id="invite-code-hint">Passports is invite-only right now.</small>
             </label>
             <p class="field-hint">Use at least 8 characters. If email confirmation is enabled in Supabase, you may need to confirm your address before signing in.</p>
             <button class="button auth-form__submit" type="submit">Create Account</button>
@@ -110,6 +117,8 @@ export function wireLoginPage() {
     // Storage unavailable: the page just opens on Sign In.
   }
 
+  wireInviteCodeField(setMode);
+
   showSignInButton?.addEventListener("click", () => setMode("sign-in"));
   showSignUpButton?.addEventListener("click", () => setMode("sign-up"));
   createAccountLink?.addEventListener("click", (event) => {
@@ -149,19 +158,32 @@ export function wireLoginPage() {
     const submitButton = signUpForm.querySelector('button[type="submit"]');
     const formData = new FormData(signUpForm);
 
+    const inviteCode = String(formData.get("inviteCode") || "").trim();
+
     submitButton.disabled = true;
     submitButton.textContent = "Creating…";
 
     try {
+      // A friendly check before the sign-up itself. The database is what
+      // really enforces the rule; this just explains a rejection clearly.
+      if (inviteCode) {
+        const check = await checkInviteCode(inviteCode);
+        if (!check.valid) {
+          showToast(getInviteCodeMessage(check), "error");
+          return;
+        }
+      }
+
       await signUp({
         email: String(formData.get("email") || "").trim(),
         password: String(formData.get("password") || ""),
+        inviteCode,
       });
       showToast("Account created. If confirmation is enabled, check your email next.", "success");
       setMode("sign-in");
     } catch (error) {
       console.error(error);
-      showToast(getAuthErrorMessage(error), "error");
+      showToast(getAuthErrorMessage(error, { inviteCode }), "error");
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = "Create Account";
@@ -169,15 +191,79 @@ export function wireLoginPage() {
   });
 }
 
-function getAuthErrorMessage(error) {
-  const message = error?.message || "Something went wrong.";
+// Shows the invite code field: required when sign-up is invite-only, tucked
+// behind "Have an invite code?" when it's open. Campaign links
+// (/login?invite=VIP) arrive here through sessionStorage and just prefill it.
+async function wireInviteCodeField(setMode) {
+  const field = document.querySelector("#invite-code-field");
+  const input = document.querySelector("#sign-up-invite-code");
+  const hint = document.querySelector("#invite-code-hint");
+  const reveal = document.querySelector("#invite-code-reveal");
+  if (!field || !input || !reveal) return;
 
-  if (message.toLowerCase().includes("invalid login credentials")) {
+  let prefill = "";
+  try {
+    prefill = sessionStorage.getItem(INVITE_PREFILL_KEY) || "";
+    sessionStorage.removeItem(INVITE_PREFILL_KEY);
+  } catch {
+    // Storage unavailable: no prefill.
+  }
+
+  const showField = () => {
+    field.classList.remove("is-hidden");
+    reveal.classList.add("is-hidden");
+  };
+
+  reveal.addEventListener("click", () => {
+    showField();
+    input.focus();
+  });
+
+  if (prefill) {
+    input.value = prefill;
+    showField();
+    setMode("sign-up");
+  }
+
+  const { requiresInvite } = await fetchSignupPolicy();
+  if (!document.body.contains(input)) return;
+
+  if (requiresInvite) {
+    input.required = true;
+    hint.textContent = "Passports is invite-only right now.";
+    showField();
+  } else {
+    input.required = false;
+    hint.textContent = "Enter the code you were given.";
+    if (!input.value) reveal.classList.remove("is-hidden");
+  }
+}
+
+function getInviteCodeMessage(check) {
+  if (check.rateLimited) return "You've tried a lot of codes. Please wait a few minutes and try again.";
+  if (check.reason === "expired") return "That invite code has expired. Ask for a new one.";
+  if (check.reason === "used_up") return "That invite code has been used up. Ask for a new one.";
+  return "That invite code isn't valid. Check it and try again.";
+}
+
+function getAuthErrorMessage(error, { inviteCode = "" } = {}) {
+  const message = error?.message || "Something went wrong.";
+  const lowered = message.toLowerCase();
+
+  if (lowered.includes("invalid login credentials")) {
     return "That email or password did not match.";
   }
 
-  if (message.toLowerCase().includes("email not confirmed")) {
+  if (lowered.includes("email not confirmed")) {
     return "Your email is not confirmed yet. Check your inbox and try again.";
+  }
+
+  // The database refused the new account (invite gate). The auth service
+  // reports that as a generic database error, so explain it in plain terms.
+  if (lowered.includes("database error") || lowered.includes("signup_requires_invite")) {
+    return inviteCode
+      ? "That invite code just ran out. Ask for a new one."
+      : "Passports is invite-only right now. Enter an invite code to create an account.";
   }
 
   return message;

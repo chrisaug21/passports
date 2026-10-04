@@ -1,7 +1,7 @@
 import { getSession, onAuthStateChange, signOut } from "../services/auth-service.js";
 import { initializeEnv } from "../config/env.js";
 import { initializeSupabase } from "../lib/supabase.js";
-import { renderRoute, startRouter } from "./router.js";
+import { navigate, renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
 import { openProfileModal } from "../features/shared/profile-modal.js";
@@ -13,10 +13,35 @@ import { APP_VERSION } from "../config/constants.js";
 import { fetchUserProfile } from "../services/journal-service.js";
 import { getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../lib/preferences.js";
 import { renderAppNav, wireAppNav } from "../features/shared/app-nav.js";
+import { fetchAdminStatus } from "../services/admin-service.js";
+import { sendWelcomeEmail } from "../services/signup-service.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
 let profileRequestToken = 0;
+let lastHydratedUserId = "";
+
+// A new account only qualifies for its welcome email for a week; the server
+// enforces the real limit and sends at most once ever.
+const WELCOME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Once per person per page load: find out whether they're an admin (to show
+// the menu item) and nudge the server to send the one-time welcome email.
+async function hydrateSessionExtras(session) {
+  const userId = session?.user?.id || "";
+  if (!userId || userId === lastHydratedUserId) return;
+  lastHydratedUserId = userId;
+
+  const createdAt = new Date(session.user.created_at).getTime();
+  if (Number.isFinite(createdAt) && Date.now() - createdAt <= WELCOME_WINDOW_MS) {
+    void sendWelcomeEmail();
+  }
+
+  const { isAdmin } = await fetchAdminStatus();
+  if (sessionStore.getState().session?.user?.id !== userId) return;
+  sessionStore.setAdmin(isAdmin);
+  document.querySelector("#open-admin-page")?.toggleAttribute("hidden", !isAdmin);
+}
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -34,6 +59,7 @@ export async function bootstrapApp() {
 
     const session = await getSession();
     sessionStore.setSession(session);
+    void hydrateSessionExtras(session);
 
     onAuthStateChange((event, nextSession) => {
       const previousSession = sessionStore.getState().session;
@@ -41,6 +67,8 @@ export async function bootstrapApp() {
       const nextUserId = nextSession?.user?.id || "";
       const isSameSignedInUser = previousUserId && previousUserId === nextUserId;
       sessionStore.setSession(nextSession);
+      if (!nextSession) lastHydratedUserId = "";
+      void hydrateSessionExtras(nextSession);
 
       if (
         event === "INITIAL_SESSION" ||
@@ -100,7 +128,7 @@ function renderBootstrapLoadingScreen() {
 
 export function renderAppShell(content, options = {}) {
   const { showNewTripButton = false, activeNav = "" } = options;
-  const { session } = sessionStore.getState();
+  const { session, isAdmin } = sessionStore.getState();
   const userId = session?.user?.id || "";
   const email = session?.user?.email || "";
   const initials = getUserInitials({ email });
@@ -130,6 +158,7 @@ export function renderAppShell(content, options = {}) {
                     <p class="account-menu__email">${escapeHtml(email)}</p>
                     <button class="account-menu__profile" id="open-profile-modal" type="button">Profile</button>
                     <button class="account-menu__profile" id="open-settings-modal" type="button">Settings</button>
+                    <button class="account-menu__profile" id="open-admin-page" type="button"${isAdmin ? "" : " hidden"}>Passports admin</button>
                     <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                   </div>
                 </details>
@@ -160,6 +189,11 @@ export function renderAppShell(content, options = {}) {
     document.querySelector("#open-settings-modal")?.addEventListener("click", () => {
       document.querySelector("#account-menu").open = false;
       openSettingsModal();
+    });
+
+    document.querySelector("#open-admin-page")?.addEventListener("click", () => {
+      document.querySelector("#account-menu").open = false;
+      navigate("/app/admin");
     });
 
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {

@@ -11,10 +11,13 @@ export async function signIn({ email, password }) {
   }
 }
 
-export async function signUp({ email, password }) {
+export async function signUp({ email, password, inviteCode = "" }) {
   const { error } = await getSupabase().auth.signUp({
     email,
     password,
+    // The invite code travels in the new account's metadata so the database
+    // can check it as the account is created.
+    options: inviteCode ? { data: { invite_code: inviteCode } } : undefined,
   });
 
   if (error) {

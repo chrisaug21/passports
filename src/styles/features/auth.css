@@ -219,3 +219,13 @@
     padding: 1rem;
   }
 }
+
+/* The invite-code field and its "Have an invite code?" link on Create Account. */
+.auth-form .field.is-hidden,
+.auth-form .button-link.is-hidden {
+  display: none;
+}
+
+.auth-form .button-link {
+  justify-self: start;
+}
