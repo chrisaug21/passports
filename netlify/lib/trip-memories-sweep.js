@@ -24,8 +24,14 @@ const NUDGE_KIND = "trip_journal_nudge";
 // No person gets two emails of EITHER kind closer together than this.
 const MIN_DAYS_BETWEEN = 14;
 // The empty-journal nudge is the one most likely to feel naggy, so it also has
-// its own, longer spacing: at most one every six weeks per person.
-const NUDGE_MIN_DAYS_BETWEEN = 42;
+// its own, longer spacing: at most one a month per person.
+const NUDGE_MIN_DAYS_BETWEEN = 30;
+// Memory emails are the lowest-priority email we send, so they stay out of the
+// way of a person's trips: nothing while they're on one, from this many days
+// before it starts (the "starts soon" countdown) until this many days after it
+// ends (the journal reminder window).
+const BUSY_DAYS_BEFORE_START = 3;
+const BUSY_DAYS_AFTER_END = 10;
 const EXCERPT_LENGTH = 200;
 const BATCH_SIZE = 100;
 
@@ -177,6 +183,34 @@ async function loadPeople(userIds, authorIds) {
   };
 }
 
+// The people who are on, about to go on, or just back from a trip today. One
+// pass over their trips: no log needed, it's worked out from the trip dates.
+async function loadBusyUserIds(userIds, today) {
+  const memberships = await admin.select("trip_members", { select: "trip_id,user_id", user_id: inList(userIds), deleted_at: "is.null" });
+  if (!memberships.length) return new Set();
+
+  const trips = await admin.select("trips", {
+    select: "id,start_date,trip_length",
+    id: inList([...new Set(memberships.map((row) => row.trip_id))]),
+    deleted_at: "is.null",
+    // A Wishlist ("destinations") entry can carry a start date without being a
+    // real upcoming trip.
+    status: "neq.destinations",
+    start_date: "not.is.null",
+  });
+  const busyTripIds = new Set(
+    trips
+      .filter((trip) => {
+        const length = Number(trip.trip_length);
+        if (!parseDate(trip.start_date) || !Number.isInteger(length) || length < 1) return false;
+        const end = addDays(trip.start_date, length - 1);
+        return today >= addDays(trip.start_date, -BUSY_DAYS_BEFORE_START) && today <= addDays(end, BUSY_DAYS_AFTER_END);
+      })
+      .map((trip) => trip.id)
+  );
+  return new Set(memberships.filter((row) => busyTripIds.has(row.trip_id)).map((row) => row.user_id));
+}
+
 // ---------------------------------------------------------------------------
 // Choosing what each person gets
 // ---------------------------------------------------------------------------
@@ -187,7 +221,7 @@ function latestSent(sends, predicate) {
 
 // What (if anything) this person is due on `today`, and why not otherwise.
 // Returns { pick } or { skipped }.
-function chooseForPerson({ userId, details, sends, today }) {
+function chooseForPerson({ userId, details, sends, today, busy }) {
   const year = Number(today.slice(0, 4));
   const memoryCandidates = [];
   const nudgeCandidates = [];
@@ -216,6 +250,8 @@ function chooseForPerson({ userId, details, sends, today }) {
   }
 
   if (!memoryCandidates.length && !nudgeCandidates.length) return { skipped: null };
+
+  if (busy) return { skipped: "on or near a trip of their own" };
 
   const lastAny = latestSent(sends, () => true);
   if (lastAny > -Infinity && daysBetween(new Date(lastAny).toISOString().slice(0, 10), today) < MIN_DAYS_BETWEEN) {
@@ -357,6 +393,8 @@ async function runSweep({ today, dryRun = false, onlyTripFilter = null, onlyUser
   const userIds = [...new Set(details.flatMap((detail) => [...detail.memberIds]))].filter((id) => !onlyUserId || id === onlyUserId);
   if (!userIds.length) return { ...empty, tripsDue: trips.length };
 
+  const busyUserIds = await loadBusyUserIds(userIds, today);
+
   const authorIds = details.flatMap((detail) => [...detail.memoriesByDay.values()].flatMap((m) => m.entries.map((entry) => entry.user_id)));
   const people = await loadPeople(userIds, authorIds);
 
@@ -375,7 +413,7 @@ async function runSweep({ today, dryRun = false, onlyTripFilter = null, onlyUser
     // No profile row means they've never touched their settings: default on.
     if (profile && profile[people.column] === false) continue;
 
-    const choice = chooseForPerson({ userId, details, sends: people.sendsByUser.get(userId) || [], today });
+    const choice = chooseForPerson({ userId, details, sends: people.sendsByUser.get(userId) || [], today, busy: busyUserIds.has(userId) });
     if (choice.skipped) results.push({ userId, skipped: choice.skipped });
     if (!choice.pick) continue;
 

@@ -25,7 +25,7 @@ where email_member_added = false
 --    * the unique key allows one email per person, per trip, per kind, per year
 --      (and doubles as the "claim" that stops a repeat send);
 --    * sent_at powers the spacing limits (14 days between any two memory
---      emails/nudges, 6 weeks between nudges);
+--      emails/nudges, 30 days between nudges);
 --    * day_id records which day was featured, so the rotation can show the
 --      least recently featured day next.
 --    Server-only: no policies, nothing for the browser to read or write.
