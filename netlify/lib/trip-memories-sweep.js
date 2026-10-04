@@ -29,9 +29,10 @@ const NUDGE_MIN_DAYS_BETWEEN = 30;
 // Memory emails are the lowest-priority email we send, so they stay out of the
 // way of a person's trips: nothing while they're on one, from this many days
 // before it starts (the "starts soon" countdown) until this many days after it
-// ends (the journal reminder window).
+// ends. The journal reminder (7-10 days after) is deliberately NOT covered: a
+// memory email about an OLD trip landing near it is rare and not worth the gap.
 const BUSY_DAYS_BEFORE_START = 3;
-const BUSY_DAYS_AFTER_END = 10;
+const BUSY_DAYS_AFTER_END = 3;
 const EXCERPT_LENGTH = 200;
 const BATCH_SIZE = 100;
 
