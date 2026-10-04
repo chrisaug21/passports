@@ -42,7 +42,7 @@ function buildTripJournalNudgeEmail({ trip, recipientFirstName, yearsAgo, place,
     `Stop memory emails: ${unsubscribeUrl}`,
   ].join("\n");
 
-  return { subject: `${formatYearsAgo(yearsAgo)}: ${place}`, html, text };
+  return { subject: `${formatYearsAgo(yearsAgo)} you were in ${place}. Got any memories?`, html, text };
 }
 
 module.exports = { buildTripJournalNudgeEmail };
