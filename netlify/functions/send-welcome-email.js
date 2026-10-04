@@ -1,5 +1,7 @@
 const { getMissingEmailEnv, getAppBaseUrl, sendEmail } = require("../lib/email.js");
 const { buildWelcomeEmail } = require("../lib/welcome-email.js");
+const { buildSettingsUrl } = require("../lib/email-prefs.js");
+const { pickHeroPhotoFor } = require("../lib/hero-photos.js");
 const { json, getBearerToken } = require("../lib/admin-auth.js");
 const admin = require("../lib/supabase-admin.js");
 
@@ -14,7 +16,7 @@ const MAX_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 exports.handler = async function handler(event) {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." });
 
-  const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SECRET_KEY", "RESEND_API_KEY"]);
+  const missingEnv = getMissingEmailEnv(["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SECRET_KEY", "EMAIL_LINK_SECRET", "RESEND_API_KEY"]);
   if (missingEnv.length) {
     console.error(`send-welcome-email: not configured on this deploy. Missing: ${missingEnv.join(", ")}`);
     return json(503, { sent: false });
@@ -33,7 +35,14 @@ exports.handler = async function handler(event) {
     if (!claimed) return json(200, { sent: false });
 
     const profiles = await admin.select("user_profiles", { select: "first_name", id: admin.eqId(caller.id) });
-    const { subject, html, text } = buildWelcomeEmail({ firstName: profiles[0]?.first_name, baseUrl: getAppBaseUrl(event) });
+    const baseUrl = getAppBaseUrl(event);
+    const { subject, html, text } = buildWelcomeEmail({
+      firstName: profiles[0]?.first_name,
+      baseUrl,
+      photoUrl: `${baseUrl}${pickHeroPhotoFor(caller.id)}`,
+      // Signed link to the email-settings page that works without signing in.
+      settingsUrl: buildSettingsUrl(baseUrl, caller.id, process.env.EMAIL_LINK_SECRET),
+    });
     const sent = await sendEmail({ to: caller.email, subject, html, text });
 
     if (!sent) {

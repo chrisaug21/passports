@@ -1,4 +1,4 @@
-const { EMAIL_KINDS, ALL_EMAIL_COLUMNS, verifyUnsubscribeToken } = require("../lib/email-prefs.js");
+const { EMAIL_KINDS, ALL_EMAIL_COLUMNS, SETTINGS_LINK_KIND, verifyUnsubscribeToken } = require("../lib/email-prefs.js");
 const { html, raw, getMissingEmailEnv, getAppBaseUrl } = require("../lib/email.js");
 const admin = require("../lib/supabase-admin.js");
 
@@ -146,7 +146,8 @@ exports.handler = async function handler(event) {
     // from starts switched off, so one click on Save does what the link said.
     if (event.httpMethod === "GET") {
       const values = await readCurrentValues(verified.userId);
-      values[verified.kind] = false;
+      // A settings-only link (welcome email) switches nothing off.
+      if (verified.kind !== SETTINGS_LINK_KIND) values[verified.kind] = false;
       return renderSettingsPage({ token, values, baseUrl });
     }
 
@@ -161,7 +162,7 @@ exports.handler = async function handler(event) {
     } else if (form.get("action") === "save") {
       // A checked switch is sent as "on"; an unchecked one isn't sent at all.
       for (const [kind, config] of Object.entries(EMAIL_KINDS)) update[config.column] = form.get(kind) === "on";
-    } else {
+    } else if (verified.kind !== SETTINGS_LINK_KIND) {
       // A mail app's own one-tap "unsubscribe" posts "List-Unsubscribe=One-Click"
       // with no form fields, which means "stop this email".
       update[EMAIL_KINDS[verified.kind].column] = false;

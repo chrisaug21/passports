@@ -142,18 +142,22 @@ async function getEmailForUser(userId) {
   return user?.email || null;
 }
 
-// One page of every account, from the auth system (the only place that knows
-// emails and sign-in times). Admin-only callers.
-async function listAuthUsers({ page = 1, perPage = 200 } = {}) {
+// Calls a database function over the REST interface. Only the functions
+// listed here may be called, for the same reason tables are allow-listed.
+const ALLOWED_FUNCTIONS = new Set(["admin_list_users"]);
+
+async function rpc(functionName, args) {
   const config = getConfig();
   if (!config) throw new Error("Secret key is not configured.");
+  if (!ALLOWED_FUNCTIONS.has(functionName)) throw new Error("Function not allowed.");
 
-  const response = await fetch(`${config.url}/auth/v1/admin/users?page=${Number(page)}&per_page=${Number(perPage)}`, {
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
     headers: adminHeaders(config.serviceKey),
+    body: JSON.stringify(args || {}),
   });
-  if (!response.ok) throw new Error(`User list request failed (${response.status}).`);
-  const body = await response.json();
-  return body?.users || [];
+  if (!response.ok) throw new Error(`Data request failed (${response.status}) for ${functionName}.`);
+  return response.json();
 }
 
 module.exports = {
@@ -167,5 +171,5 @@ module.exports = {
   remove,
   getUserFromToken,
   getEmailForUser,
-  listAuthUsers,
+  rpc,
 };

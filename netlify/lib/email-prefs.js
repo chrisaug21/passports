@@ -37,6 +37,11 @@ const EMAIL_KINDS = {
   },
 };
 
+// A signed link that opens the email-settings page with nothing switched off —
+// for emails that have no switch of their own (the welcome email), so a
+// recipient can still reach their settings without signing in.
+const SETTINGS_LINK_KIND = "settings";
+
 const ALL_EMAIL_COLUMNS = Object.values(EMAIL_KINDS).map((kind) => kind.column);
 
 // ---------------------------------------------------------------------------
@@ -70,8 +75,12 @@ function verifyUnsubscribeToken(token, secret) {
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
 
   const [userId, kind] = Buffer.from(payload, "base64url").toString("utf8").split(".");
-  if (!UUID_PATTERN.test(userId || "") || !Object.hasOwn(EMAIL_KINDS, kind)) return null;
+  if (!UUID_PATTERN.test(userId || "") || (kind !== SETTINGS_LINK_KIND && !Object.hasOwn(EMAIL_KINDS, kind))) return null;
   return { userId, kind };
+}
+
+function buildSettingsUrl(baseUrl, userId, secret) {
+  return buildUnsubscribeUrl(baseUrl, userId, SETTINGS_LINK_KIND, secret);
 }
 
 function buildUnsubscribeUrl(baseUrl, userId, kind, secret) {
@@ -84,4 +93,6 @@ module.exports = {
   createUnsubscribeToken,
   verifyUnsubscribeToken,
   buildUnsubscribeUrl,
+  buildSettingsUrl,
+  SETTINGS_LINK_KIND,
 };

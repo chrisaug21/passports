@@ -1,19 +1,37 @@
 /* Passports admin page: Sign-ups and Users tabs. */
 .admin-page {
   max-width: 1100px;
+  width: 100%;
+  margin-inline: auto;
 }
 
 .admin-page .settings-toggle {
   max-width: 100%;
 }
 
-.admin-panel {
-  padding: var(--space-5);
+/* The page's own flat cards. The shared .panel (28px corners, large soft
+   shadow, see-through) is meant for floating surfaces; stacked on a page it
+   piles its shadows up, so the admin screens use a plain bordered card and a
+   consistent gap between sections instead. */
+#admin-content {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
-.admin-panel h3 {
+.admin-panel,
+.admin-state {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-card);
+  border-radius: 16px;
+  background: var(--color-surface-strong);
+}
+
+.admin-panel h3,
+.admin-state h3,
+.admin-state p {
   margin: 0;
 }
 
@@ -42,7 +60,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-4);
-  align-items: end;
+  align-items: start;
+}
+
+/* Same height for every input (a date input is otherwise a little taller). */
+.admin-form input {
+  height: 3rem;
 }
 
 .admin-form__hint {
@@ -84,6 +107,19 @@
   white-space: nowrap;
 }
 
+/* Compact buttons so a row's actions fit on one line, and no wrapping
+   dates or counts. */
+.admin-table .button {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.admin-table td:nth-child(n + 3):not(:last-child) {
+  white-space: nowrap;
+}
+
 .admin-table tbody tr + tr td {
   border-top: 1px solid var(--color-border-card);
 }
@@ -106,9 +142,20 @@
   font-weight: 600;
 }
 
+/* "Confirm?" buttons keep their size and wrap the label inside themselves
+   (the size is pinned in the script), so the row never shifts. */
+.admin-actions .button.is-confirming,
+.admin-table .button.is-confirming {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.05;
+  white-space: normal;
+  overflow: hidden;
+}
+
 .admin-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -175,8 +222,32 @@
   gap: var(--space-4);
 }
 
+/* A disabled Previous/Next is just inert: no wait cursor, no hover colour. */
+.admin-pager .button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.admin-pager .button:disabled:hover,
+.admin-pager .button:disabled:focus-visible {
+  background: transparent;
+  transform: none;
+}
+
+.admin-results {
+  display: grid;
+  gap: var(--space-4);
+  transition: opacity 140ms ease;
+}
+
+.admin-results.is-refreshing {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 @media (max-width: 640px) {
-  .admin-panel {
+  .admin-panel,
+  .admin-state {
     padding: var(--space-4);
   }
 }

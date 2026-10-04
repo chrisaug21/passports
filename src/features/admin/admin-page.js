@@ -49,7 +49,7 @@ export function renderAdminPage() {
         ).join("")}
       </div>
       <div id="admin-content" aria-live="polite">
-        <section class="panel dashboard-state"><p class="muted">Loading…</p></section>
+        <section class="admin-state"><p class="muted">Loading…</p></section>
       </div>
     </section>
   `;
@@ -94,18 +94,19 @@ async function loadActiveTab() {
   const token = ++loadToken;
   const content = document.querySelector("#admin-content");
   if (!content) return;
-  content.innerHTML = `<section class="panel dashboard-state"><p class="muted">Loading…</p></section>`;
+  content.innerHTML = `<section class="admin-state"><p class="muted">Loading…</p></section>`;
 
   try {
-    const html = activeTab === "users" ? await buildUsersTab() : await buildSignupsTab();
+    const html = activeTab === "users" ? buildUsersTab() : await buildSignupsTab();
     if (token !== loadToken) return;
     content.innerHTML = html;
     window.lucide?.createIcons?.();
+    if (activeTab === "users") void refreshUsersResults();
   } catch (error) {
     console.error(error);
     if (token !== loadToken) return;
     content.innerHTML = `
-      <section class="panel dashboard-state">
+      <section class="admin-state">
         <h3>Could not load this section</h3>
         <p class="muted">${escapeHtml(error.message || "Try refreshing the page.")}</p>
         <button class="button button--secondary" type="button" data-admin-action="reload">Try again</button>
@@ -141,7 +142,7 @@ async function buildSignupsTab() {
   return `
     ${renderPolicyPanel(setting.requiresInvite)}
     ${renderCreateCodePanel()}
-    <section class="panel admin-panel" id="admin-codes-panel">${renderCodesTable(codes)}</section>
+    <section class="admin-panel" id="admin-codes-panel">${renderCodesTable(codes)}</section>
   `;
 }
 
@@ -151,7 +152,7 @@ function policyDescription(requiresInvite) {
 
 function renderPolicyPanel(requiresInvite) {
   return `
-    <section class="panel admin-panel">
+    <section class="admin-panel">
       <h3>Sign-up policy</h3>
       <div class="admin-policy">
         <div class="admin-policy__text">
@@ -169,12 +170,12 @@ function renderPolicyPanel(requiresInvite) {
 
 function renderCreateCodePanel() {
   return `
-    <section class="panel admin-panel">
+    <section class="admin-panel">
       <h3>Create an invite code</h3>
       <form class="admin-form" id="admin-create-code-form">
         <label class="field">
           <span>Code</span>
-          <input name="code" type="text" maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Leave blank to generate one" />
+          <input name="code" type="text" maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Auto-generate" />
         </label>
         <label class="field">
           <span>Note</span>
@@ -237,7 +238,7 @@ function renderCodeRow(code) {
           <button class="button button--secondary button--sm" type="button" data-admin-action="copy-link" data-code="${escapeHtml(code.code)}">Copy link</button>
           <button class="button button--secondary button--sm" type="button" data-admin-action="toggle-redemptions" data-id="${escapeHtml(code.id)}">Who joined</button>
           <button class="button button--secondary button--sm" type="button" data-admin-action="toggle-active" data-id="${escapeHtml(code.id)}" data-active="${code.active}">${code.active ? "Turn off" : "Turn on"}</button>
-          <button class="button button--danger-secondary button--sm" type="button" data-admin-action="remove-code" data-id="${escapeHtml(code.id)}" data-confirm="Tap again to remove">Remove</button>
+          <button class="button button--danger-secondary button--sm" type="button" data-admin-action="remove-code" data-id="${escapeHtml(code.id)}" data-confirm="Confirm remove?">Remove</button>
         </div>
       </td>
     </tr>
@@ -331,10 +332,9 @@ async function changePolicy(toggle) {
 // Users tab: read-only list, plus making people admins (and removing them)
 // ---------------------------------------------------------------------------
 
-async function buildUsersTab() {
-  const data = await fetchAdminUsers(usersView);
+function buildUsersTab() {
   return `
-    <section class="panel admin-panel">
+    <section class="admin-panel">
       <form class="admin-search" id="admin-user-search-form" role="search">
         <label class="field admin-search__field">
           <span class="sr-only">Search by email</span>
@@ -342,9 +342,33 @@ async function buildUsersTab() {
         </label>
         <button class="button button--secondary" type="submit">Search</button>
       </form>
-      ${renderUsersTable(data)}
+      <div id="admin-users-results" class="admin-results"><p class="muted">Loading…</p></div>
     </section>
   `;
+}
+
+// Reloads just the list (not the search box), so searching and paging don't
+// blank the screen or take focus away from the search field.
+let usersRequestToken = 0;
+async function refreshUsersResults() {
+  const results = document.querySelector("#admin-users-results");
+  if (!results) return;
+
+  const token = ++usersRequestToken;
+  results.classList.add("is-refreshing");
+  try {
+    const data = await fetchAdminUsers(usersView);
+    if (token !== usersRequestToken || !results.isConnected) return;
+    results.innerHTML = renderUsersTable(data);
+  } catch (error) {
+    console.error(error);
+    if (token !== usersRequestToken || !results.isConnected) return;
+    results.innerHTML = `
+      <p class="muted">${escapeHtml(error.message || "Couldn't load users.")}</p>
+      <button class="button button--secondary button--sm" type="button" data-admin-action="users-refresh">Try again</button>`;
+  } finally {
+    if (token === usersRequestToken) results.classList.remove("is-refreshing");
+  }
 }
 
 function renderUsersTable(data) {
@@ -386,10 +410,10 @@ function renderAdminCell(user) {
     return `
       <div class="admin-actions">
         <span class="admin-badge admin-badge--admin">Admin</span>
-        <button class="button button--danger-secondary button--sm" type="button" data-admin-action="set-admin" data-user-id="${escapeHtml(user.id)}" data-make-admin="false" data-confirm="Tap again to remove">Remove admin</button>
+        <button class="button button--danger-secondary button--sm" type="button" data-admin-action="set-admin" data-user-id="${escapeHtml(user.id)}" data-make-admin="false" data-confirm="Confirm remove?">Remove admin</button>
       </div>`;
   }
-  return `<button class="button button--secondary button--sm" type="button" data-admin-action="set-admin" data-user-id="${escapeHtml(user.id)}" data-make-admin="true" data-confirm="Tap again to confirm">Make admin</button>`;
+  return `<button class="button button--secondary button--sm" type="button" data-admin-action="set-admin" data-user-id="${escapeHtml(user.id)}" data-make-admin="true" data-confirm="Confirm admin?">Make admin</button>`;
 }
 
 function renderUserRow(user) {
@@ -414,7 +438,7 @@ async function changeUserAdmin(button) {
   try {
     await setUserAdmin(button.dataset.userId, makeAdmin);
     showToast(makeAdmin ? "They're an admin now." : "Admin access removed.", "success");
-    await loadActiveTab();
+    await refreshUsersResults();
   } catch (error) {
     showToast(error.message, "error");
     button.disabled = false;
@@ -430,12 +454,23 @@ async function changeUserAdmin(button) {
 // changes), the second tap within a few seconds does the thing.
 function armConfirm(button) {
   const original = button.textContent;
+  const { width, height } = button.getBoundingClientRect();
+
+  // Hold the button at exactly its current size and let the longer label wrap
+  // inside it, so arming a button never nudges the rest of the row.
+  button.style.width = `${width}px`;
+  button.style.height = `${height}px`;
+  button.classList.add("is-confirming");
   button.dataset.armed = "1";
   button.textContent = button.dataset.confirm;
+
   window.setTimeout(() => {
     if (!button.isConnected) return;
     button.dataset.armed = "";
     button.textContent = original;
+    button.classList.remove("is-confirming");
+    button.style.width = "";
+    button.style.height = "";
   }, CONFIRM_WINDOW_MS);
 }
 
@@ -487,7 +522,10 @@ async function handleContentClick(event) {
       break;
     case "users-page":
       usersView.page = Math.max(1, Number(button.dataset.page) || 1);
-      await loadActiveTab();
+      await refreshUsersResults();
+      break;
+    case "users-refresh":
+      await refreshUsersResults();
       break;
     default:
       break;
@@ -505,7 +543,7 @@ async function handleContentSubmit(event) {
     event.preventDefault();
     usersView.search = String(new FormData(form).get("search") || "").trim();
     usersView.page = 1;
-    await loadActiveTab();
+    await refreshUsersResults();
   }
 }
 

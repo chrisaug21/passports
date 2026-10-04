@@ -40,7 +40,25 @@ async function hydrateSessionExtras(session) {
   const { isAdmin } = await fetchAdminStatus();
   if (sessionStore.getState().session?.user?.id !== userId) return;
   sessionStore.setAdmin(isAdmin);
-  document.querySelector("#open-admin-page")?.toggleAttribute("hidden", !isAdmin);
+  if (isAdmin) insertAdminMenuItem();
+}
+
+// The "Passports admin" menu item only exists in the page for admins (it is
+// added here rather than hidden with CSS, so a non-admin never has it at all).
+function insertAdminMenuItem() {
+  const panel = document.querySelector(".account-menu__panel");
+  if (!panel || panel.querySelector("#open-admin-page")) return;
+
+  const item = document.createElement("button");
+  item.className = "account-menu__profile";
+  item.id = "open-admin-page";
+  item.type = "button";
+  item.textContent = "Passports admin";
+  item.addEventListener("click", () => {
+    document.querySelector("#account-menu").open = false;
+    navigate("/app/admin");
+  });
+  panel.querySelector("#open-settings-modal")?.after(item);
 }
 
 function refreshIcons() {
@@ -158,7 +176,6 @@ export function renderAppShell(content, options = {}) {
                     <p class="account-menu__email">${escapeHtml(email)}</p>
                     <button class="account-menu__profile" id="open-profile-modal" type="button">Profile</button>
                     <button class="account-menu__profile" id="open-settings-modal" type="button">Settings</button>
-                    <button class="account-menu__profile" id="open-admin-page" type="button"${isAdmin ? "" : " hidden"}>Passports admin</button>
                     <button class="button button--secondary account-menu__signout" id="sign-out-button" type="button">Sign Out</button>
                   </div>
                 </details>
@@ -191,10 +208,7 @@ export function renderAppShell(content, options = {}) {
       openSettingsModal();
     });
 
-    document.querySelector("#open-admin-page")?.addEventListener("click", () => {
-      document.querySelector("#account-menu").open = false;
-      navigate("/app/admin");
-    });
+    if (isAdmin) insertAdminMenuItem();
 
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
