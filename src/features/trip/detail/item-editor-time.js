@@ -48,7 +48,25 @@ export function normalizeTimeInput(value) {
   return parseEditableTimeToStorage(value);
 }
 
-function syncTimeWarning() {
+const TIME_LABELS = {
+  lodging: { start: "Check-in Time", end: "Check-out Time" },
+  transport: { start: "Departs", end: "Arrives" },
+};
+
+// Lodging and transport reuse the start/end time columns for check-in/out and
+// depart/arrive, so name them that way instead of "Start/End Time".
+export function syncTimeLabels() {
+  const type = document.querySelector("#item-type-select")?.value;
+  const labels = TIME_LABELS[type] || { start: "Start Time", end: "End Time" };
+
+  document.querySelector('[data-time-label="start"]')?.replaceChildren(labels.start);
+  document.querySelector('[data-time-label="end"]')?.replaceChildren(labels.end);
+}
+
+// "End before start" is only a mistake when both times are on the same day. A
+// hotel's check-out (or an overnight arrival) is on a later date, so skip the
+// warning once that later date is filled in.
+export function syncTimeWarning() {
   const startInput = document.querySelector('[name="timeStart"]');
   const endInput = document.querySelector('[name="timeEnd"]');
   const warning = document.querySelector("#item-editor-time-warning");
@@ -57,9 +75,19 @@ function syncTimeWarning() {
     return;
   }
 
+  const type = document.querySelector("#item-type-select")?.value;
+  const startDate = getCheckOutDateBounds(document.querySelector('[name="dayId"]')?.value || "").min;
+  const laterDate =
+    type === "lodging"
+      ? document.querySelector('[name="checkOutDate"]')?.value
+      : type === "transport"
+        ? document.querySelector('[name="arrivalDate"]')?.value
+        : "";
+  const endsOnLaterDay = Boolean(laterDate) && (!startDate || laterDate > startDate);
+
   const startTime = normalizeTimeInput(startInput.value);
   const endTime = normalizeTimeInput(endInput.value);
-  const shouldWarn = Boolean(startTime && endTime && endTime <= startTime);
+  const shouldWarn = Boolean(startTime && endTime && endTime <= startTime && !endsOnLaterDay);
 
   warning.classList.toggle("is-hidden", !shouldWarn);
 }
@@ -136,34 +164,47 @@ function addDays(dateString, count) {
   return formatDateInputValue(date);
 }
 
-// Keeps the check-out date picker inside the trip, and — instead of opening on
-// today's date, which is never the right answer — starts it the morning after
-// check-in when it's still empty.
+// Wires the second date on lodging (check-out) and transport (arrives on).
+// Check-out stays inside the trip; arrival can't precede departure. An empty
+// picker starts the day after the stop's own day instead of opening on today,
+// which is never the right answer.
 export function wireCheckOutDateInput() {
-  const input = document.querySelector('[name="checkOutDate"]');
   const dayInput = document.querySelector('[name="dayId"]');
 
-  if (!input) {
-    return;
-  }
+  [
+    { name: "checkOutDate", capAtTripEnd: true },
+    { name: "arrivalDate", capAtTripEnd: false },
+  ].forEach(({ name, capAtTripEnd }) => {
+    const input = document.querySelector(`[name="${name}"]`);
 
-  const syncBounds = () => {
-    const { min, max } = getCheckOutDateBounds(dayInput?.value || "");
-    input.min = min;
-    input.max = max;
-  };
-
-  input.addEventListener("focus", () => {
-    syncBounds();
-    if (input.value || !input.min) {
+    if (!input) {
       return;
     }
 
-    const suggested = addDays(input.min, 1);
-    input.value = input.max && suggested > input.max ? input.max : suggested;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+    const syncBounds = () => {
+      const { min, max } = getCheckOutDateBounds(dayInput?.value || "");
+      input.min = min;
+      input.max = capAtTripEnd ? max : "";
+    };
 
-  dayInput?.addEventListener("change", syncBounds);
-  syncBounds();
+    input.addEventListener("focus", () => {
+      syncBounds();
+      if (input.value || !input.min) {
+        return;
+      }
+
+      const suggested = addDays(input.min, 1);
+      input.value = input.max && suggested > input.max ? input.max : suggested;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const handleChange = () => {
+      syncBounds();
+      syncTimeWarning();
+    };
+    input.addEventListener("input", syncTimeWarning);
+    input.addEventListener("change", syncTimeWarning);
+    dayInput?.addEventListener("change", handleChange);
+    syncBounds();
+  });
 }

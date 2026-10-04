@@ -1,4 +1,5 @@
 import {
+  formatArrivalDateSuffix,
   formatTimeLabel,
   formatItemTypeLabel,
   getTripDateByDayNumber,
@@ -396,7 +397,7 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
   if (item.time_start) {
     const prefix = item.time_is_estimated ? "~" : "";
     timeLabel = prefix + formatTimeLabel(item.time_start);
-    if (item.time_end) timeLabel += ` – ${formatTimeLabel(item.time_end)}`;
+    if (item.time_end) timeLabel += ` – ${formatTimeLabel(item.time_end)}${formatArrivalDateSuffix(item)}`;
   }
 
   const itemUrl = sanitizeCoverUrl(item.url);

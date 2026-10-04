@@ -322,6 +322,21 @@ export function formatTimeLabel(value, isEstimated = false) {
   return isEstimated ? `Around ${formatted}` : formatted;
 }
 
+// " (Oct 12)" for a transport stop that arrives on a later day than it departs
+// (red-eyes, night trains); empty for everything else.
+export function formatArrivalDateSuffix(item) {
+  if (item?.item_type !== "transport" || !item.arrival_date) {
+    return "";
+  }
+
+  const date = new Date(`${item.arrival_date}T12:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return ` (${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)})`;
+}
+
 export function formatCostLabel(low, high) {
   if (low == null && high == null) {
     return "";

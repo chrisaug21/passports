@@ -2,6 +2,7 @@ import {
   formatTripDateSummary,
   formatItemTypeLabel,
   formatStatusLabel,
+  formatArrivalDateSuffix,
   formatTimeLabel,
   getTripDateByDayNumber,
   formatDayDateCompact,
@@ -211,7 +212,7 @@ function renderGuideItemCard(item, viewerRole) {
     const prefix = item.time_is_estimated ? "~" : "";
     timeLabel = prefix + formatTimeLabel(item.time_start);
     if (item.time_end) {
-      timeLabel += ` – ${formatTimeLabel(item.time_end)}`;
+      timeLabel += ` – ${formatTimeLabel(item.time_end)}${formatArrivalDateSuffix(item)}`;
     }
   }
 

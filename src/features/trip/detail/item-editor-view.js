@@ -87,14 +87,14 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
             <div class="item-editor-form__grid">
               <label class="field">
-              <span>Start Time</span>
+              <span data-time-label="start">Start Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeStart" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
                   <button class="item-time-clear" type="button" data-clear-time="timeStart" aria-label="Clear start time">×</button>
                 </div>
               </label>
               <label class="field">
-                <span>End Time</span>
+                <span data-time-label="end">End Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeEnd" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
                   <button class="item-time-clear" type="button" data-clear-time="timeEnd" aria-label="Clear end time">×</button>
@@ -163,6 +163,7 @@ function renderTypeSpecificFields(draft) {
         <span>Check-out date</span>
         <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
       </label>
+      <p class="field-hint">Set the check-in and check-out times below.</p>
     </div>
     <div class="item-editor-section" data-item-type-section="meal">
       <label class="field">
@@ -200,6 +201,11 @@ function renderTypeSpecificFields(draft) {
           <input name="transportDestination" type="text" value="${escapeHtml(draft.transportDestination || "")}" />
         </label>
       </div>
+      <label class="field">
+        <span>Arrives on</span>
+        <input name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
+      </label>
+      <p class="field-hint">Only needed for overnight trips. Leave empty if it arrives the same day.</p>
     </div>
   `;
 }

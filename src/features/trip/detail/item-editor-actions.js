@@ -222,6 +222,15 @@ export function createItemEditorHandlers() {
         }
       }
 
+      const arrivalDate = String(draft.arrivalDate || "").trim();
+      if (arrivalDate && draft.itemType === "transport") {
+        const { min } = getCheckOutDateBounds(nextDayId || "");
+        if (min && arrivalDate < min) {
+          showToast("Arrival can't be before the departure day.", "error");
+          return;
+        }
+      }
+
       const itemPayload = {
         title: String(draft.title || "").trim(),
         item_type: String(draft.itemType || "").trim(),
@@ -230,6 +239,7 @@ export function createItemEditorHandlers() {
         base_id: nextBaseId,
         day_id: nextDayId,
         check_out_date: checkOutDate || null,
+        arrival_date: draft.itemType === "transport" ? arrivalDate || null : null,
         meal_slot: String(draft.mealSlot || "").trim() || null,
         activity_type: String(draft.activityType || "").trim() || null,
         transport_mode: String(draft.transportMode || "").trim() || null,
@@ -270,6 +280,7 @@ export function createItemEditorHandlers() {
             baseId: itemPayload.base_id,
             dayId: itemPayload.day_id,
             checkOutDate: itemPayload.check_out_date,
+            arrivalDate: itemPayload.arrival_date,
             mealSlot: itemPayload.meal_slot,
             activityType: itemPayload.activity_type,
             transportMode: itemPayload.transport_mode,

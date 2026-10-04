@@ -1,6 +1,7 @@
 import { appStore } from "../../../state/app-store.js";
 import { tripStore } from "../../../state/trip-store.js";
 import { tripDetailState, rerenderTripDetail } from "./trip-detail-state.js";
+import { syncTimeLabels, syncTimeWarning } from "./item-editor-time.js";
 
 export function syncItemEditorTypeFields() {
   const itemTypeSelect = document.querySelector("#item-type-select");
@@ -15,6 +16,9 @@ export function syncItemEditorTypeFields() {
       field.disabled = !isActive;
     });
   });
+
+  syncTimeLabels();
+  syncTimeWarning();
 }
 
 export function syncItemEditorAssignmentHint() {
