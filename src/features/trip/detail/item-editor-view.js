@@ -101,6 +101,22 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
                 </div>
               </label>
             </div>
+            <div class="item-editor-date-field" data-item-type-section="lodging">
+              <label class="field">
+                <span>Check-out date</span>
+                <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+              </label>
+              <p class="field-hint is-hidden" data-date-hint="checkOutDate"></p>
+              <p class="field-hint field-hint--error is-hidden" data-date-error="checkOutDate" role="alert"></p>
+            </div>
+            <div class="item-editor-date-field" data-item-type-section="transport">
+              <label class="field">
+                <span>Arrives on</span>
+                <input name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
+              </label>
+              <p class="field-hint is-hidden" data-date-hint="arrivalDate"></p>
+              <p class="field-hint field-hint--error is-hidden" data-date-error="arrivalDate" role="alert"></p>
+            </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
             <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
               <input class="anchor-checkbox-input" id="item-anchor-checkbox" name="isAnchor" type="checkbox" ${draft.isAnchor && draft.timeStart ? "checked" : ""} ${draft.timeStart ? "" : "disabled"} hidden />
@@ -158,13 +174,6 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
 function renderTypeSpecificFields(draft) {
   return `
-    <div class="item-editor-section" data-item-type-section="lodging">
-      <label class="field">
-        <span>Check-out date</span>
-        <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
-      </label>
-      <p class="field-hint">Set the check-in and check-out times below.</p>
-    </div>
     <div class="item-editor-section" data-item-type-section="meal">
       <label class="field">
         <span>Meal Slot</span>
@@ -201,11 +210,6 @@ function renderTypeSpecificFields(draft) {
           <input name="transportDestination" type="text" value="${escapeHtml(draft.transportDestination || "")}" />
         </label>
       </div>
-      <label class="field">
-        <span>Arrives on</span>
-        <input name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
-      </label>
-      <p class="field-hint">Only needed for overnight trips. Leave empty if it arrives the same day.</p>
     </div>
   `;
 }

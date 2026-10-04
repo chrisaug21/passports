@@ -2,8 +2,7 @@ import {
   formatCostLabel,
   formatItemTypeLabel,
   formatStatusLabel,
-  formatArrivalDateSuffix,
-  formatTimeLabel,
+  getPlanTimeParts,
 } from "../../../lib/format.js";
 import {
   ITEM_STATUSES,
@@ -54,8 +53,7 @@ export function renderMasterListRow(item, days, bases) {
     item.item_type === "transport" && (item.transport_origin || item.transport_destination)
       ? [item.transport_origin, item.transport_destination].filter(Boolean).map((value) => escapeHtml(value)).join(" → ")
       : "",
-    item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
-    item.time_end ? escapeHtml(`to ${formatTimeLabel(item.time_end, false)}${formatArrivalDateSuffix(item)}`) : "",
+    ...getPlanTimeParts(item).map((part) => escapeHtml(part)),
     escapeHtml(formatCostLabel(item.cost_low, item.cost_high)),
   ].filter(Boolean);
 

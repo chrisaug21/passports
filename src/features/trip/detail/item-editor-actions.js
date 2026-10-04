@@ -24,7 +24,7 @@ import {
   wireAnchorCheckbox,
   wireDiscardConfirmModal,
 } from "./item-editor-dom.js";
-import { getCheckOutDateBounds, normalizeTimeInput, wireCheckOutDateInput, wireTimeInputs } from "./item-editor-time.js";
+import { getDateFieldError, normalizeTimeInput, wireCheckOutDateInput, wireTimeInputs } from "./item-editor-time.js";
 
 export function getTripItemErrorMessage(action = "update") {
   const messages = {
@@ -214,21 +214,13 @@ export function createItemEditorHandlers() {
       }
 
       const checkOutDate = String(draft.checkOutDate || "").trim();
-      if (checkOutDate && draft.itemType === "lodging") {
-        const { min, max } = getCheckOutDateBounds(nextDayId || "");
-        if ((min && checkOutDate < min) || (max && checkOutDate > max)) {
-          showToast("Check-out date has to fall within your trip dates.", "error");
-          return;
-        }
-      }
-
       const arrivalDate = String(draft.arrivalDate || "").trim();
-      if (arrivalDate && draft.itemType === "transport") {
-        const { min } = getCheckOutDateBounds(nextDayId || "");
-        if (min && arrivalDate < min) {
-          showToast("Arrival can't be before the departure day.", "error");
-          return;
-        }
+      const dateError =
+        (draft.itemType === "lodging" && getDateFieldError("checkOutDate", checkOutDate, nextDayId || "")) ||
+        (draft.itemType === "transport" && getDateFieldError("arrivalDate", arrivalDate, nextDayId || ""));
+      if (dateError) {
+        showToast(dateError, "error");
+        return;
       }
 
       const itemPayload = {

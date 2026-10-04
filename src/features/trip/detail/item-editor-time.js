@@ -1,6 +1,6 @@
 import { tripStore } from "../../../state/trip-store.js";
 import { formatDateInputValue, getTripEndDate } from "../../../lib/derive.js";
-import { getTripDateByDayNumber } from "../../../lib/format.js";
+import { formatMonthDay, getTripDateByDayNumber } from "../../../lib/format.js";
 
 function getNearestUpcomingHour() {
   const now = new Date();
@@ -164,47 +164,111 @@ function addDays(dateString, count) {
   return formatDateInputValue(date);
 }
 
-// Wires the second date on lodging (check-out) and transport (arrives on).
-// Check-out stays inside the trip; arrival can't precede departure. An empty
-// picker starts the day after the stop's own day instead of opening on today,
-// which is never the right answer.
+// Allowed range for the stop's second date. Check-out runs from the check-in day
+// to the trip's last day; an arrival has to be after the departure day (same-day
+// arrivals are just left empty).
+function getDateFieldRange(name, dayId) {
+  const { min: dayDate, max: tripEnd } = getCheckOutDateBounds(dayId);
+
+  if (name === "arrivalDate") {
+    return { dayDate, min: dayDate ? addDays(dayDate, 1) : "", max: "" };
+  }
+
+  return { dayDate, min: dayDate, max: tripEnd };
+}
+
+// Plain-language reason a date is out of range, or "" when it's fine.
+export function getDateFieldError(name, value, dayId) {
+  if (!value) {
+    return "";
+  }
+
+  const { dayDate, min, max } = getDateFieldRange(name, dayId);
+
+  if (name === "arrivalDate") {
+    return dayDate && value < min
+      ? `Arrival date must be after ${formatMonthDay(dayDate)}. Leave it empty if it arrives the same day.`
+      : "";
+  }
+
+  if (min && value < min) {
+    return `Check-out date must be on or after ${formatMonthDay(min)}, the day you check in.`;
+  }
+
+  if (max && value > max) {
+    return `Check-out date must be on or before ${formatMonthDay(max)}, the last day of your trip.`;
+  }
+
+  return "";
+}
+
+function getDateFieldHint(name, dayId) {
+  const { dayDate, max } = getDateFieldRange(name, dayId);
+
+  if (name === "arrivalDate") {
+    return `Only needed for overnight trips. Leave empty if it arrives the same day${dayDate ? ` (${formatMonthDay(dayDate)})` : ""}.`;
+  }
+
+  return dayDate && max ? `Checking in ${formatMonthDay(dayDate)}. Your trip ends ${formatMonthDay(max)}.` : "";
+}
+
+// Wires the second date on lodging (check-out) and transport (arrives on): keeps
+// the picker inside its range, shows the helper text and any error right under
+// the field, and replaces the browser's own "Value must be less than..." message.
+// An empty picker starts at the first sensible date instead of opening on today.
 export function wireCheckOutDateInput() {
   const dayInput = document.querySelector('[name="dayId"]');
 
-  [
-    { name: "checkOutDate", capAtTripEnd: true },
-    { name: "arrivalDate", capAtTripEnd: false },
-  ].forEach(({ name, capAtTripEnd }) => {
+  ["checkOutDate", "arrivalDate"].forEach((name) => {
     const input = document.querySelector(`[name="${name}"]`);
+    const hint = document.querySelector(`[data-date-hint="${name}"]`);
+    const error = document.querySelector(`[data-date-error="${name}"]`);
 
     if (!input) {
       return;
     }
 
-    const syncBounds = () => {
-      const { min, max } = getCheckOutDateBounds(dayInput?.value || "");
+    const refresh = () => {
+      const dayId = dayInput?.value || "";
+      const { min, max } = getDateFieldRange(name, dayId);
       input.min = min;
-      input.max = capAtTripEnd ? max : "";
+      input.max = max;
+
+      const hintText = getDateFieldHint(name, dayId);
+      if (hint) {
+        hint.textContent = hintText;
+        hint.classList.toggle("is-hidden", !hintText);
+      }
+
+      const message = getDateFieldError(name, input.value, dayId);
+      if (error) {
+        error.textContent = message;
+        error.classList.toggle("is-hidden", !message);
+      }
+      input.setAttribute("aria-invalid", message ? "true" : "false");
+      syncTimeWarning();
     };
 
     input.addEventListener("focus", () => {
-      syncBounds();
+      refresh();
       if (input.value || !input.min) {
         return;
       }
 
-      const suggested = addDays(input.min, 1);
+      const suggested = name === "checkOutDate" ? addDays(input.min, 1) : input.min;
       input.value = input.max && suggested > input.max ? input.max : suggested;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const handleChange = () => {
-      syncBounds();
-      syncTimeWarning();
-    };
-    input.addEventListener("input", syncTimeWarning);
-    input.addEventListener("change", syncTimeWarning);
-    dayInput?.addEventListener("change", handleChange);
-    syncBounds();
+    input.addEventListener("input", refresh);
+    input.addEventListener("change", refresh);
+    // Browsers pop up their own wording when a save is blocked by min/max; ours is
+    // already showing under the field.
+    input.addEventListener("invalid", (event) => {
+      event.preventDefault();
+      refresh();
+    });
+    dayInput?.addEventListener("change", refresh);
+    refresh();
   });
 }

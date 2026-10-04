@@ -397,7 +397,10 @@ function renderJournalItemCard(item, entries, photos, members, profiles, isWrita
   if (item.time_start) {
     const prefix = item.time_is_estimated ? "~" : "";
     timeLabel = prefix + formatTimeLabel(item.time_start);
-    if (item.time_end) timeLabel += ` – ${formatTimeLabel(item.time_end)}${formatArrivalDateSuffix(item)}`;
+    // A hotel's second time is check-out on a later day, which reads wrong next
+    // to the check-in time; the Journal leaves the logistics to Plan/Itinerary.
+    if (item.item_type === "lodging") timeLabel = `Check-in ${timeLabel}`;
+    else if (item.time_end) timeLabel += ` – ${formatTimeLabel(item.time_end)}${formatArrivalDateSuffix(item)}`;
   }
 
   const itemUrl = sanitizeCoverUrl(item.url);

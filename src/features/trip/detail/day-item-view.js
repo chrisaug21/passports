@@ -1,5 +1,5 @@
 import { tripStore } from "../../../state/trip-store.js";
-import { formatTimeLabel } from "../../../lib/format.js";
+import { formatTimeLabel, getPlanTimeParts } from "../../../lib/format.js";
 import {
   escapeHtml,
   getItemMapsUrl,
@@ -19,7 +19,10 @@ export function renderDayItem(item, options = {}) {
     canMoveDown = false,
   } = options;
   const detailParts = [
-    item.time_start ? escapeHtml(formatTimeLabel(item.time_start)) : "",
+    ...(item.item_type === "lodging"
+      ? getPlanTimeParts(item)
+      : [item.time_start ? formatTimeLabel(item.time_start) : ""]
+    ).map((part) => escapeHtml(part)),
   ].filter(Boolean);
 
   return `

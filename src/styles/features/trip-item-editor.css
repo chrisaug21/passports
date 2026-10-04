@@ -290,3 +290,32 @@
 .item-editor-form input[type="date"] {
   min-width: 0;
 }
+
+.field-hint--error {
+  color: var(--color-danger-strong);
+}
+
+.item-editor-date-field {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Let each field's input shrink to its column (iOS date inputs otherwise keep
+   their own wide minimum width and spill out of the modal). */
+.item-editor-form .field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.item-editor-form input[type="date"] {
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 3.1rem;
+  text-align: left;
+}
+
+.item-editor-form input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
