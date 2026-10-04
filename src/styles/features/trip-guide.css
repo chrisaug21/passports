@@ -562,6 +562,16 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Briefly marks the day a memory email linked to. */
+.guide-day-header.is-highlighted {
+  animation: guide-day-highlight 2.5s ease-out;
+}
+
+@keyframes guide-day-highlight {
+  0%, 60% { background: var(--color-action-tint); }
+  100% { background: transparent; }
+}
+
 .guide-day-header__eyebrow {
   display: flex;
   align-items: center;
