@@ -35,6 +35,14 @@ const EMAIL_KINDS = {
     title: "Trip countdown",
     description: "Three days before a trip starts, a link to your itinerary and what's still to do.",
   },
+  // One switch for both the "X years ago today" email and the "add your
+  // memories" nudge (they share this unsubscribe kind).
+  trip_memories: {
+    column: "email_trip_memories",
+    label: "trip memory emails",
+    title: "Trip memories",
+    description: "On the anniversary of a day from a past trip, a look back at your journal or a nudge to add your memories.",
+  },
 };
 
 // A signed link that opens the email-settings page with nothing switched off —

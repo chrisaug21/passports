@@ -26,6 +26,13 @@
 [functions."trip-timeline"]
   schedule = "0 * * * *"
 
+# Daily sweep for the "X years ago today" memory emails (and the "add your
+# memories" nudge for empty journals). 15:00 UTC is 11am US Eastern in summer /
+# 10am in winter. Dates are matched in US Eastern, so a run just after midnight
+# UTC is never needed. Production only, like the other sweeps.
+[functions."trip-memories"]
+  schedule = "0 15 * * *"
+
 [[headers]]
   for = "/sw.js"
   [headers.values]

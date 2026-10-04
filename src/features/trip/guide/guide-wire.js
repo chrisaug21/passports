@@ -637,6 +637,33 @@ async function switchToJournal() {
   persistActiveMode("journal");
   renderJournalModeContent();
   startJournalAutoRefresh();
+  revealEmailDay();
+}
+
+// A memory email links to one specific day (?day=3#journal). Once the journal
+// has drawn, scroll to that day and flash its header so it's obvious where
+// you landed. A day that doesn't exist on this trip is ignored (the journal
+// just opens normally). The parameter is removed afterwards so switching tabs
+// back and forth doesn't yank the page to the day again.
+function revealEmailDay() {
+  const url = new URL(window.location.href);
+  const requested = url.searchParams.get("day");
+  if (requested === null) return;
+
+  url.searchParams.delete("day");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+
+  const dayNumber = Number(requested);
+  if (!Number.isInteger(dayNumber) || !_guideState?.days.some((day) => day.day_number === dayNumber)) return;
+
+  const targetId = `guide-day-${dayNumber}`;
+  window.setTimeout(() => {
+    scrollOrJumpToTarget(targetId);
+    const header = document.querySelector(`#${targetId} .guide-day-header`);
+    if (!header) return;
+    header.classList.add("is-highlighted");
+    window.setTimeout(() => header.classList.remove("is-highlighted"), 2500);
+  }, 100);
 }
 
 function switchToItinerary() {
