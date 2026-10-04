@@ -7,7 +7,7 @@ const MAX_LISTED = 5;
 // Builds the "Your trip starts in 3 days" email: a link to the Guide and,
 // when there is any, what's still open on the to-do list. `openTodos` and
 // `openPacking` are arrays of titles. Pure: no network, no environment.
-function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirstName, photo, baseUrl, unsubscribeUrl }) {
+function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirstName, photo, baseUrl, unsubscribeUrl, settingsUrl }) {
   const start = parseDate(trip.start_date);
   const length = Number(trip.trip_length);
   const end = start && Number.isInteger(length) && length >= 1 ? new Date(start.getTime() + (length - 1) * MS_PER_DAY) : null;
@@ -60,7 +60,7 @@ function buildTripStartsSoonEmail({ trip, openTodos, openPacking, recipientFirst
     bodyHtml,
     unsubscribeUrl,
     unsubscribeLabel: "Stop trip countdown emails",
-    settingsUrl: `${baseUrl}/app`,
+    settingsUrl: settingsUrl || `${baseUrl}/app`,
   });
 
   const textGroup = (heading, titles) => {

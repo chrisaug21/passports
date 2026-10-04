@@ -40,6 +40,12 @@ const ALLOWED_TABLES = new Set([
   "user_profiles",
   "journal_entries",
   "journal_item_photos",
+  "app_admins",
+  "app_settings",
+  "invite_codes",
+  "invite_redemptions",
+  "signup_attempts",
+  "welcome_email_sends",
 ]);
 
 // A PostgREST "equals this id" filter value. Ids must be UUIDs, so a value
@@ -99,6 +105,12 @@ function insertIgnoringDuplicates(table, values, onConflict) {
   });
 }
 
+// Plain INSERT returning the new row. A duplicate on a unique column throws
+// (message contains "(409)"), which callers can turn into a friendly answer.
+function insert(table, values) {
+  return restRequest("POST", table, {}, values, { prefer: "return=representation" });
+}
+
 function remove(table, params) {
   return restRequest("DELETE", table, params);
 }
@@ -130,4 +142,38 @@ async function getEmailForUser(userId) {
   return user?.email || null;
 }
 
-module.exports = { eqId, getConfig, select, update, upsert, insertIgnoringDuplicates, remove, getUserFromToken, getEmailForUser };
+// Calls a database function over the REST interface. Only the functions
+// listed here may be called, for the same reason tables are allow-listed.
+const ALLOWED_FUNCTIONS = new Set(["admin_list_users"]);
+
+// Like restRequest, the fetch below is flagged as user-controlled-URL (SSRF) —
+// a false positive: the host is always process.env.SUPABASE_URL and
+// `functionName` is a literal from this repo's own code that must be in
+// ALLOWED_FUNCTIONS.
+async function rpc(functionName, args) {
+  const config = getConfig();
+  if (!config) throw new Error("Secret key is not configured.");
+  if (!ALLOWED_FUNCTIONS.has(functionName)) throw new Error("Function not allowed.");
+
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: adminHeaders(config.serviceKey),
+    body: JSON.stringify(args || {}),
+  });
+  if (!response.ok) throw new Error(`Data request failed (${response.status}) for ${functionName}.`);
+  return response.json();
+}
+
+module.exports = {
+  eqId,
+  getConfig,
+  select,
+  update,
+  upsert,
+  insert,
+  insertIgnoringDuplicates,
+  remove,
+  getUserFromToken,
+  getEmailForUser,
+  rpc,
+};

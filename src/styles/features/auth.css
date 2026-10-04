@@ -7,8 +7,8 @@
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.34)),
-    url("/assets/hero-bg.jpg");
+    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.52)),
+    var(--auth-hero-image, url("/assets/hero-bg.jpg"));
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -218,4 +218,72 @@
   .auth-marketing__cta {
     padding: 1rem;
   }
+}
+
+/* Create Account fields: label above, hint or inline error below. */
+.auth-form .field {
+  gap: 0.4rem;
+}
+
+.auth-form .field > label {
+  font-weight: 600;
+}
+
+.auth-form .field.is-hidden {
+  display: none;
+}
+
+.auth-form .field-hint,
+.auth-form .field-error,
+.auth-form .password-rules {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.auth-form .field-error {
+  color: var(--color-danger-strong);
+  font-weight: 500;
+}
+
+.auth-form .field.is-invalid input {
+  border-color: var(--color-danger);
+}
+
+.auth-form .field.is-invalid input:focus {
+  outline-color: var(--color-danger-soft);
+  border-color: var(--color-danger);
+}
+
+/* A requirement is plain hint text until it's met, then turns green with a
+   tick after it (after, not before, so the text never shifts sideways). While
+   the field is showing an error the error says the same thing, so the list
+   steps aside. */
+.auth-form .password-rules {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  color: var(--color-text-muted);
+}
+
+.auth-form .password-rules li.is-met {
+  color: var(--color-action-strong);
+}
+
+.auth-form .password-rules li.is-met::after {
+  content: "";
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.12em;
+  border-radius: 50%;
+  background: var(--color-action)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 100% no-repeat;
+}
+
+.auth-form .field.is-invalid .password-rules {
+  display: none;
 }

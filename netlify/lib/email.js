@@ -76,7 +76,9 @@ const COLORS = {
 };
 
 // Wraps a body in the shared Passports frame: wordmark, content card, and a
-// footer with the unsubscribe controls every email must carry.
+// footer with the unsubscribe controls every email must carry. The exception
+// is a one-time transactional email (the welcome email): it passes no
+// unsubscribeUrl and its footer shows only the "Email settings" link.
 function renderEmailLayout({ preheader, heroHtml = "", bodyHtml, unsubscribeUrl, unsubscribeLabel, settingsUrl }) {
   return `<!doctype html>
 <html lang="en">
@@ -99,8 +101,12 @@ function renderEmailLayout({ preheader, heroHtml = "", bodyHtml, unsubscribeUrl,
             </tr>
             <tr>
               <td style="padding:16px 4px 0;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:${COLORS.muted};">
-                <a href="${escapeHtml(unsubscribeUrl)}" style="color:${COLORS.muted};">${escapeHtml(unsubscribeLabel)}</a>
-                &nbsp;·&nbsp;
+                ${
+                  unsubscribeUrl
+                    ? `<a href="${escapeHtml(unsubscribeUrl)}" style="color:${COLORS.muted};">${escapeHtml(unsubscribeLabel)}</a>
+                &nbsp;·&nbsp;`
+                    : ""
+                }
                 <a href="${escapeHtml(settingsUrl)}" style="color:${COLORS.muted};">Email settings</a>
               </td>
             </tr>

@@ -1,4 +1,4 @@
-const { EMAIL_KINDS, buildUnsubscribeUrl } = require("./email-prefs.js");
+const { EMAIL_KINDS, buildUnsubscribeUrl, buildSettingsUrl } = require("./email-prefs.js");
 const { sendEmailBatch } = require("./email.js");
 const { buildJournalReminderEmail } = require("./journal-reminder-email.js");
 const { buildEmailPhoto, heroPhotoParams } = require("./trip-photo.js");
@@ -120,6 +120,7 @@ async function buildMessages({ trip, endDate, data, baseUrl, linkSecret, summary
       photo: data.photo,
       baseUrl,
       unsubscribeUrl,
+      settingsUrl: buildSettingsUrl(baseUrl, userId, linkSecret),
     });
     messages.push({ to: email, subject, html, text, unsubscribeUrl });
     summary.recipients.push(email);

@@ -1,4 +1,4 @@
-const { EMAIL_KINDS, buildUnsubscribeUrl } = require("../lib/email-prefs.js");
+const { EMAIL_KINDS, buildUnsubscribeUrl, buildSettingsUrl } = require("../lib/email-prefs.js");
 const { getMissingEmailEnv, getAppBaseUrl, sendEmail } = require("../lib/email.js");
 const { buildMemberAddedEmail } = require("../lib/member-added-email.js");
 const { buildEmailPhoto, heroPhotoParams } = require("../lib/trip-photo.js");
@@ -100,6 +100,7 @@ async function composeAndSend({ event, tripId, userId, callerId, linkSecret }) {
     photo: await buildEmailPhoto(photos[0]),
     baseUrl,
     unsubscribeUrl,
+    settingsUrl: buildSettingsUrl(baseUrl, userId, linkSecret),
   });
 
   return sendEmail({ to: recipientEmail, subject, html, text, unsubscribeUrl });

@@ -2,7 +2,7 @@ const { escapeHtml, renderEmailLayout, renderButton, COLORS } = require("./email
 
 // Builds the evening-of-day-2 check-in: hopes the trip is going well and
 // encourages journaling each night. Pure: no network, no environment.
-function buildTripDayTwoEmail({ trip, recipientFirstName, photo, baseUrl, unsubscribeUrl }) {
+function buildTripDayTwoEmail({ trip, recipientFirstName, photo, baseUrl, unsubscribeUrl, settingsUrl }) {
   // Opens the Guide straight on its Journal tab (the Guide reads "#journal").
   const journalUrl = `${baseUrl}/app/trip/${trip.id}/guide?from=email#journal`;
   const greeting = recipientFirstName ? `Hi ${escapeHtml(recipientFirstName)},` : "Hi,";
@@ -30,7 +30,7 @@ function buildTripDayTwoEmail({ trip, recipientFirstName, photo, baseUrl, unsubs
     bodyHtml,
     unsubscribeUrl,
     unsubscribeLabel: "Stop trip check-in emails",
-    settingsUrl: `${baseUrl}/app`,
+    settingsUrl: settingsUrl || `${baseUrl}/app`,
   });
 
   const text = [

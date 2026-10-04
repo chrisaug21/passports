@@ -1,5 +1,5 @@
 // Keep this in sync with APP_VERSION in src/config/constants.js.
-const version = "1.2.51";
+const version = "1.3.4";
 const cacheName = `passports-shell-${version}`;
 const appShell = [
   "/",
@@ -45,6 +45,16 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
 
   if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  // Never cache server answers. This worker serves anything it has seen
+  // before straight from its cache, which is right for the app's own files but
+  // wrong for /api/*: live data (the admin codes and users lists, the sign-up
+  // policy, who is an admin) would be replayed stale, even after signing out
+  // and back in. The public config is the one exception — it only changes
+  // when the site is redeployed, which also ships a new worker version.
+  if (requestUrl.pathname.startsWith("/api/") && requestUrl.pathname !== "/api/public-config") {
     return;
   }
 

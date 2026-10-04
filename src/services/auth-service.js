@@ -11,15 +11,21 @@ export async function signIn({ email, password }) {
   }
 }
 
-export async function signUp({ email, password }) {
-  const { error } = await getSupabase().auth.signUp({
+export async function signUp({ email, password, inviteCode = "" }) {
+  const { data, error } = await getSupabase().auth.signUp({
     email,
     password,
+    // The invite code travels in the new account's metadata so the database
+    // can check it as the account is created.
+    options: inviteCode ? { data: { invite_code: inviteCode } } : undefined,
   });
 
   if (error) {
     throw error;
   }
+
+  // No session means the address still needs confirming before sign-in.
+  return { hasSession: Boolean(data?.session) };
 }
 
 export async function signOut() {

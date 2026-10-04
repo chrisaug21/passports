@@ -27,6 +27,8 @@ import {
   wireDestinationsPage,
 } from "../features/destinations/destinations-page.js";
 import { loadMapPage, renderMapPage, wireMapPage } from "../features/map/map-page.js";
+import { loadAdminPage, renderAdminPage, wireAdminPage } from "../features/admin/admin-page.js";
+import { INVITE_PREFILL_KEY } from "../config/constants.js";
 
 // Where a signed-out person was headed (an email link, the connect page), so
 // signing in drops them there instead of on the dashboard. localStorage rather
@@ -71,6 +73,7 @@ function normalizePath(pathname) {
     pathname === "/app/archive" ||
     pathname === "/app/destinations" ||
     pathname === "/app/map" ||
+    pathname === "/app/admin" ||
     /^\/app\/trip\/[0-9a-f-]+$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/guide$/i.test(pathname) ||
     /^\/app\/trip\/[0-9a-f-]+\/notes$/i.test(pathname) ||
@@ -143,7 +146,18 @@ export function renderRoute(options = {}) {
       rememberReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
     }
 
-    if (pathname !== "/login") {
+    // A campaign link (/login?invite=VIP) is about to lose its query string
+    // below, so hold the code for the sign-up form to prefill.
+    const inviteParam = new URLSearchParams(window.location.search).get("invite");
+    if (inviteParam) {
+      try {
+        sessionStorage.setItem(INVITE_PREFILL_KEY, inviteParam.trim().slice(0, 64));
+      } catch {
+        // Storage unavailable: the code just isn't prefilled.
+      }
+    }
+
+    if (pathname !== "/login" || window.location.search) {
       window.history.replaceState({}, "", "/login");
     }
 
@@ -173,6 +187,20 @@ export function renderRoute(options = {}) {
       afterRender: () => {
         document.title = "Passports | Connect AI Assistant";
         wireMcpConnectPage();
+        if (preserveScroll) {
+          window.scrollTo({ top: previousScrollY });
+        }
+      },
+    });
+    return;
+  }
+
+  if (pathname === "/app/admin") {
+    renderAppShell(renderAdminPage(), {
+      afterRender: () => {
+        document.title = "Passports | Admin";
+        wireAdminPage();
+        loadAdminPage();
         if (preserveScroll) {
           window.scrollTo({ top: previousScrollY });
         }

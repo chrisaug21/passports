@@ -1,7 +1,7 @@
 import { getSession, onAuthStateChange, signOut } from "../services/auth-service.js";
 import { initializeEnv } from "../config/env.js";
 import { initializeSupabase } from "../lib/supabase.js";
-import { renderRoute, startRouter } from "./router.js";
+import { navigate, renderRoute, startRouter } from "./router.js";
 import { sessionStore } from "../state/session-store.js";
 import { showToast } from "../features/shared/toast.js";
 import { openProfileModal } from "../features/shared/profile-modal.js";
@@ -13,10 +13,53 @@ import { APP_VERSION } from "../config/constants.js";
 import { fetchUserProfile } from "../services/journal-service.js";
 import { getMapsAppPreferenceVersion, setMapsAppPreferenceCache } from "../lib/preferences.js";
 import { renderAppNav, wireAppNav } from "../features/shared/app-nav.js";
+import { fetchAdminStatus } from "../services/admin-service.js";
+import { sendWelcomeEmail } from "../services/signup-service.js";
 
 const appRoot = document.querySelector("#app");
 let accountMenuListenersBound = false;
 let profileRequestToken = 0;
+let lastHydratedUserId = "";
+
+// A new account only qualifies for its welcome email for a week; the server
+// enforces the real limit and sends at most once ever.
+const WELCOME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Once per person per page load: find out whether they're an admin (to show
+// the menu item) and nudge the server to send the one-time welcome email.
+async function hydrateSessionExtras(session) {
+  const userId = session?.user?.id || "";
+  if (!userId || userId === lastHydratedUserId) return;
+  lastHydratedUserId = userId;
+
+  const createdAt = new Date(session.user.created_at).getTime();
+  if (Number.isFinite(createdAt) && Date.now() - createdAt <= WELCOME_WINDOW_MS) {
+    void sendWelcomeEmail();
+  }
+
+  const { isAdmin } = await fetchAdminStatus();
+  if (sessionStore.getState().session?.user?.id !== userId) return;
+  sessionStore.setAdmin(isAdmin);
+  if (isAdmin) insertAdminMenuItem();
+}
+
+// The "Passports admin" menu item only exists in the page for admins (it is
+// added here rather than hidden with CSS, so a non-admin never has it at all).
+function insertAdminMenuItem() {
+  const panel = document.querySelector(".account-menu__panel");
+  if (!panel || panel.querySelector("#open-admin-page")) return;
+
+  const item = document.createElement("button");
+  item.className = "account-menu__profile";
+  item.id = "open-admin-page";
+  item.type = "button";
+  item.textContent = "Passports admin";
+  item.addEventListener("click", () => {
+    document.querySelector("#account-menu").open = false;
+    navigate("/app/admin");
+  });
+  panel.querySelector("#open-settings-modal")?.after(item);
+}
 
 function refreshIcons() {
   if (window.lucide?.createIcons) {
@@ -34,6 +77,7 @@ export async function bootstrapApp() {
 
     const session = await getSession();
     sessionStore.setSession(session);
+    void hydrateSessionExtras(session);
 
     onAuthStateChange((event, nextSession) => {
       const previousSession = sessionStore.getState().session;
@@ -41,6 +85,8 @@ export async function bootstrapApp() {
       const nextUserId = nextSession?.user?.id || "";
       const isSameSignedInUser = previousUserId && previousUserId === nextUserId;
       sessionStore.setSession(nextSession);
+      if (!nextSession) lastHydratedUserId = "";
+      void hydrateSessionExtras(nextSession);
 
       if (
         event === "INITIAL_SESSION" ||
@@ -100,7 +146,7 @@ function renderBootstrapLoadingScreen() {
 
 export function renderAppShell(content, options = {}) {
   const { showNewTripButton = false, activeNav = "" } = options;
-  const { session } = sessionStore.getState();
+  const { session, isAdmin } = sessionStore.getState();
   const userId = session?.user?.id || "";
   const email = session?.user?.email || "";
   const initials = getUserInitials({ email });
@@ -161,6 +207,8 @@ export function renderAppShell(content, options = {}) {
       document.querySelector("#account-menu").open = false;
       openSettingsModal();
     });
+
+    if (isAdmin) insertAdminMenuItem();
 
     document.querySelector("#sign-out-button")?.addEventListener("click", async () => {
       const button = document.querySelector("#sign-out-button");
