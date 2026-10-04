@@ -255,9 +255,10 @@
   border-color: var(--color-danger);
 }
 
-/* A requirement is a quiet hint until it's met, then ticks green. While the
-   field is showing an error the error says the same thing, so the list steps
-   aside. */
+/* A requirement is plain hint text until it's met, then turns green with a
+   tick after it (after, not before, so the text never shifts sideways). While
+   the field is showing an error the error says the same thing, so the list
+   steps aside. */
 .auth-form .password-rules {
   list-style: none;
   padding: 0;
@@ -266,27 +267,18 @@
   color: var(--color-text-muted);
 }
 
-.auth-form .password-rules li {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.auth-form .password-rules li::before {
-  content: "";
-  width: 0.9rem;
-  height: 0.9rem;
-  flex: none;
-  border: 1.5px solid var(--color-border-strong);
-  border-radius: 50%;
-}
-
 .auth-form .password-rules li.is-met {
   color: var(--color-action-strong);
 }
 
-.auth-form .password-rules li.is-met::before {
-  border-color: var(--color-action);
+.auth-form .password-rules li.is-met::after {
+  content: "";
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.12em;
+  border-radius: 50%;
   background: var(--color-action)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / 100% no-repeat;
