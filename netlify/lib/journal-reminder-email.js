@@ -10,7 +10,7 @@ function buildJournalReminderEmail({ trip, endDate, recipientFirstName, photo, b
 
   const meta = start && end ? `${formatDateRange(start, end)} · ${length} ${length === 1 ? "day" : "days"}` : "";
   // Opens the Guide straight on its Journal tab (the Guide reads "#journal").
-  const journalUrl = `${baseUrl}/app/trip/${trip.id}/guide#journal`;
+  const journalUrl = `${baseUrl}/app/trip/${trip.id}/guide?from=email#journal`;
   const greeting = recipientFirstName ? `Hi ${escapeHtml(recipientFirstName)},` : "Hi,";
   const wrapped = end ? `wrapped up on ${formatShortDate(end, true)}` : "has wrapped up";
 

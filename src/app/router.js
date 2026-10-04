@@ -28,7 +28,40 @@ import {
 } from "../features/destinations/destinations-page.js";
 import { loadMapPage, renderMapPage, wireMapPage } from "../features/map/map-page.js";
 
-const MCP_CONNECT_RETURN_KEY = "mcp-connect-return";
+// Where a signed-out person was headed (an email link, the connect page), so
+// signing in drops them there instead of on the dashboard. localStorage rather
+// than sessionStorage so it survives signing up and confirming the email in a
+// different tab; the short expiry keeps a stale destination from hijacking a
+// sign-in much later.
+const LOGIN_RETURN_KEY = "login-return";
+const LOGIN_RETURN_MAX_AGE_MS = 30 * 60 * 1000;
+
+// Only in-app pages are ever accepted as a destination (never another site).
+function isSafeReturnPath(path) {
+  return typeof path === "string" && /^\/app\/[^\s]*$/.test(path) && !path.startsWith("//");
+}
+
+export function rememberReturnPath(path) {
+  if (!isSafeReturnPath(path)) return;
+  try {
+    localStorage.setItem(LOGIN_RETURN_KEY, JSON.stringify({ path, savedAt: Date.now() }));
+  } catch {
+    // Storage unavailable (private window, blocked): sign-in just lands on the dashboard.
+  }
+}
+
+function takeReturnPath() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(LOGIN_RETURN_KEY) || "null");
+    localStorage.removeItem(LOGIN_RETURN_KEY);
+    if (stored && Date.now() - stored.savedAt <= LOGIN_RETURN_MAX_AGE_MS && isSafeReturnPath(stored.path)) {
+      return stored.path;
+    }
+  } catch {
+    // Unreadable or unavailable: nothing to restore.
+  }
+  return null;
+}
 
 function normalizePath(pathname) {
   if (
@@ -106,8 +139,8 @@ export function renderRoute(options = {}) {
   }
 
   if (!session) {
-    if (pathname === "/app/connect") {
-      sessionStorage.setItem(MCP_CONNECT_RETURN_KEY, `${window.location.pathname}${window.location.search}`);
+    if (pathname !== "/login" && pathname !== "/" && pathname !== "/app") {
+      rememberReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
     }
 
     if (pathname !== "/login") {
@@ -126,12 +159,13 @@ export function renderRoute(options = {}) {
     return;
   }
 
-  const pendingConnectReturn = sessionStorage.getItem(MCP_CONNECT_RETURN_KEY);
-  if (pendingConnectReturn && (pathname === "/login" || pathname === "/")) {
-    sessionStorage.removeItem(MCP_CONNECT_RETURN_KEY);
-    window.history.replaceState({}, "", pendingConnectReturn);
-    renderRoute(options);
-    return;
+  if (pathname === "/login" || pathname === "/") {
+    const pendingReturn = takeReturnPath();
+    if (pendingReturn) {
+      window.history.replaceState({}, "", pendingReturn);
+      renderRoute(options);
+      return;
+    }
   }
 
   if (pathname === "/app/connect") {

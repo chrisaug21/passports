@@ -23,6 +23,18 @@ const EMAIL_KINDS = {
     title: "Journal reminders",
     description: "About a week after a trip ends, a nudge to add your memories.",
   },
+  trip_day_two: {
+    column: "email_trip_day_two",
+    label: "trip check-in emails",
+    title: "Trip check-in",
+    description: "The evening of the second day of a trip, a nudge to start journaling.",
+  },
+  trip_starts_soon: {
+    column: "email_trip_starts_soon",
+    label: "trip countdown emails",
+    title: "Trip countdown",
+    description: "Three days before a trip starts, a link to your itinerary and what's still to do.",
+  },
 };
 
 const ALL_EMAIL_COLUMNS = Object.values(EMAIL_KINDS).map((kind) => kind.column);

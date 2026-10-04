@@ -260,11 +260,11 @@ export function renderTripSettingsForm(trip, isSaving) {
               <div class="trip-settings-form__sharing-row">
                 <div class="trip-settings-form__sharing-label-group">
                   <div class="trip-settings-form__sharing-heading">
-                    <span class="trip-settings-form__sharing-label">Journal reminder email</span>
+                    <span class="trip-settings-form__sharing-label">Trip reminder emails</span>
                   </div>
-                  <span class="field-hint trip-settings-form__sharing-hint">Email everyone on this trip about a week after it ends, asking them to add to the journal. Each person can also opt out in their own Settings.</span>
+                  <span class="field-hint trip-settings-form__sharing-hint">Email everyone on this trip the reminders around it: a countdown 3 days before it starts, a journaling check-in on day 2, and a nudge to add memories about a week after it ends. Each person can also opt out in their own Settings.</span>
                 </div>
-                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Journal reminder email">
+                <label class="toggle-switch trip-settings-form__sharing-toggle" aria-label="Trip reminder emails">
                   <input name="journalRemindersEnabled" type="checkbox" class="toggle-switch__input" ${trip.journal_reminders_enabled === false ? "" : "checked"} />
                   <span class="toggle-switch__track" aria-hidden="true"></span>
                 </label>
