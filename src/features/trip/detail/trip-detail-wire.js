@@ -79,11 +79,85 @@ function scrollToPlanningTarget(targetId) {
   if (!card) return;
   const navHeight = document.querySelector(".days-jump-nav")?.getBoundingClientRect().height || 0;
   const top = card.getBoundingClientRect().top + window.scrollY - navHeight - 12;
+  // Hold the highlight steady while the smooth scroll runs, rather than flickering
+  // through every card it passes.
+  planningSpyLockUntil = Date.now() + 400;
+  setActivePlanningPill(targetId);
   window.scrollTo({ top, behavior: "smooth" });
+}
+
+// Highlights the pill for whatever the reader is currently looking at, and keeps
+// that pill in view inside the sticky row as they scroll by hand.
+let planningSpyCleanup = null;
+let planningSpyLockUntil = 0;
+
+function setActivePlanningPill(targetId) {
+  const track = document.querySelector(".days-jump-nav__track");
+  let activePill = null;
+
+  document.querySelectorAll(".days-jump-nav__item[data-jump-to]").forEach((pill) => {
+    const isActive = pill.getAttribute("data-jump-to") === targetId;
+    pill.classList.toggle("is-active", isActive);
+    if (isActive) activePill = pill;
+  });
+
+  if (!track || !activePill || activePill.dataset.centered === "true") return;
+
+  document.querySelectorAll(".days-jump-nav__item[data-centered]").forEach((pill) => delete pill.dataset.centered);
+  activePill.dataset.centered = "true";
+  const trackRect = track.getBoundingClientRect();
+  const pillRect = activePill.getBoundingClientRect();
+  const delta = pillRect.left - trackRect.left - (trackRect.width - pillRect.width) / 2;
+  track.scrollTo({ left: track.scrollLeft + delta, behavior: "smooth" });
+}
+
+function setupPlanningScrollSpy() {
+  planningSpyCleanup?.();
+  planningSpyCleanup = null;
+
+  const nav = document.querySelector(".days-jump-nav");
+  if (!nav) return;
+
+  const targetIds = [...nav.querySelectorAll("[data-jump-to]")].map((pill) => pill.getAttribute("data-jump-to"));
+  let rafId = null;
+
+  const update = () => {
+    rafId = null;
+    if (!nav.isConnected) {
+      planningSpyCleanup?.();
+      return;
+    }
+
+    // A card counts as current once its top reaches just below the sticky row.
+    const line = nav.getBoundingClientRect().bottom + 24;
+    let activeId = targetIds[0];
+    for (const id of targetIds) {
+      const element = document.getElementById(id);
+      if (element && element.getBoundingClientRect().top <= line) activeId = id;
+    }
+    setActivePlanningPill(activeId);
+  };
+
+  const handleScroll = () => {
+    if (Date.now() < planningSpyLockUntil) {
+      planningSpyLockUntil = Date.now() + 150;
+      return;
+    }
+    if (!rafId) rafId = requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  planningSpyCleanup = () => {
+    window.removeEventListener("scroll", handleScroll);
+    if (rafId) cancelAnimationFrame(rafId);
+    planningSpyCleanup = null;
+  };
+  update();
 }
 
 export function wireTripDetailPageEvents(handlers) {
   attachScrollFade(document.querySelector(".days-jump-nav__track"));
+  setupPlanningScrollSpy();
   bindClick("#trip-back-to-dashboard", handlers.onBackToDashboard);
   bindClick("#retry-trip-load", handlers.onRetryTripLoad);
   bindAll("[data-view-mode]", "click", (button) => {
