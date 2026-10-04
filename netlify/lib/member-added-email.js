@@ -47,6 +47,7 @@ function buildMemberAddedEmail({
   baseUrl,
   unsubscribeUrl,
   today,
+  settingsUrl,
 }) {
   const { phase, start, end } = getTripPhase({ startDate: trip.start_date, tripLength: trip.trip_length }, today);
   const copy = getCopy(phase, trip.title, end);
@@ -80,7 +81,7 @@ function buildMemberAddedEmail({
     bodyHtml,
     unsubscribeUrl,
     unsubscribeLabel: "Stop emails when I'm added to a trip",
-    settingsUrl: `${baseUrl}/app`,
+    settingsUrl: settingsUrl || `${baseUrl}/app`,
   });
 
   const text = [

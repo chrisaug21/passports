@@ -1,5 +1,5 @@
 // Photos that rotate behind the hero text on the sign-in page (one picked at
-// random per page load). All are the owner's own trip photos, self-hosted in
+// random per page load). All are the owner's own photos, self-hosted in
 // /assets/hero/. The welcome email rotates through the same set — keep this
 // list in sync with netlify/lib/hero-photos.js (the browser can't import that
 // file; there is no build step).
@@ -12,6 +12,7 @@ export const HERO_PHOTOS = [
   "banff",
   "tuscany",
   "nantucket",
+  "hallstatt",
 ].map((name) => `/assets/hero/${name}.jpg`);
 
 export function pickHeroPhoto() {

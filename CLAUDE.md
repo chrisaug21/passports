@@ -129,7 +129,7 @@ Sent from `passports@mail.chrisaug.com` via Resend, only from Netlify functions 
 **Every new email type needs all of these:**
 1. A per-person on/off column on `user_profiles` (`email_*`, boolean) via a `sql/` migration. Default `true` for everyone — except people whose existing `email_*` columns are all `false`: they get `false`, so a new email type can't override someone who turned everything off.
 2. An entry in `EMAIL_KINDS` (`netlify/lib/email-prefs.js`) **and** `EMAIL_PREFERENCE_OPTIONS` (`src/config/constants.js`) — it shows up as a switch in Settings automatically.
-3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
+3. A signed unsubscribe link in the footer (`buildUnsubscribeUrl`) **and** a signed "Email settings" link (`buildSettingsUrl`, passed to the builder as `settingsUrl`) — both open the no-login settings page, so nobody has to sign in to change their emails plus the List-Unsubscribe headers (both handled by `sendEmail`/`renderEmailLayout`).
 4. The function checks the recipient's column before sending. No profile row means never changed → on.
 
 There is deliberately **no** "unsubscribe all" column. "Unsubscribe from all" (Settings, and the unsubscribe page) just sets every `email_*` column to `false`.

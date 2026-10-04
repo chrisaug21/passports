@@ -1,4 +1,4 @@
-const { EMAIL_KINDS, buildUnsubscribeUrl } = require("./email-prefs.js");
+const { EMAIL_KINDS, buildUnsubscribeUrl, buildSettingsUrl } = require("./email-prefs.js");
 const { sendEmailBatch } = require("./email.js");
 const { buildTripDayTwoEmail } = require("./trip-day-two-email.js");
 const { buildTripStartsSoonEmail } = require("./trip-starts-soon-email.js");
@@ -163,7 +163,7 @@ async function buildMessages({ kind, trip, data, baseUrl, linkSecret, summary })
     }
 
     const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, userId, kind, linkSecret);
-    const common = { trip, recipientFirstName: profile?.first_name, photo: data.photo, baseUrl, unsubscribeUrl };
+    const common = { trip, recipientFirstName: profile?.first_name, photo: data.photo, baseUrl, unsubscribeUrl, settingsUrl: buildSettingsUrl(baseUrl, userId, linkSecret) };
     const { subject, html, text } =
       kind === "trip_day_two"
         ? buildTripDayTwoEmail(common)

@@ -3,7 +3,7 @@ const { parseDate, formatShortDate, formatDateRange } = require("./trip-dates.js
 
 // Builds the "add your memories to the trip journal" email. Pure: no network,
 // no environment, so it can be previewed and tested on its own.
-function buildJournalReminderEmail({ trip, endDate, recipientFirstName, photo, baseUrl, unsubscribeUrl }) {
+function buildJournalReminderEmail({ trip, endDate, recipientFirstName, photo, baseUrl, unsubscribeUrl, settingsUrl }) {
   const start = parseDate(trip.start_date);
   const end = parseDate(endDate);
   const length = Number(trip.trip_length);
@@ -37,7 +37,7 @@ function buildJournalReminderEmail({ trip, endDate, recipientFirstName, photo, b
     bodyHtml,
     unsubscribeUrl,
     unsubscribeLabel: "Stop journal reminder emails",
-    settingsUrl: `${baseUrl}/app`,
+    settingsUrl: settingsUrl || `${baseUrl}/app`,
   });
 
   const text = [
