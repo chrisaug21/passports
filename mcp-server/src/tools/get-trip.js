@@ -11,7 +11,7 @@ const TRIP_ITEM_SELECT =
   "id,trip_id,base_id,day_id,created_by,title,item_type,status,is_done,done_by,done_at," +
   "is_anchor,meal_slot,activity_type,transport_mode,transport_origin,transport_destination," +
   "time_start,time_end,time_is_estimated,cost_low,cost_high,confirmation_ref,url,notes,address," +
-  "sort_order,check_out_date,created_at,updated_at";
+  "sort_order,check_out_date,arrival_date,created_at,updated_at";
 
 // ctx: { getSupabaseAccessToken } — see mcp-server/src/index.js. Unlike the
 // public trip-export.js, this tool is the account owner (or a trip member)

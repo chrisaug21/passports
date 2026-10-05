@@ -30,6 +30,7 @@ export const TRIP_ITEM_SELECT = `
   address,
   sort_order,
   check_out_date,
+  arrival_date,
   created_at,
   updated_at
 `;
@@ -79,6 +80,7 @@ export async function createDetailedTripItem({
   baseId,
   dayId,
   checkOutDate,
+  arrivalDate,
   mealSlot,
   activityType,
   transportMode,
@@ -113,6 +115,7 @@ export async function createDetailedTripItem({
       status: normalizedStatus,
       is_anchor: Boolean(isAnchor),
       check_out_date: checkOutDate || null,
+      arrival_date: arrivalDate || null,
       meal_slot: mealSlot || null,
       activity_type: activityType || null,
       transport_mode: transportMode || null,
@@ -247,6 +250,7 @@ export async function batchUpdateTripItems(itemUpdates) {
           address: item.address,
           sort_order: item.sort_order,
           check_out_date: item.check_out_date,
+          arrival_date: item.arrival_date || null,
           updated_at: now,
         })
         .eq("id", item.id)

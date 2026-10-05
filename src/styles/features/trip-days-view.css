@@ -390,6 +390,12 @@
   border-color: var(--color-structure-tint);
 }
 
+.days-jump-nav__item.is-active {
+  background: var(--color-structure-soft);
+  color: var(--color-structure);
+  border-color: var(--color-structure-tint);
+}
+
 .days-jump-nav__item--section {
   font-weight: 600;
   color: var(--color-structure);

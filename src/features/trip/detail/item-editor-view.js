@@ -87,19 +87,39 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
             <div class="item-editor-form__grid">
               <label class="field">
-              <span>Start Time</span>
+              <span data-time-label="start">Start Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeStart" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeStart) || "")}" placeholder="— : — AM" />
                   <button class="item-time-clear" type="button" data-clear-time="timeStart" aria-label="Clear start time">×</button>
                 </div>
               </label>
               <label class="field">
-                <span>End Time</span>
+                <span data-time-label="end">End Time</span>
                 <div class="item-time-field">
                   <input class="item-time-input" name="timeEnd" type="time" step="60" value="${escapeHtml(parseEditableTimeToStorage(draft.timeEnd) || "")}" placeholder="— : — AM" />
                   <button class="item-time-clear" type="button" data-clear-time="timeEnd" aria-label="Clear end time">×</button>
                 </div>
               </label>
+            </div>
+            <div class="item-editor-date-field" data-item-type-section="lodging">
+              <label class="field">
+                <span>Check-out date</span>
+                <div class="item-time-field">
+                  <input class="item-time-input" name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
+                  <button class="item-time-clear" type="button" data-clear-time="checkOutDate" aria-label="Clear date">×</button>
+                </div>
+              </label>
+              <p class="field-hint is-hidden" data-date-note="checkOutDate" aria-live="polite"></p>
+            </div>
+            <div class="item-editor-date-field" data-item-type-section="transport">
+              <label class="field">
+                <span data-time-label="arrivalDate">Arrives on</span>
+                <div class="item-time-field">
+                  <input class="item-time-input" name="arrivalDate" type="date" value="${escapeHtml(draft.arrivalDate || "")}" />
+                  <button class="item-time-clear" type="button" data-clear-time="arrivalDate" aria-label="Clear date">×</button>
+                </div>
+              </label>
+              <p class="field-hint is-hidden" data-date-note="arrivalDate" aria-live="polite"></p>
             </div>
             <p class="field-hint field-hint--warning is-hidden" id="item-editor-time-warning">End time should be after start time.</p>
             <label class="anchor-checkbox-label ${draft.timeStart ? "" : "is-disabled"}" for="item-anchor-checkbox" title="${draft.timeStart ? "" : "Set a start time to mark as anchor"}">
@@ -158,12 +178,6 @@ export function renderItemEditorModal({ item, bases, days, mode = "edit", contex
 
 function renderTypeSpecificFields(draft) {
   return `
-    <div class="item-editor-section" data-item-type-section="lodging">
-      <label class="field">
-        <span>Check-out date</span>
-        <input name="checkOutDate" type="date" value="${escapeHtml(draft.checkOutDate || "")}" />
-      </label>
-    </div>
     <div class="item-editor-section" data-item-type-section="meal">
       <label class="field">
         <span>Meal Slot</span>

@@ -51,6 +51,7 @@ Trip
 - `trip_bases` — `trip_id`; `local_timezone` IANA string; `date_start`/`date_end` nullable; soft delete via `deleted_at`
 - `trip_days` — `trip_id` + `base_id`; `day_number` 1-indexed across entire trip; real date derived never stored; soft delete via `deleted_at`
 - `trip_items` — `base_id` and `day_id` independently nullable; `is_anchor` boolean; `time_start`/`time_end` local HH:MM strings; `cost_low`/`cost_high` USD numeric; `address` free-text nullable (renders as a map-pin icon; link searches `"<item title>, <address>"` so it resolves to the actual business listing, not just a bare pin — opens Apple Maps or Google Maps per `user_profiles.preferred_maps_app`, an account-level setting synced via Supabase, not a device/browser setting); `is_done` boolean (default false) tracks completion separately from `status`, with `done_by`/`done_at`; soft delete via `deleted_at`
+  Lodging uses `time_start`/`time_end` as check-in/check-out time and `check_out_date` (limited to the check-in day..trip end). Transport uses them as departs/arrives and the nullable `arrival_date` (null = same day) for overnight trips. The editor skips the "end before start" warning once that later date is filled in.
 - `trip_members` — `role`: planner/traveler; UNIQUE `(trip_id, user_id)`; creator auto-added as planner via trigger
 - `trip_todos` — optional `item_id` link; `due_phase`: before_trip/during_trip/after_trip; soft delete via `deleted_at`
 - `trip_packing_items` — `category`: clothing/toiletries/documents/gear/other; soft delete via `deleted_at`

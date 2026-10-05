@@ -1,6 +1,11 @@
 ---
 exclude_paths:
-  - 'sql/**/*'
+  # Supabase migrations are Postgres. Codacy's SQL checks are SQL Server (T-SQL) rules
+  # (e.g. "Expected SET NOCOUNT ON") that don't apply and would break if followed.
+  # Codacy has no setting to declare the SQL dialect, so skip the folder; both globs
+  # are listed so files directly inside sql/ are matched too.
+  - 'sql/**'
+  - 'sql/*'
   - 'src/lib/vendor/**/*'
   # CLAUDE.md and AGENTS.md intentionally mirror each other (different agents read each)
   - 'CLAUDE.md'

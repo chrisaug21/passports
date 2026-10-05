@@ -2,6 +2,7 @@ import {
   formatTripDateSummary,
   formatItemTypeLabel,
   formatStatusLabel,
+  getEndTimeText,
   formatTimeLabel,
   getTripDateByDayNumber,
   formatDayDateCompact,
@@ -210,8 +211,8 @@ function renderGuideItemCard(item, viewerRole) {
   if (item.time_start) {
     const prefix = item.time_is_estimated ? "~" : "";
     timeLabel = prefix + formatTimeLabel(item.time_start);
-    if (item.time_end) {
-      timeLabel += ` – ${formatTimeLabel(item.time_end)}`;
+    if (getEndTimeText(item)) {
+      timeLabel += ` – ${getEndTimeText(item)}`;
     }
   }
 

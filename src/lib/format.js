@@ -322,6 +322,55 @@ export function formatTimeLabel(value, isEstimated = false) {
   return isEstimated ? `Around ${formatted}` : formatted;
 }
 
+// "May 23" for a YYYY-MM-DD string (empty if it isn't a valid date).
+export function formatMonthDay(value) {
+  const date = new Date(`${value}T12:00:00`);
+  if (!value || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+// Time details for the Plan view. A hotel's two times fall on different days, so
+// they're labelled and the check-out carries its date ("Check-out: May 24, 11:00 AM").
+// Everything else keeps the plain "start to end" form.
+export function getPlanTimeParts(item) {
+  if (item?.item_type === "lodging") {
+    const checkOutDay = formatMonthDay(item.check_out_date);
+    return [
+      item.time_start ? `Check-in: ${formatTimeLabel(item.time_start)}` : "",
+      item.time_end || checkOutDay
+        ? `Check-out: ${[checkOutDay, formatTimeLabel(item.time_end)].filter(Boolean).join(", ")}`
+        : "",
+    ].filter(Boolean);
+  }
+
+  return [
+    item?.time_start ? formatTimeLabel(item.time_start) : "",
+    getEndTimeText(item) ? `${item?.time_end ? "to " : ""}${getEndTimeText(item)}` : "",
+  ].filter(Boolean);
+}
+
+// " (Oct 12)" for a transport stop that arrives on a later day than it departs
+// (red-eyes, night trains); empty for everything else.
+// The "end" half of a time range: the end time plus arrival date for an overnight
+// transport stop, or just "arrives May 24" when a date was saved without a time.
+export function getEndTimeText(item) {
+  const suffix = formatArrivalDateSuffix(item);
+
+  if (item?.time_end) {
+    return `${formatTimeLabel(item.time_end)}${suffix}`;
+  }
+
+  return suffix ? `arrives ${suffix.trim().slice(1, -1)}` : "";
+}
+
+export function formatArrivalDateSuffix(item) {
+  const label = item?.item_type === "transport" ? formatMonthDay(item.arrival_date) : "";
+  return label ? ` (${label})` : "";
+}
+
 export function formatCostLabel(low, high) {
   if (low == null && high == null) {
     return "";

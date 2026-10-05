@@ -853,6 +853,7 @@ async function insertMovedTripItems(supabase, { newTripId, ownerId, itemsToMove,
     address: item.address,
     sort_order: index,
     check_out_date: null,
+    arrival_date: null,
     created_at: now,
     updated_at: now,
   }));

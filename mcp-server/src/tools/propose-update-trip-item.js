@@ -35,6 +35,7 @@ function fieldDefs(baseNameById, dayLabelById) {
     { camel: "address", snake: "address", nullable: true, zod: z.string() },
     { camel: "sortOrder", snake: "sort_order", nullable: false, zod: z.number().int() },
     { camel: "checkOutDate", snake: "check_out_date", nullable: true, zod: z.string() },
+    { camel: "arrivalDate", snake: "arrival_date", nullable: true, zod: z.string() },
   ];
 }
 
@@ -164,7 +165,7 @@ function registerProposeUpdateTripItem(server, ctx) {
           `1–${MAX_CHANGESET_ITEMS} item edits. Each entry needs itemId plus only the fields actually ` +
             "changing — omit anything left as-is. Nullable fields (baseId, dayId, mealSlot, activityType, " +
             "transportMode, transportOrigin, transportDestination, timeStart, timeEnd, costLow, costHigh, " +
-            "confirmationRef, url, notes, address, checkOutDate) accept null to explicitly clear them."
+            "confirmationRef, url, notes, address, checkOutDate, arrivalDate) accept null to explicitly clear them."
         ),
       },
     },
