@@ -9,6 +9,7 @@ import {
   dedupeItemsById,
   getFlexItemsForDay,
   getInterleavedDayItems,
+  moveCombinedItemByStep,
   normalizeFlexItems,
 } from "./item-ordering.js";
 
@@ -37,10 +38,45 @@ export async function reorderFlexItemsWithinDay(dayId, movedItemId, direction) {
   const movedItem = combinedItems[currentIndex];
   const targetItem = combinedItems[targetIndex];
 
+  // Two items can end up saved with the same sort_order (other writers --
+  // the MCP tools, older renumbering code -- don't guarantee unique values).
+  // Swapping two equal numbers changes nothing, so the arrow click looked
+  // like it did nothing and the item seemed stuck. In that case, spread just
+  // the tied items out between their neighbors, in the new order.
+  if (Number(movedItem.sort_order) === Number(targetItem.sort_order)) {
+    await persistItemBatchUpdates(
+      spreadTiedSortOrders(moveCombinedItemByStep(combinedItems, movedItemId, direction), movedItemId)
+    );
+    return;
+  }
+
   await persistItemBatchUpdates([
     buildUpdatedItem(movedItem, { sort_order: targetItem.sort_order }),
     buildUpdatedItem(targetItem, { sort_order: movedItem.sort_order }),
   ]);
+}
+
+// Given a day's items already in their new order, finds the run of items
+// around `itemId` that share its sort_order and gives them evenly spaced
+// values between the neighbors on either side. Only the tied items are
+// written; sort_order is numeric, so fractional values are fine.
+function spreadTiedSortOrders(orderedItems, itemId) {
+  const index = orderedItems.findIndex((item) => item.id === itemId);
+  const tiedValue = Number(orderedItems[index].sort_order);
+  let start = index;
+  let end = index;
+
+  while (start > 0 && Number(orderedItems[start - 1].sort_order) === tiedValue) start -= 1;
+  while (end < orderedItems.length - 1 && Number(orderedItems[end + 1].sort_order) === tiedValue) end += 1;
+
+  const before = start > 0 ? Number(orderedItems[start - 1].sort_order) : NaN;
+  const after = end < orderedItems.length - 1 ? Number(orderedItems[end + 1].sort_order) : NaN;
+  const lower = before < tiedValue ? before : tiedValue - 1;
+  const upper = after > tiedValue ? after : tiedValue + 1;
+  const run = orderedItems.slice(start, end + 1);
+  const step = (upper - lower) / (run.length + 1);
+
+  return run.map((item, offset) => buildUpdatedItem(item, { sort_order: lower + step * (offset + 1) }));
 }
 
 export function getMoveDestinationLabel(destinationDayId, days) {
