@@ -91,7 +91,7 @@ function scrollToPlanningTarget(targetId) {
 let planningSpyCleanup = null;
 let planningSpyLockUntil = 0;
 
-function setActivePlanningPill(targetId) {
+function setActivePlanningPill(targetId, { instant = false } = {}) {
   const track = document.querySelector(".days-jump-nav__track");
   let activePill = null;
 
@@ -108,8 +108,15 @@ function setActivePlanningPill(targetId) {
   const trackRect = track.getBoundingClientRect();
   const pillRect = activePill.getBoundingClientRect();
   const delta = pillRect.left - trackRect.left - (trackRect.width - pillRect.width) / 2;
-  track.scrollTo({ left: track.scrollLeft + delta, behavior: "smooth" });
+  track.scrollTo({ left: track.scrollLeft + delta, behavior: instant ? "auto" : "smooth" });
 }
+
+// The whole page is re-rendered after every save (reordering a stop, editing,
+// etc.), which rebuilds the sticky day row scrolled back to the start with no
+// pill highlighted -- the spy then animated it back to the current day, so
+// the row looked like it was re-selecting the day on every click. Remember
+// where the row was (per page) so a re-render can restore it instantly.
+let planningTrackMemory = { pageKey: null, scrollLeft: 0 };
 
 function setupPlanningScrollSpy() {
   planningSpyCleanup?.();
@@ -121,7 +128,18 @@ function setupPlanningScrollSpy() {
   const targetIds = [...nav.querySelectorAll("[data-jump-to]")].map((pill) => pill.getAttribute("data-jump-to"));
   let rafId = null;
 
-  const update = () => {
+  const track = nav.querySelector(".days-jump-nav__track");
+  const pageKey = window.location.pathname;
+  if (track && planningTrackMemory.pageKey === pageKey) {
+    track.scrollLeft = planningTrackMemory.scrollLeft;
+  }
+  planningTrackMemory = { pageKey, scrollLeft: track?.scrollLeft || 0 };
+  const rememberTrackScroll = () => {
+    planningTrackMemory = { pageKey, scrollLeft: track.scrollLeft };
+  };
+  track?.addEventListener("scroll", rememberTrackScroll, { passive: true });
+
+  const update = ({ instant = false } = {}) => {
     rafId = null;
     if (!nav.isConnected) {
       planningSpyCleanup?.();
@@ -135,7 +153,7 @@ function setupPlanningScrollSpy() {
       const element = document.getElementById(id);
       if (element && element.getBoundingClientRect().top <= line) activeId = id;
     }
-    setActivePlanningPill(activeId);
+    setActivePlanningPill(activeId, { instant });
   };
 
   const handleScroll = () => {
@@ -149,10 +167,12 @@ function setupPlanningScrollSpy() {
   window.addEventListener("scroll", handleScroll, { passive: true });
   planningSpyCleanup = () => {
     window.removeEventListener("scroll", handleScroll);
+    track?.removeEventListener("scroll", rememberTrackScroll);
     if (rafId) cancelAnimationFrame(rafId);
     planningSpyCleanup = null;
   };
-  update();
+  // Highlight the current day straight away on (re-)render, with no animation.
+  update({ instant: true });
 }
 
 export function wireTripDetailPageEvents(handlers) {
